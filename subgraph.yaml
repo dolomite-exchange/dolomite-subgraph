@@ -1,14 +1,15 @@
 specVersion: 0.0.2
-description: Uniswap is a decentralized protocol for automated token exchange on Ethereum.
-repository: https://github.com/Uniswap/uniswap-v2-subgraph
+description: Dolomite is a decentralized exchange for margin trading tokens using AMM pools.
+repository: https://github.com/dolomite-exchange/dolomite-subgraph
 schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum/contract
-    name: Factory
+    name: UniswapV2Factory
     network: mainnet
     source:
-      address: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'
+#      address: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f' # Mainnet
+      address: '0xFC628dd79137395F3C9744e33b1c5DE554D94882' # Local Node
       abi: Factory
       startBlock: 10000834
     mapping:
@@ -31,6 +32,46 @@ dataSources:
       eventHandlers:
         - event: PairCreated(indexed address,indexed address,address,uint256)
           handler: handleNewPair
+  - kind: ethereum/contract
+    name: MarginTrade
+    network: mainnet
+    source:
+#      address: '' # Mainnet
+      address: '0xb09bCc172050fBd4562da8b229Cf3E45Dc3045A6' # Local Node
+      abi: DyDxEvents
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.3
+      language: wasm/assemblyscript
+      file: ./src/mappings/dydx.ts
+      entities:
+        - Pair
+        - Token
+      abis:
+        - name: DyDxEvents
+          file: ./abis/DyDxEvents.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+        - name: ERC20SymbolBytes
+          file: ./abis/ERC20SymbolBytes.json
+        - name: ERC20NameBytes
+          file: ./abis/ERC20NameBytes.json
+#            event LogLiquidate(
+            #        address indexed solidAccountOwner,
+            #        uint256 solidAccountNumber,
+            #        address indexed liquidAccountOwner,
+            #        uint256 liquidAccountNumber,
+            #        uint256 heldMarket,
+            #        uint256 owedMarket,
+            #        BalanceUpdate solidHeldUpdate,
+            #        BalanceUpdate solidOwedUpdate,
+            #        BalanceUpdate liquidHeldUpdate,
+          #        BalanceUpdate liquidOwedUpdate
+          #    );
+      eventHandlers:
+        - event: LogLiquidate(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
+          handler: handleLiquidate
 templates:
   - kind: ethereum/contract
     name: Pair

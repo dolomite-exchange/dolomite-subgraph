@@ -208,6 +208,71 @@ type Swap @entity {
   amountUSD: BigDecimal!
 }
 
+#     event LogLiquidate(
+#        address indexed solidAccountOwner,
+#        uint256 solidAccountNumber,
+#        address indexed liquidAccountOwner,
+#        uint256 liquidAccountNumber,
+#        uint256 heldMarket,
+#        uint256 owedMarket,
+#        BalanceUpdate solidHeldUpdate,
+#        BalanceUpdate solidOwedUpdate,
+#        BalanceUpdate liquidHeldUpdate,
+#        BalanceUpdate liquidOwedUpdate
+#    );
+
+type MarginAccount @entity {
+  id: ID! # Defined as "user-accountId"
+  user: Bytes!
+  accountId: BigInt!
+}
+
+type Liquidation @entity {
+  # transaction hash + "-" + index in swaps Transaction array
+  id: ID!
+  transaction: Transaction!
+  timestamp: BigInt! # need this to pull recent txns for specific token or pair
+
+  # populated from the Swap event
+  solidAccount: MarginAccount!
+  liquidAccount: MarginAccount!
+  suppliedToken: Token!
+  borrowedToken: Token!
+
+  borrowedTokenAmountLiquidated: BigDecimal!
+  heldTokenAmountLiquidated: BigDecimal!
+  heldTokenLiquidationReward: BigDecimal!
+
+  logIndex: BigInt
+
+  # derived info
+  amountUSDLiquidated: BigDecimal!
+  amountUSDLiquidationReward: BigDecimal!
+}
+
+type Vaporization @entity {
+  # transaction hash + "-" + index in swaps Transaction array
+  id: ID!
+  transaction: Transaction!
+  timestamp: BigInt! # need this to pull recent txns for specific token or pair
+
+  # populated from the Swap event
+  solidAccount: MarginAccount!
+  liquidAccount: MarginAccount!
+  suppliedToken: Token!
+  borrowedToken: Token!
+
+  borrowedTokenAmountLiquidated: BigDecimal!
+  heldTokenAmountLiquidated: BigDecimal!
+  heldTokenLiquidationReward: BigDecimal!
+
+  logIndex: BigInt
+
+  # derived info
+  amountUSDLiquidated: BigDecimal!
+  amountUSDLiquidationReward: BigDecimal!
+}
+
 # stores for USD calculations
 type Bundle @entity {
   id: ID!
