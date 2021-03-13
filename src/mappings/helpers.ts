@@ -1,8 +1,8 @@
 /* eslint-disable prefer-const */
 import { log, BigInt, BigDecimal, Address, EthereumEvent } from '@graphprotocol/graph-ts'
-import { ERC20 } from '../types/Factory/ERC20'
-import { ERC20SymbolBytes } from '../types/Factory/ERC20SymbolBytes'
-import { ERC20NameBytes } from '../types/Factory/ERC20NameBytes'
+import { ERC20 } from '../types/UniswapV2Factory/ERC20'
+import { ERC20SymbolBytes } from '../types/UniswapV2Factory/ERC20SymbolBytes'
+import { ERC20NameBytes } from '../types/UniswapV2Factory/ERC20NameBytes'
 import { User, Bundle, Token, LiquidityPosition, LiquidityPositionSnapshot, Pair } from '../types/schema'
 import { Factory as FactoryContract } from '../types/templates/Pair/Factory'
 
@@ -30,7 +30,7 @@ export function bigDecimalExp18(): BigDecimal {
 }
 
 export function convertEthToDecimal(eth: BigInt): BigDecimal {
-  return eth.toBigDecimal().div(exponentToBigDecimal(18))
+  return eth.toBigDecimal().div(exponentToBigDecimal(BigInt.fromI32(18)))
 }
 
 export function convertTokenToDecimal(tokenAmount: BigInt, exchangeDecimals: BigInt): BigDecimal {

@@ -1,7 +1,7 @@
 /* eslint-disable prefer-const */
 import { log } from '@graphprotocol/graph-ts'
 import { UniswapFactory, Pair, Token, Bundle } from '../types/schema'
-import { PairCreated } from '../types/Factory/Factory'
+import { PairCreated } from '../types/UniswapV2Factory/Factory'
 import { Pair as PairTemplate } from '../types/templates'
 import {
   FACTORY_ADDRESS,

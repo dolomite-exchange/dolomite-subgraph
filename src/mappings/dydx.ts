@@ -1,11 +1,16 @@
 /* eslint-disable prefer-const */
 import { BigInt, BigDecimal, store, Address } from '@graphprotocol/graph-ts'
 import {
-  Liquidation as LiquidationEvent,
-  Vaporization as VaporizationEvent,
-  Bundle
-} from '../types/schema'
-import { Pair as PairContract, Mint, Burn, Swap, Transfer, Sync } from '../types/templates/Pair/Pair'
+  LogIndexUpdate as IndexUpdateEvent,
+  LogDeposit as DepositEvent,
+  LogWithdraw as WithdrawEvent,
+  LogTransfer as TransferEvent,
+  LogBuy as BuyEvent,
+  LogSell as SellEvent,
+  LogTrade as TradeEvent,
+  LogLiquidate as LiquidationEvent,
+  LogVaporize as VaporizationEvent,
+} from '../types/MarginTrade/DyDxEvents'
 import { updatePairDayData, updateTokenDayData, updateUniswapDayData, updatePairHourData } from './dayUpdates'
 import { getEthPriceInUSD, findEthPerToken, getTrackedVolumeUSD, getTrackedLiquidityUSD } from './pricing'
 import {
@@ -22,7 +27,34 @@ import {
 
 // TODO LogIndexUpdate
 
-// TODO other events (BUY, SELL, TRANSFER, TRADE)
+export function handleIndexUpdate(event: IndexUpdateEvent): void {
+  // TODO
+}
+
+export function handleDeposit(event: DepositEvent): void {
+  // TODO
+}
+
+export function handleWithdraw(event: WithdrawEvent): void {
+  // TODO
+}
+
+export function handleTransfer(event: TransferEvent): void {
+  // TODO
+}
+
+export function handleBuy(event: BuyEvent): void {
+  // TODO
+}
+
+export function handleSell(event: SellEvent): void {
+  // TODO
+}
+
+export function handleTrade(event: TradeEvent): void {
+  // TODO
+}
+
 export function handleLiquidation(event: LiquidationEvent): void {
  // TODO
 }

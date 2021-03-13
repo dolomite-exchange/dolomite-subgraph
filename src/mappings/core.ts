@@ -216,7 +216,7 @@ export function handleSync(event: Sync): void {
   let token1 = Token.load(pair.token1)
   let uniswap = UniswapFactory.load(FACTORY_ADDRESS)
 
-  // reset factory liquidity by subtracting onluy tarcked liquidity
+  // reset factory liquidity by subtracting only tracked liquidity
   uniswap.totalLiquidityETH = uniswap.totalLiquidityETH.minus(pair.trackedReserveETH as BigDecimal)
 
   // reset token total liquidity amounts

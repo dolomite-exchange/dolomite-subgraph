@@ -48,13 +48,13 @@ type Token @entity {
 
   # derived fields
   tokenDayData: [TokenDayData!]! @derivedFrom(field: "token")
-  pairDayDataBase: [PairDayData!]! @derivedFrom(field: "token0")
-  pairDayDataQuote: [PairDayData!]! @derivedFrom(field: "token1")
-  pairBase: [Pair!]! @derivedFrom(field: "token0")
-  pairQuote: [Pair!]! @derivedFrom(field: "token1")
+  pairDayDataBase: [AmmPairDayData!]! @derivedFrom(field: "token0")
+  pairDayDataQuote: [AmmPairDayData!]! @derivedFrom(field: "token1")
+  pairBase: [AmmPair!]! @derivedFrom(field: "token0")
+  pairQuote: [AmmPair!]! @derivedFrom(field: "token1")
 }
 
-type Pair @entity {
+type AmmPair @entity {
   # pair address
   id: ID!
 
@@ -87,35 +87,35 @@ type Pair @entity {
   # Fields used to help derived relationship
   liquidityProviderCount: BigInt! # used to detect new exchanges
   # derived fields
-  pairHourData: [PairHourData!]! @derivedFrom(field: "pair")
-  liquidityPositions: [LiquidityPosition!]! @derivedFrom(field: "pair")
-  liquidityPositionSnapshots: [LiquidityPositionSnapshot!]! @derivedFrom(field: "pair")
-  mints: [Mint!]! @derivedFrom(field: "pair")
-  burns: [Burn!]! @derivedFrom(field: "pair")
-  swaps: [Swap!]! @derivedFrom(field: "pair")
+  pairHourData: [AmmPairHourData!]! @derivedFrom(field: "pair")
+  liquidityPositions: [AmmLiquidityPosition!]! @derivedFrom(field: "pair")
+  liquidityPositionSnapshots: [AmmLiquidityPositionSnapshot!]! @derivedFrom(field: "pair")
+  mints: [AmmMint!]! @derivedFrom(field: "pair")
+  burns: [AmmBurn!]! @derivedFrom(field: "pair")
+  swaps: [AmmSwap!]! @derivedFrom(field: "pair")
 }
 
 type User @entity {
   id: ID!
-  liquidityPositions: [LiquidityPosition!] @derivedFrom(field: "user")
+  liquidityPositions: [AmmLiquidityPosition!] @derivedFrom(field: "user")
   usdSwapped: BigDecimal!
 }
 
-type LiquidityPosition @entity {
+type AmmLiquidityPosition @entity {
   id: ID!
   user: User!
-  pair: Pair!
+  pair: AmmPair!
   liquidityTokenBalance: BigDecimal!
 }
 
 # saved over time for return calculations, gets created and never updated
-type LiquidityPositionSnapshot @entity {
+type AmmLiquidityPositionSnapshot @entity {
   id: ID!
-  liquidityPosition: LiquidityPosition!
+  liquidityPosition: AmmLiquidityPosition!
   timestamp: Int! # saved for fast historical lookups
   block: Int! # saved for fast historical lookups
   user: User! # reference to user
-  pair: Pair! # reference to pair
+  pair: AmmPair! # reference to pair
   token0PriceUSD: BigDecimal! # snapshot of token0 price
   token1PriceUSD: BigDecimal! # snapshot of token1 price
   reserve0: BigDecimal! # snapshot of pair token0 reserves
@@ -131,17 +131,17 @@ type Transaction @entity {
   timestamp: BigInt!
   # This is not the reverse of Mint.transaction; it is only used to
   # track incomplete mints (similar for burns and swaps)
-  mints: [Mint]!
-  burns: [Burn]!
-  swaps: [Swap]!
+  mints: [AmmMint]!
+  burns: [AmmBurn]!
+  swaps: [AmmSwap]!
 }
 
-type Mint @entity {
+type AmmMint @entity {
   # transaction hash + "-" + index in mints Transaction array
   id: ID!
   transaction: Transaction!
   timestamp: BigInt! # need this to pull recent txns for specific token or pair
-  pair: Pair!
+  pair: AmmPair!
 
   # populated from the primary Transfer event
   to: Bytes!
@@ -160,12 +160,12 @@ type Mint @entity {
   feeLiquidity: BigDecimal
 }
 
-type Burn @entity {
+type AmmBurn @entity {
   # transaction hash + "-" + index in mints Transaction array
   id: ID!
   transaction: Transaction!
   timestamp: BigInt! # need this to pull recent txns for specific token or pair
-  pair: Pair!
+  pair: AmmPair!
 
   # populated from the primary Transfer event
   liquidity: BigDecimal!
@@ -187,12 +187,12 @@ type Burn @entity {
   feeLiquidity: BigDecimal
 }
 
-type Swap @entity {
+type AmmSwap @entity {
   # transaction hash + "-" + index in swaps Transaction array
   id: ID!
   transaction: Transaction!
   timestamp: BigInt! # need this to pull recent txns for specific token or pair
-  pair: Pair!
+  pair: AmmPair!
 
   # populated from the Swap event
   sender: Bytes!
@@ -202,75 +202,10 @@ type Swap @entity {
   amount0Out: BigDecimal!
   amount1Out: BigDecimal!
   to: Bytes!
-  logIndex: BigInt
+  logIndex: BigInt!
 
   # derived info
   amountUSD: BigDecimal!
-}
-
-#     event LogLiquidate(
-#        address indexed solidAccountOwner,
-#        uint256 solidAccountNumber,
-#        address indexed liquidAccountOwner,
-#        uint256 liquidAccountNumber,
-#        uint256 heldMarket,
-#        uint256 owedMarket,
-#        BalanceUpdate solidHeldUpdate,
-#        BalanceUpdate solidOwedUpdate,
-#        BalanceUpdate liquidHeldUpdate,
-#        BalanceUpdate liquidOwedUpdate
-#    );
-
-type MarginAccount @entity {
-  id: ID! # Defined as "user-accountId"
-  user: Bytes!
-  accountId: BigInt!
-}
-
-type Liquidation @entity {
-  # transaction hash + "-" + index in swaps Transaction array
-  id: ID!
-  transaction: Transaction!
-  timestamp: BigInt! # need this to pull recent txns for specific token or pair
-
-  # populated from the Swap event
-  solidAccount: MarginAccount!
-  liquidAccount: MarginAccount!
-  suppliedToken: Token!
-  borrowedToken: Token!
-
-  borrowedTokenAmountLiquidated: BigDecimal!
-  heldTokenAmountLiquidated: BigDecimal!
-  heldTokenLiquidationReward: BigDecimal!
-
-  logIndex: BigInt
-
-  # derived info
-  amountUSDLiquidated: BigDecimal!
-  amountUSDLiquidationReward: BigDecimal!
-}
-
-type Vaporization @entity {
-  # transaction hash + "-" + index in swaps Transaction array
-  id: ID!
-  transaction: Transaction!
-  timestamp: BigInt! # need this to pull recent txns for specific token or pair
-
-  # populated from the Swap event
-  solidAccount: MarginAccount!
-  liquidAccount: MarginAccount!
-  suppliedToken: Token!
-  borrowedToken: Token!
-
-  borrowedTokenAmountLiquidated: BigDecimal!
-  heldTokenAmountLiquidated: BigDecimal!
-  heldTokenLiquidationReward: BigDecimal!
-
-  logIndex: BigInt
-
-  # derived info
-  amountUSDLiquidated: BigDecimal!
-  amountUSDLiquidationReward: BigDecimal!
 }
 
 # stores for USD calculations
@@ -279,27 +214,31 @@ type Bundle @entity {
   ethPrice: BigDecimal! # price of ETH usd
 }
 
-# Data accumulated and condensed into day stats for all of Uniswap
-type UniswapDayData @entity {
+# Data accumulated and condensed into day stats for all of Dolomite (includes AMM)
+type DolomiteDayData @entity {
   id: ID! # timestamp rounded to current day by dividing by 86400
   date: Int!
 
   dailyVolumeETH: BigDecimal!
   dailyVolumeUSD: BigDecimal!
   dailyVolumeUntracked: BigDecimal!
+  dailyLiquidationVolumeUSD: BigDecimal!
+  dailyVaporizationVolumeUSD: BigDecimal!
 
   totalVolumeETH: BigDecimal!
   totalLiquidityETH: BigDecimal!
   totalVolumeUSD: BigDecimal! # Accumulate at each trade, not just calculated off whatever totalVolume is. making it more accurate as it is a live conversion
   totalLiquidityUSD: BigDecimal!
+  totalLiquidationVolumeUSD: BigDecimal!
+  totalVaporizationVolumeUSD: BigDecimal!
 
   txCount: BigInt!
 }
 
-type PairHourData @entity {
+type AmmPairHourData @entity {
   id: ID!
   hourStartUnix: Int! # unix timestamp for start of hour
-  pair: Pair!
+  pair: AmmPair!
 
   # reserves
   reserve0: BigDecimal!
@@ -316,7 +255,7 @@ type PairHourData @entity {
 }
 
 # Data accumulated and condensed into day stats for each exchange
-type PairDayData @entity {
+type AmmPairDayData @entity {
   id: ID!
   date: Int!
   pairAddress: Bytes!
@@ -340,6 +279,84 @@ type PairDayData @entity {
   dailyTxns: BigInt!
 }
 
+type InterestIndex @entity {
+  id: ID! # Defined as marketId
+  borrowIndex: BigDecimal!
+  supplyIndex: BigDecimal!
+  lastUpdate: BigInt!
+}
+
+type MarginAccount @entity {
+  id: ID! # Defined as "user-accountId"
+  user: Bytes!
+  accountId: BigInt!
+}
+
+type Liquidation @entity {
+  # transaction hash + "-" + index in swaps Transaction array
+  id: ID!
+  transaction: Transaction!
+  timestamp: BigInt! # need this to pull recent txns for specific token or pair
+
+  # populated from the Swap event
+  solidAccount: MarginAccount!
+  liquidAccount: MarginAccount!
+  suppliedToken: Token!
+  borrowedToken: Token!
+
+  borrowedTokenAmountLiquidated: BigDecimal!
+  heldTokenAmountLiquidated: BigDecimal!
+  heldTokenLiquidationReward: BigDecimal!
+
+  logIndex: BigInt!
+
+  # derived info
+  amountUSDLiquidated: BigDecimal!
+  amountUSDLiquidationReward: BigDecimal!
+}
+
+type Vaporization @entity {
+  # transaction hash + "-" + index in swaps Transaction array
+  id: ID!
+  transaction: Transaction!
+  timestamp: BigInt! # need this to pull recent txns for specific token or pair
+
+  # populated from the Swap event
+  solidAccount: MarginAccount!
+  liquidAccount: MarginAccount!
+  suppliedToken: Token!
+  borrowedToken: Token!
+
+  borrowedTokenAmountVaporized: BigDecimal!
+  heldTokenAmountVaporized: BigDecimal!
+  heldTokenReward: BigDecimal!
+
+  logIndex: BigInt!
+
+  # derived info
+  amountUSDVaporized: BigDecimal!
+  amountUSDReward: BigDecimal!
+}
+
+type TradeData @entity {
+  # transaction hash + "-" + index in swaps Transaction array
+  id: ID!
+  transaction: Transaction!
+  timestamp: BigInt! # need this to pull recent txns for specific token or pair
+
+  takerAccount: MarginAccount!
+  makerAccount: MarginAccount # NULLABLE
+
+  takerToken: Token! # the token sold by the `takerAccount`
+  makerToken: Token! # the token sold by the `makerAccount`
+
+  takerInputDelta: BigDecimal! # the `makerToken` received by the `takerAccount`
+  takerOutputDelta: BigDecimal! # the `takerToken` spent by the `takerAccount`
+
+  makerInputDelta: BigDecimal # NULLABLE: the `takerToken` received by the `makerAccount`
+  makerOutputDelta: BigDecimal # NULLABLE: the `makerToken` spent by the `makerAccount`
+}
+
 type TokenDayData @entity {
   id: ID!
   date: Int!
@@ -350,6 +367,18 @@ type TokenDayData @entity {
   dailyVolumeETH: BigDecimal!
   dailyVolumeUSD: BigDecimal!
   dailyTxns: BigInt!
+
+  # liquidation stats
+  dailyLiquidationVolumeToken: BigInt!
+  dailyLiquidationVolumeETH: BigInt!
+  dailyLiquidationVolumeUSD: BigInt!
+  dailyLiquidationCount: BigInt!
+
+  # vaporization stats
+  dailyVaporizationVolumeToken: BigInt!
+  dailyVaporizationVolumeETH: BigInt!
+  dailyVaporizationVolumeUSD: BigInt!
+  dailyVaporizationCount: BigInt!
 
   # liquidity stats
   totalLiquidityToken: BigDecimal!
