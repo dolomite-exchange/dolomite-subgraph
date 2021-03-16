@@ -1,4 +1,4 @@
-type UniswapFactory @entity {
+type AmmFactory @entity {
   # factory address
   id: ID!
 
@@ -96,7 +96,7 @@ type AmmPair @entity {
 }
 
 type User @entity {
-  id: ID!
+  id: ID! # the user's address
   liquidityPositions: [AmmLiquidityPosition!] @derivedFrom(field: "user")
   usdSwapped: BigDecimal!
 }
@@ -290,6 +290,15 @@ type MarginAccount @entity {
   id: ID! # Defined as "user-accountId"
   user: Bytes!
   accountId: BigInt!
+  lastUpdatedTimestamp: BigInt! # Timestamp at which any token value was last updated
+  lastUpdatedBlockNumber: BigInt!
+  tokenValues: [TokenValue!]!
+}
+
+type TokenValue @entity {
+  id: ID! # Defined as "user-accountId-marketId"
+  marketId: BigInt!
+  valuePar: BigDecimal! # Par value of the user's held token. Can be negative, meaning it's borrowed funds.
 }
 
 type Liquidation @entity {

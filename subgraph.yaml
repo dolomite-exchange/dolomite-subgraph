@@ -57,21 +57,25 @@ dataSources:
           file: ./abis/ERC20SymbolBytes.json
         - name: ERC20NameBytes
           file: ./abis/ERC20NameBytes.json
-#            event LogLiquidate(
-            #        address indexed solidAccountOwner,
-            #        uint256 solidAccountNumber,
-            #        address indexed liquidAccountOwner,
-            #        uint256 liquidAccountNumber,
-            #        uint256 heldMarket,
-            #        uint256 owedMarket,
-            #        BalanceUpdate solidHeldUpdate,
-            #        BalanceUpdate solidOwedUpdate,
-            #        BalanceUpdate liquidHeldUpdate,
-          #        BalanceUpdate liquidOwedUpdate
-          #    );
       eventHandlers:
+        - event: LogIndexUpdate(indexed uint256,(uint96,uint96,uint32))
+          handler: handleIndexUpdate
+        - event: LogDeposit(indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),address)
+          handler: handleDeposit
+        - event: LogWithdraw(indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),address)
+          handler: handleWithdraw
+        - event: LogTransfer(indexed address,uint256,indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
+          handler: handleTransfer
+        - event: LogBuy(indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),address)
+          handler: handleBuy
+        - event: LogSell(indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),address)
+          handler: handleSell
+        - event: LogTrade(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),address)
+          handler: handleTrade
         - event: LogLiquidate(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
           handler: handleLiquidate
+        - event: LogVaporize(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
+          handler: handleVaporize
 templates:
   - kind: ethereum/contract
     name: Pair

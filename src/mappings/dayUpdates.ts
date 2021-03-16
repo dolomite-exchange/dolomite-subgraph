@@ -1,17 +1,25 @@
-import { PairHourData } from '../types/schema'
+import {
+  AmmFactory,
+  AmmPair,
+  AmmPairDayData,
+  AmmPairHourData,
+  Bundle,
+  DolomiteDayData,
+  Token,
+  TokenDayData
+} from '../types/schema'
 /* eslint-disable prefer-const */
-import { BigInt, BigDecimal, EthereumEvent } from '@graphprotocol/graph-ts'
-import { Pair, Bundle, Token, UniswapFactory, UniswapDayData, PairDayData, TokenDayData } from '../types/schema'
-import { ONE_BI, ZERO_BD, ZERO_BI, FACTORY_ADDRESS } from './helpers'
+import { BigDecimal, BigInt, EthereumEvent } from '@graphprotocol/graph-ts'
+import { FACTORY_ADDRESS, ONE_BI, ZERO_BD, ZERO_BI } from './helpers'
 
-export function updateUniswapDayData(event: EthereumEvent): UniswapDayData {
-  let uniswap = UniswapFactory.load(FACTORY_ADDRESS)
+export function updateUniswapDayData(event: EthereumEvent): DolomiteDayData {
+  let uniswap = AmmFactory.load(FACTORY_ADDRESS)
   let timestamp = event.block.timestamp.toI32()
   let dayID = timestamp / 86400
   let dayStartTimestamp = dayID * 86400
-  let uniswapDayData = UniswapDayData.load(dayID.toString())
+  let uniswapDayData = DolomiteDayData.load(dayID.toString())
   if (uniswapDayData === null) {
-    uniswapDayData = new UniswapDayData(dayID.toString())
+    uniswapDayData = new DolomiteDayData(dayID.toString())
     uniswapDayData.date = dayStartTimestamp
     uniswapDayData.dailyVolumeUSD = ZERO_BD
     uniswapDayData.dailyVolumeETH = ZERO_BD
@@ -25,10 +33,10 @@ export function updateUniswapDayData(event: EthereumEvent): UniswapDayData {
   uniswapDayData.txCount = uniswap.txCount
   uniswapDayData.save()
 
-  return uniswapDayData as UniswapDayData
+  return uniswapDayData as DolomiteDayData
 }
 
-export function updatePairDayData(event: EthereumEvent): PairDayData {
+export function updatePairDayData(event: EthereumEvent): AmmPairDayData {
   let timestamp = event.block.timestamp.toI32()
   let dayID = timestamp / 86400
   let dayStartTimestamp = dayID * 86400
@@ -36,10 +44,10 @@ export function updatePairDayData(event: EthereumEvent): PairDayData {
     .toHexString()
     .concat('-')
     .concat(BigInt.fromI32(dayID).toString())
-  let pair = Pair.load(event.address.toHexString())
-  let pairDayData = PairDayData.load(dayPairID)
+  let pair = AmmPair.load(event.address.toHexString())
+  let pairDayData = AmmPairDayData.load(dayPairID)
   if (pairDayData === null) {
-    pairDayData = new PairDayData(dayPairID)
+    pairDayData = new AmmPairDayData(dayPairID)
     pairDayData.date = dayStartTimestamp
     pairDayData.token0 = pair.token0
     pairDayData.token1 = pair.token1
@@ -57,10 +65,10 @@ export function updatePairDayData(event: EthereumEvent): PairDayData {
   pairDayData.dailyTxns = pairDayData.dailyTxns.plus(ONE_BI)
   pairDayData.save()
 
-  return pairDayData as PairDayData
+  return pairDayData as AmmPairDayData
 }
 
-export function updatePairHourData(event: EthereumEvent): PairHourData {
+export function updatePairHourData(event: EthereumEvent): AmmPairHourData {
   let timestamp = event.block.timestamp.toI32()
   let hourIndex = timestamp / 3600 // get unique hour within unix history
   let hourStartUnix = hourIndex * 3600 // want the rounded effect
@@ -68,10 +76,10 @@ export function updatePairHourData(event: EthereumEvent): PairHourData {
     .toHexString()
     .concat('-')
     .concat(BigInt.fromI32(hourIndex).toString())
-  let pair = Pair.load(event.address.toHexString())
-  let pairHourData = PairHourData.load(hourPairID)
+  let pair = AmmPair.load(event.address.toHexString())
+  let pairHourData = AmmPairHourData.load(hourPairID)
   if (pairHourData === null) {
-    pairHourData = new PairHourData(hourPairID)
+    pairHourData = new AmmPairHourData(hourPairID)
     pairHourData.hourStartUnix = hourStartUnix
     pairHourData.pair = event.address.toHexString()
     pairHourData.hourlyVolumeToken0 = ZERO_BD
@@ -86,7 +94,7 @@ export function updatePairHourData(event: EthereumEvent): PairHourData {
   pairHourData.hourlyTxns = pairHourData.hourlyTxns.plus(ONE_BI)
   pairHourData.save()
 
-  return pairHourData as PairHourData
+  return pairHourData as AmmPairHourData
 }
 
 export function updateTokenDayData(token: Token, event: EthereumEvent): TokenDayData {
