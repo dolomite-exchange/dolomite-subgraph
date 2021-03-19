@@ -10,7 +10,7 @@ import {
   LogVaporize as VaporizationEvent,
   LogWithdraw as WithdrawEvent
 } from '../types/MarginTrade/DyDxEvents'
-import { Deposit, InterestIndex, MarginAccount, Token, TokenValue, Transfer, Withdrawal } from '../types/schema'
+import { Deposit, InterestIndex, MarginAccount, Token, TokenValue, Trade, Transfer, Withdrawal } from '../types/schema'
 import { BI_18, convertStructToDecimal, convertTokenToDecimal } from './helpers'
 import { getOrCreateTransaction } from './core'
 import { BalanceUpdate, ValueStruct } from './dydx_types'
@@ -319,33 +319,36 @@ export function handleBuy(event: BuyEvent): void {
     takerToken
   )
 
-  // TODO finish
-  const buyID = getIDForEvent(event)
-  let transfer = Transfer.load(buyID)
-  if (transfer === null) {
-    transfer = new Transfer(buyID)
+  const tradeID = getIDForEvent(event)
+  let trade = Trade.load(tradeID)
+  if (trade === null) {
+    trade = new Trade(tradeID)
   }
 
-  transfer.transaction = transactionID
-  transfer.fromAccount = event.params.updateOne.deltaWei.sign ? marginAccount2.id : marginAccount.id
-  transfer.toAccount = event.params.updateOne.deltaWei.sign ? marginAccount.id : marginAccount2.id
-  transfer.token = makerToken.id
+  trade.transaction = transactionID
+  trade.takerAccount = marginAccount.id
+  trade.makerAccount = null
+  trade.takerToken = takerToken.id
+  trade.makerToken = makerToken.id
 
-  const amountDeltaWeiAbs = new ValueStruct(event.params.updateOne.deltaWei).abs()
-  transfer.amountDeltaWei = convertStructToDecimal(amountDeltaWeiAbs, makerToken.decimals)
-  const priceUSD = dydxProtocol.getMarketPrice(event.params.market)
+  trade.takerInputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.takerUpdate.deltaWei), takerToken.decimals)
+  trade.takerOutputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.makerUpdate.deltaWei), makerToken.decimals)
+
+  trade.makerInputDeltaWei = null
+  trade.makerOutputDeltaWei = null
+
+  const priceUSD = dydxProtocol.getMarketPrice(event.params.takerMarket)
   const deltaWeiUSD = ValueStruct.fromFields(
-    amountDeltaWeiAbs.sign,
-    amountDeltaWeiAbs.value.times(priceUSD.value)
+    true,
+    event.params.takerUpdate.deltaWei.value.abs().times(priceUSD.value)
   )
-  transfer.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+  trade.amountUSD = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
 
-  const transfers = transaction.transfers
-  transaction.transfers = transfers.concat([transfer.id])
+  const trades = transaction.trades
+  transaction.trades = trades.concat([trade.id])
 
   marginAccount.save()
-  marginAccount2.save()
-  transfer.save()
+  trade.save()
   transaction.save()
 }
 
@@ -367,6 +370,61 @@ export function handleSell(event: SellEvent): void {
     event.params.takerUpdate.newPar.sign
   )
   handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
+
+  const transactionID = event.transaction.hash.toHexString()
+  const transaction = getOrCreateTransaction(transactionID, event)
+
+  const dydxProtocol = DyDx.bind(event.address)
+  const makerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.makerMarket).toHexString())
+  const takerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.takerMarket).toHexString())
+
+  const marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
+  updateMarginAccountForEventAndSaveTokenValue(
+    marginAccount,
+    event,
+    event.params.makerMarket,
+    new ValueStruct(event.params.makerUpdate.newPar),
+    makerToken
+  )
+  updateMarginAccountForEventAndSaveTokenValue(
+    marginAccount,
+    event,
+    event.params.takerMarket,
+    new ValueStruct(event.params.takerUpdate.newPar),
+    takerToken
+  )
+
+  const tradeID = getIDForEvent(event)
+  let trade = Trade.load(tradeID)
+  if (trade === null) {
+    trade = new Trade(tradeID)
+  }
+
+  trade.transaction = transactionID
+  trade.takerAccount = marginAccount.id
+  trade.makerAccount = null
+  trade.takerToken = takerToken.id
+  trade.makerToken = makerToken.id
+
+  trade.takerInputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.takerUpdate.deltaWei), takerToken.decimals)
+  trade.takerOutputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.makerUpdate.deltaWei), makerToken.decimals)
+
+  trade.makerInputDeltaWei = null
+  trade.makerOutputDeltaWei = null
+
+  const priceUSD = dydxProtocol.getMarketPrice(event.params.takerMarket)
+  const deltaWeiUSD = ValueStruct.fromFields(
+    true,
+    event.params.takerUpdate.deltaWei.value.abs().times(priceUSD.value)
+  )
+  trade.amountUSD = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+
+  const trades = transaction.trades
+  transaction.trades = trades.concat([trade.id])
+
+  marginAccount.save()
+  trade.save()
+  transaction.save()
 }
 
 export function handleTrade(event: TradeEvent): void {
@@ -405,6 +463,77 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerOutputUpdate.newPar.sign
   )
   handleDyDxBalanceUpdate(balanceUpdateFour, event.block)
+
+  const transactionID = event.transaction.hash.toHexString()
+  const transaction = getOrCreateTransaction(transactionID, event)
+
+  const dydxProtocol = DyDx.bind(event.address)
+  const makerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.makerMarket).toHexString())
+  const takerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.takerMarket).toHexString())
+
+  const takerMarginAccount = getOrCreateMarginAccount(event.params.takerAccountOwner, event.params.takerAccountNumber, event.block)
+  updateMarginAccountForEventAndSaveTokenValue(
+    takerMarginAccount,
+    event,
+    event.params.inputMarket,
+    new ValueStruct(event.params.takerInputUpdate.newPar),
+    takerToken
+  )
+  updateMarginAccountForEventAndSaveTokenValue(
+    takerMarginAccount,
+    event,
+    event.params.outputMarket,
+    new ValueStruct(event.params.takerOutputUpdate.newPar),
+    makerToken
+  )
+
+  const makerMarginAccount = getOrCreateMarginAccount(event.params.makerAccountOwner, event.params.makerAccountNumber, event.block)
+  updateMarginAccountForEventAndSaveTokenValue(
+    makerMarginAccount,
+    event,
+    event.params.inputMarket,
+    new ValueStruct(event.params.makerInputUpdate.newPar),
+    makerToken
+  )
+  updateMarginAccountForEventAndSaveTokenValue(
+    makerMarginAccount,
+    event,
+    event.params.outputMarket,
+    new ValueStruct(event.params.makerOutputUpdate.newPar),
+    takerToken
+  )
+
+  const tradeID = getIDForEvent(event)
+  let trade = Trade.load(tradeID)
+  if (trade === null) {
+    trade = new Trade(tradeID)
+  }
+
+  trade.transaction = transactionID
+  trade.takerAccount = takerMarginAccount.id
+  trade.makerAccount = makerMarginAccount.id
+  trade.takerToken = takerToken.id
+  trade.makerToken = makerToken.id
+
+  trade.takerInputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.takerInputUpdate.deltaWei), takerToken.decimals)
+  trade.takerOutputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.takerOutputUpdate.deltaWei), makerToken.decimals)
+
+  trade.makerInputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.makerInputUpdate.deltaWei), makerToken.decimals)
+  trade.makerOutputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.makerOutputUpdate.deltaWei), takerToken.decimals)
+
+  const priceUSD = dydxProtocol.getMarketPrice(event.params.outputMarket)
+  const deltaWeiUSD = ValueStruct.fromFields(
+    true,
+    event.params.takerOutputUpdate.deltaWei.value.abs().times(priceUSD.value)
+  )
+  trade.amountUSD = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+
+  const trades = transaction.trades
+  transaction.trades = trades.concat([trade.id])
+
+  takerMarginAccount.save()
+  trade.save()
+  transaction.save()
 }
 
 export function handleLiquidate(event: LiquidationEvent): void {
@@ -443,6 +572,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.solidOwedUpdate.newPar.sign
   )
   handleDyDxBalanceUpdate(balanceUpdateFour, event.block)
+
+  // TODO
 }
 
 export function handleVaporize(event: VaporizationEvent): void {
@@ -472,4 +603,6 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.solidOwedUpdate.newPar.sign
   )
   handleDyDxBalanceUpdate(balanceUpdateThree, event.block)
+
+  // TODO
 }

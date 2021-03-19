@@ -406,6 +406,9 @@ type Trade @entity {
 
   makerInputDeltaWei: BigDecimal # NULLABLE: the `takerToken` received by the `makerAccount`
   makerOutputDeltaWei: BigDecimal # NULLABLE: the `makerToken` spent by the `makerAccount`
+
+  # derived info
+  amountUSD: BigDecimal! # based on the value of the takerInputDeltaWei
 }
 
 type TokenDayData @entity {
