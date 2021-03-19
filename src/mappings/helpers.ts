@@ -1,10 +1,11 @@
 /* eslint-disable prefer-const */
-import { log, BigInt, BigDecimal, Address, EthereumEvent } from '@graphprotocol/graph-ts'
+import { BigInt, BigDecimal, Address, EthereumEvent } from '@graphprotocol/graph-ts'
 import { ERC20 } from '../types/UniswapV2Factory/ERC20'
 import { ERC20SymbolBytes } from '../types/UniswapV2Factory/ERC20SymbolBytes'
 import { ERC20NameBytes } from '../types/UniswapV2Factory/ERC20NameBytes'
 import { User, Bundle, Token, AmmLiquidityPosition, AmmLiquidityPositionSnapshot, AmmPair } from '../types/schema'
 import { Factory as FactoryContract } from '../types/templates/Pair/Factory'
+import { ValueStruct } from './dydx_types'
 
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
 export const FACTORY_ADDRESS = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'
@@ -36,17 +37,24 @@ export function convertEthToDecimal(eth: BigInt): BigDecimal {
 export function convertTokenToDecimal(tokenAmount: BigInt, exchangeDecimals: BigInt): BigDecimal {
   if (exchangeDecimals == ZERO_BI) {
     return tokenAmount.toBigDecimal()
+  } else {
+    return tokenAmount.toBigDecimal().div(exponentToBigDecimal(exchangeDecimals))
   }
-  return tokenAmount.toBigDecimal().div(exponentToBigDecimal(exchangeDecimals))
+}
+
+export function convertStructToDecimal(struct: ValueStruct, exchangeDecimals: BigInt): BigDecimal {
+  const value = struct.sign ? struct.value : ZERO_BI.minus(struct.value)
+  if (exchangeDecimals == ZERO_BI) {
+    return value.toBigDecimal()
+  } else {
+    return value.toBigDecimal().div(exponentToBigDecimal(exchangeDecimals))
+  }
 }
 
 export function equalToZero(value: BigDecimal): boolean {
   const formattedVal = parseFloat(value.toString())
   const zero = parseFloat(ZERO_BD.toString())
-  if (zero == formattedVal) {
-    return true
-  }
-  return false
+  return zero == formattedVal;
 }
 
 export function isNullEthValue(value: string): boolean {
@@ -118,9 +126,9 @@ export function fetchTokenTotalSupply(tokenAddress: Address): BigInt {
   let totalSupplyValue = null
   let totalSupplyResult = contract.try_totalSupply()
   if (!totalSupplyResult.reverted) {
-    totalSupplyValue = totalSupplyResult as i32
+    totalSupplyValue = totalSupplyResult as number
   }
-  return BigInt.fromI32(totalSupplyValue as i32)
+  return BigInt.fromI32(totalSupplyValue as number)
 }
 
 export function fetchTokenDecimals(tokenAddress: Address): BigInt {
@@ -136,27 +144,26 @@ export function fetchTokenDecimals(tokenAddress: Address): BigInt {
   if (!decimalResult.reverted) {
     decimalValue = decimalResult.value
   }
-  return BigInt.fromI32(decimalValue as i32)
+  return BigInt.fromI32(decimalValue as number)
 }
 
-export function createLiquidityPosition(exchange: Address, user: Address): LiquidityPosition {
+export function createLiquidityPosition(exchange: Address, user: Address): AmmLiquidityPosition {
   let id = exchange
     .toHexString()
     .concat('-')
     .concat(user.toHexString())
-  let liquidityTokenBalance = LiquidityPosition.load(id)
+  let liquidityTokenBalance = AmmLiquidityPosition.load(id)
   if (liquidityTokenBalance === null) {
-    let pair = Pair.load(exchange.toHexString())
+    let pair = AmmPair.load(exchange.toHexString())
     pair.liquidityProviderCount = pair.liquidityProviderCount.plus(ONE_BI)
-    liquidityTokenBalance = new LiquidityPosition(id)
+    liquidityTokenBalance = new AmmLiquidityPosition(id)
     liquidityTokenBalance.liquidityTokenBalance = ZERO_BD
     liquidityTokenBalance.pair = exchange.toHexString()
     liquidityTokenBalance.user = user.toHexString()
     liquidityTokenBalance.save()
     pair.save()
   }
-  if (liquidityTokenBalance === null) log.error('LiquidityTokenBalance is null', [id])
-  return liquidityTokenBalance as LiquidityPosition
+  return liquidityTokenBalance as AmmLiquidityPosition
 }
 
 export function createUser(address: Address): void {
@@ -168,15 +175,15 @@ export function createUser(address: Address): void {
   }
 }
 
-export function createLiquiditySnapshot(position: LiquidityPosition, event: EthereumEvent): void {
+export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: EthereumEvent): void {
   let timestamp = event.block.timestamp.toI32()
   let bundle = Bundle.load('1')
-  let pair = Pair.load(position.pair)
+  let pair = AmmPair.load(position.pair)
   let token0 = Token.load(pair.token0)
   let token1 = Token.load(pair.token1)
 
   // create new snapshot
-  let snapshot = new LiquidityPositionSnapshot(position.id.concat(timestamp.toString()))
+  let snapshot = new AmmLiquidityPositionSnapshot(position.id.concat(timestamp.toString()))
   snapshot.liquidityPosition = position.id
   snapshot.timestamp = timestamp
   snapshot.block = event.block.number.toI32()

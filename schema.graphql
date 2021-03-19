@@ -134,6 +134,12 @@ type Transaction @entity {
   mints: [AmmMint]!
   burns: [AmmBurn]!
   swaps: [AmmSwap]!
+  deposits: [Deposit]!
+  withdrawals: [Withdrawal]!
+  transfers: [Transfer]!
+  trades: [Trade]!
+  liquidations: [Liquidation]!
+  vaporizations: [Vaporization]!
 }
 
 type AmmMint @entity {
@@ -292,7 +298,7 @@ type MarginAccount @entity {
   accountId: BigInt!
   lastUpdatedTimestamp: BigInt! # Timestamp at which any token value was last updated
   lastUpdatedBlockNumber: BigInt!
-  tokenValues: [TokenValue!]!
+  tokenValues: [TokenValue]!
 }
 
 type TokenValue @entity {
@@ -301,11 +307,51 @@ type TokenValue @entity {
   valuePar: BigDecimal! # Par value of the user's held token. Can be negative, meaning it's borrowed funds.
 }
 
-type Liquidation @entity {
-  # transaction hash + "-" + index in swaps Transaction array
-  id: ID!
+type Deposit @entity {
+  id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
-  timestamp: BigInt! # need this to pull recent txns for specific token or pair
+
+  account: MarginAccount!
+  token: Token!
+  from: Bytes!
+
+  amountDeltaWei: BigDecimal!
+
+  # derived info
+  amountUSDDeltaWei: BigDecimal!
+}
+
+type Withdrawal @entity {
+  id: ID! # Defined as "transactionHash-logIndex"
+  transaction: Transaction!
+
+  account: MarginAccount!
+  token: Token!
+  to: Bytes!
+
+  amountDeltaWei: BigDecimal!
+
+  # derived info
+  amountUSDDeltaWei: BigDecimal!
+}
+
+type Transfer @entity {
+  id: ID! # Defined as "transactionHash-logIndex"
+  transaction: Transaction!
+
+  fromAccount: MarginAccount!
+  toAccount: MarginAccount!
+  token: Token!
+
+  amountDeltaWei: BigDecimal!
+
+  # derived info
+  amountUSDDeltaWei: BigDecimal!
+}
+
+type Liquidation @entity {
+  id: ID! # Defined as "transactionHash-logIndex"
+  transaction: Transaction!
 
   # populated from the Swap event
   solidAccount: MarginAccount!
@@ -313,22 +359,20 @@ type Liquidation @entity {
   suppliedToken: Token!
   borrowedToken: Token!
 
-  borrowedTokenAmountLiquidated: BigDecimal!
-  heldTokenAmountLiquidated: BigDecimal!
-  heldTokenLiquidationReward: BigDecimal!
+  borrowedTokenAmountDeltaWei: BigDecimal!
+  heldTokenAmountDeltaWei: BigDecimal!
+  heldTokenLiquidationRewardWei: BigDecimal!
 
   logIndex: BigInt!
 
   # derived info
-  amountUSDLiquidated: BigDecimal!
-  amountUSDLiquidationReward: BigDecimal!
+  collateralUSDLiquidated: BigDecimal! # The amount of heldTokenAmount liquidated to recover `borrowAmount`
+  collateralUSDLiquidationReward: BigDecimal! # The amount of heldTokenAmount given as a reward to the liquidator
 }
 
 type Vaporization @entity {
-  # transaction hash + "-" + index in swaps Transaction array
-  id: ID!
+  id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
-  timestamp: BigInt! # need this to pull recent txns for specific token or pair
 
   # populated from the Swap event
   solidAccount: MarginAccount!
@@ -336,9 +380,8 @@ type Vaporization @entity {
   suppliedToken: Token!
   borrowedToken: Token!
 
-  borrowedTokenAmountVaporized: BigDecimal!
-  heldTokenAmountVaporized: BigDecimal!
-  heldTokenReward: BigDecimal!
+  borrowedTokenAmountDeltaWei: BigDecimal!
+  heldTokenAmountDeltaWei: BigDecimal!
 
   logIndex: BigInt!
 
@@ -347,11 +390,10 @@ type Vaporization @entity {
   amountUSDReward: BigDecimal!
 }
 
-type TradeData @entity {
+type Trade @entity {
   # transaction hash + "-" + index in swaps Transaction array
   id: ID!
   transaction: Transaction!
-  timestamp: BigInt! # need this to pull recent txns for specific token or pair
 
   takerAccount: MarginAccount!
   makerAccount: MarginAccount # NULLABLE
@@ -359,11 +401,11 @@ type TradeData @entity {
   takerToken: Token! # the token sold by the `takerAccount`
   makerToken: Token! # the token sold by the `makerAccount`
 
-  takerInputDelta: BigDecimal! # the `makerToken` received by the `takerAccount`
-  takerOutputDelta: BigDecimal! # the `takerToken` spent by the `takerAccount`
+  takerInputDeltaWei: BigDecimal! # the `makerToken` received by the `takerAccount`
+  takerOutputDeltaWei: BigDecimal! # the `takerToken` spent by the `takerAccount`
 
-  makerInputDelta: BigDecimal # NULLABLE: the `takerToken` received by the `makerAccount`
-  makerOutputDelta: BigDecimal # NULLABLE: the `makerToken` spent by the `makerAccount`
+  makerInputDeltaWei: BigDecimal # NULLABLE: the `takerToken` received by the `makerAccount`
+  makerOutputDeltaWei: BigDecimal # NULLABLE: the `makerToken` spent by the `makerAccount`
 }
 
 type TokenDayData @entity {

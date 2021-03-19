@@ -10,10 +10,12 @@ import {
   LogVaporize as VaporizationEvent,
   LogWithdraw as WithdrawEvent
 } from '../types/MarginTrade/DyDxEvents'
-import { InterestIndex, MarginAccount, TokenValue } from '../types/schema'
-import { BI_18, convertTokenToDecimal } from './helpers'
-import { BalanceUpdate } from './dydx_types'
-import { EthereumBlock } from '@graphprotocol/graph-ts'
+import { Deposit, InterestIndex, MarginAccount, Token, TokenValue, Transfer, Withdrawal } from '../types/schema'
+import { BI_18, convertStructToDecimal, convertTokenToDecimal } from './helpers'
+import { getOrCreateTransaction } from './core'
+import { BalanceUpdate, ValueStruct } from './dydx_types'
+import { Address, BigInt, EthereumBlock, EthereumEvent } from '@graphprotocol/graph-ts'
+import { DyDx } from '../types/MarginTrade/DyDx'
 
 export function handleIndexUpdate(event: IndexUpdateEvent): void {
   const id = event.params.market.toString()
@@ -27,17 +29,25 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
   index.save()
 }
 
-function handleDyDxBalanceUpdate(balanceUpdate: BalanceUpdate, block: EthereumBlock): void {
-  const id = `${balanceUpdate.accountOwner}-${balanceUpdate.accountNumber.toString()}`
+function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: EthereumBlock): MarginAccount {
+  const id = `${owner.toHexString()}-${accountNumber.toString()}`
   let marginAccount = MarginAccount.load(id)
   if (marginAccount === null) {
     marginAccount = new MarginAccount(id)
-    marginAccount.user = balanceUpdate.accountOwner
-    marginAccount.accountId = balanceUpdate.accountNumber
+    marginAccount.user = owner
+    marginAccount.accountId = accountNumber
+    marginAccount.tokenValues = []
   }
 
   marginAccount.lastUpdatedBlockNumber = block.number
   marginAccount.lastUpdatedTimestamp = block.timestamp
+
+  return marginAccount
+}
+
+function handleDyDxBalanceUpdate(balanceUpdate: BalanceUpdate, block: EthereumBlock): void {
+  const id = `${balanceUpdate.accountOwner}-${balanceUpdate.accountNumber.toString()}`
+  let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, block)
 
   const tokenValueId = `${id}-${balanceUpdate.market.toString()}`
   const tokenValueIndex = marginAccount.tokenValues.indexOf(tokenValueId)
@@ -59,6 +69,42 @@ function handleDyDxBalanceUpdate(balanceUpdate: BalanceUpdate, block: EthereumBl
   marginAccount.save()
 }
 
+function getIDForEvent(event: EthereumEvent): string {
+  return `${event.transaction.hash.toHexString()}-${event.logIndex.toString()}`
+}
+
+function getIDForTokenValue(marginAccount: MarginAccount, marketId: BigInt): string {
+  return `${marginAccount.user.toHexString()}-${marginAccount.accountId.toString()}-${marketId.toString()}`
+}
+
+function updateMarginAccountForEventAndSaveTokenValue(
+  marginAccount: MarginAccount,
+  event: EthereumEvent,
+  marketId: BigInt,
+  newPar: ValueStruct,
+  token: Token
+): void {
+  marginAccount.lastUpdatedBlockNumber = event.block.number
+  marginAccount.lastUpdatedTimestamp = event.block.timestamp
+
+  const tokenValueID = getIDForTokenValue(marginAccount, marketId)
+  const tokenValueIndex = marginAccount.tokenValues.indexOf(tokenValueID)
+  if (tokenValueIndex === -1) {
+    marginAccount.tokenValues = marginAccount.tokenValues.concat([tokenValueID])
+  }
+
+  let tokenValue = TokenValue.load(tokenValueID)
+  if (tokenValue === null) {
+    tokenValue = new TokenValue(tokenValueID)
+    tokenValue.marketId = marketId
+  }
+
+  tokenValue.valuePar = convertStructToDecimal(newPar, token.decimals)
+  tokenValue.save()
+}
+
+// TODO day stats
+
 export function handleDeposit(event: DepositEvent): void {
   const balanceUpdate = new BalanceUpdate(
     event.params.accountOwner,
@@ -68,6 +114,45 @@ export function handleDeposit(event: DepositEvent): void {
     event.params.update.newPar.sign
   )
   handleDyDxBalanceUpdate(balanceUpdate, event.block)
+
+  const transactionID = event.transaction.hash.toHexString()
+  const transaction = getOrCreateTransaction(transactionID, event)
+
+  const marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
+  const dydxProtocol = DyDx.bind(event.address)
+  const token = Token.load(dydxProtocol.getMarketTokenAddress(event.params.market).toHexString())
+  updateMarginAccountForEventAndSaveTokenValue(
+    marginAccount,
+    event,
+    event.params.market,
+    new ValueStruct(event.params.update.newPar),
+    token
+  )
+
+  const depositID = getIDForEvent(event)
+  let deposit = Deposit.load(depositID)
+  if (deposit === null) {
+    deposit = new Deposit(depositID)
+  }
+
+  deposit.transaction = transactionID
+  deposit.account = marginAccount.id
+  deposit.token = token.id
+  deposit.from = event.params.from
+  deposit.amountDeltaWei = convertStructToDecimal(new ValueStruct(event.params.update.deltaWei), token.decimals)
+  const priceUSD = dydxProtocol.getMarketPrice(event.params.market)
+  const deltaWeiUSD = ValueStruct.fromFields(
+    event.params.update.deltaWei.sign,
+    event.params.update.deltaWei.value.times(priceUSD.value)
+  )
+  deposit.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+
+  const deposits = transaction.deposits
+  transaction.deposits = deposits.concat([deposit.id])
+
+  marginAccount.save()
+  deposit.save()
+  transaction.save()
 }
 
 export function handleWithdraw(event: WithdrawEvent): void {
@@ -79,6 +164,45 @@ export function handleWithdraw(event: WithdrawEvent): void {
     event.params.update.newPar.sign
   )
   handleDyDxBalanceUpdate(balanceUpdate, event.block)
+
+  const transactionID = event.transaction.hash.toHexString()
+  const transaction = getOrCreateTransaction(transactionID, event)
+
+  const marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
+  const dydxProtocol = DyDx.bind(event.address)
+  const token = Token.load(dydxProtocol.getMarketTokenAddress(event.params.market).toHexString())
+  updateMarginAccountForEventAndSaveTokenValue(
+    marginAccount,
+    event,
+    event.params.market,
+    new ValueStruct(event.params.update.newPar),
+    token
+  )
+
+  const depositID = getIDForEvent(event)
+  let withdrawal = Withdrawal.load(depositID)
+  if (withdrawal === null) {
+    withdrawal = new Withdrawal(depositID)
+  }
+
+  withdrawal.transaction = transactionID
+  withdrawal.account = marginAccount.id
+  withdrawal.token = token.id
+  withdrawal.to = event.params.to
+  withdrawal.amountDeltaWei = convertStructToDecimal(new ValueStruct(event.params.update.deltaWei), token.decimals)
+  const priceUSD = dydxProtocol.getMarketPrice(event.params.market)
+  const deltaWeiUSD = ValueStruct.fromFields(
+    event.params.update.deltaWei.sign,
+    event.params.update.deltaWei.value.times(priceUSD.value)
+  )
+  withdrawal.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+
+  const withdrawals = transaction.withdrawals
+  transaction.withdrawals = withdrawals.concat([withdrawal.id])
+
+  marginAccount.save()
+  withdrawal.save()
+  transaction.save()
 }
 
 export function handleTransfer(event: TransferEvent): void {
@@ -99,6 +223,58 @@ export function handleTransfer(event: TransferEvent): void {
     event.params.updateTwo.newPar.sign
   )
   handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
+
+  const transactionID = event.transaction.hash.toHexString()
+  const transaction = getOrCreateTransaction(transactionID, event)
+
+  const dydxProtocol = DyDx.bind(event.address)
+  const token = Token.load(dydxProtocol.getMarketTokenAddress(event.params.market).toHexString())
+
+  const marginAccount1 = getOrCreateMarginAccount(event.params.accountOneOwner, event.params.accountOneNumber, event.block)
+  updateMarginAccountForEventAndSaveTokenValue(
+    marginAccount1,
+    event,
+    event.params.market,
+    new ValueStruct(event.params.updateOne.newPar),
+    token
+  )
+
+  const marginAccount2 = getOrCreateMarginAccount(event.params.accountTwoOwner, event.params.accountTwoNumber, event.block)
+  updateMarginAccountForEventAndSaveTokenValue(
+    marginAccount2,
+    event,
+    event.params.market,
+    new ValueStruct(event.params.updateTwo.newPar),
+    token
+  )
+
+  const transferID = getIDForEvent(event)
+  let transfer = Transfer.load(transferID)
+  if (transfer === null) {
+    transfer = new Transfer(transferID)
+  }
+
+  transfer.transaction = transactionID
+  transfer.fromAccount = event.params.updateOne.deltaWei.sign ? marginAccount2.id : marginAccount1.id
+  transfer.toAccount = event.params.updateOne.deltaWei.sign ? marginAccount1.id : marginAccount2.id
+  transfer.token = token.id
+
+  const amountDeltaWeiAbs = new ValueStruct(event.params.updateOne.deltaWei).abs()
+  transfer.amountDeltaWei = convertStructToDecimal(amountDeltaWeiAbs, token.decimals)
+  const priceUSD = dydxProtocol.getMarketPrice(event.params.market)
+  const deltaWeiUSD = ValueStruct.fromFields(
+    amountDeltaWeiAbs.sign,
+    amountDeltaWeiAbs.value.times(priceUSD.value)
+  )
+  transfer.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+
+  const transfers = transaction.transfers
+  transaction.transfers = transfers.concat([transfer.id])
+
+  marginAccount1.save()
+  marginAccount2.save()
+  transfer.save()
+  transaction.save()
 }
 
 export function handleBuy(event: BuyEvent): void {
@@ -119,6 +295,58 @@ export function handleBuy(event: BuyEvent): void {
     event.params.takerUpdate.newPar.sign
   )
   handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
+
+  const transactionID = event.transaction.hash.toHexString()
+  const transaction = getOrCreateTransaction(transactionID, event)
+
+  const dydxProtocol = DyDx.bind(event.address)
+  const makerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.makerMarket).toHexString())
+  const takerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.takerMarket).toHexString())
+
+  const marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
+  updateMarginAccountForEventAndSaveTokenValue(
+    marginAccount,
+    event,
+    event.params.makerMarket,
+    new ValueStruct(event.params.makerUpdate.newPar),
+    makerToken
+  )
+  updateMarginAccountForEventAndSaveTokenValue(
+    marginAccount,
+    event,
+    event.params.takerMarket,
+    new ValueStruct(event.params.takerUpdate.newPar),
+    takerToken
+  )
+
+  // TODO finish
+  const buyID = getIDForEvent(event)
+  let transfer = Transfer.load(buyID)
+  if (transfer === null) {
+    transfer = new Transfer(buyID)
+  }
+
+  transfer.transaction = transactionID
+  transfer.fromAccount = event.params.updateOne.deltaWei.sign ? marginAccount2.id : marginAccount.id
+  transfer.toAccount = event.params.updateOne.deltaWei.sign ? marginAccount.id : marginAccount2.id
+  transfer.token = makerToken.id
+
+  const amountDeltaWeiAbs = new ValueStruct(event.params.updateOne.deltaWei).abs()
+  transfer.amountDeltaWei = convertStructToDecimal(amountDeltaWeiAbs, makerToken.decimals)
+  const priceUSD = dydxProtocol.getMarketPrice(event.params.market)
+  const deltaWeiUSD = ValueStruct.fromFields(
+    amountDeltaWeiAbs.sign,
+    amountDeltaWeiAbs.value.times(priceUSD.value)
+  )
+  transfer.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+
+  const transfers = transaction.transfers
+  transaction.transfers = transfers.concat([transfer.id])
+
+  marginAccount.save()
+  marginAccount2.save()
+  transfer.save()
+  transaction.save()
 }
 
 export function handleSell(event: SellEvent): void {
@@ -211,8 +439,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.solidAccountOwner,
     event.params.solidAccountNumber,
     event.params.owedMarket,
-    event.params.liquidOwedUpdate.newPar.value,
-    event.params.liquidOwedUpdate.newPar.sign
+    event.params.solidOwedUpdate.newPar.value,
+    event.params.solidOwedUpdate.newPar.sign
   )
   handleDyDxBalanceUpdate(balanceUpdateFour, event.block)
 }
@@ -240,8 +468,8 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.solidAccountOwner,
     event.params.solidAccountNumber,
     event.params.owedMarket,
-    event.params.vaporOwedUpdate.newPar.value,
-    event.params.vaporOwedUpdate.newPar.sign
+    event.params.solidOwedUpdate.newPar.value,
+    event.params.solidOwedUpdate.newPar.sign
   )
   handleDyDxBalanceUpdate(balanceUpdateThree, event.block)
 }

@@ -1,5 +1,5 @@
 /* eslint-disable prefer-const */
-import { BigInt, BigDecimal, store, Address } from '@graphprotocol/graph-ts'
+import { BigInt, BigDecimal, store, Address, EthereumEvent } from '@graphprotocol/graph-ts'
 import {
   AmmPair,
   Token,
@@ -29,6 +29,26 @@ function isCompleteMint(mintId: string): boolean {
   return MintEvent.load(mintId).sender !== null // sufficient checks
 }
 
+export function getOrCreateTransaction(transactionHash: string, event: EthereumEvent): Transaction {
+  let transaction = Transaction.load(transactionHash)
+  if (transaction === null) {
+    transaction = new Transaction(transactionHash)
+    transaction.blockNumber = event.block.number
+    transaction.timestamp = event.block.timestamp
+    transaction.mints = []
+    transaction.burns = []
+    transaction.swaps = []
+    transaction.deposits = []
+    transaction.withdrawals = []
+    transaction.transfers = []
+    transaction.trades = []
+    transaction.liquidations = []
+    transaction.vaporizations = []
+  }
+
+  return transaction
+}
+
 export function handleTransfer(event: Transfer): void {
   // ignore initial transfers for first adds
   if (event.params.to.toHexString() == ADDRESS_ZERO && event.params.value.equals(BigInt.fromI32(1000))) {
@@ -52,15 +72,7 @@ export function handleTransfer(event: Transfer): void {
   let value = convertTokenToDecimal(event.params.value, BI_18)
 
   // get or create transaction
-  let transaction = Transaction.load(transactionHash)
-  if (transaction === null) {
-    transaction = new Transaction(transactionHash)
-    transaction.blockNumber = event.block.number
-    transaction.timestamp = event.block.timestamp
-    transaction.mints = []
-    transaction.burns = []
-    transaction.swaps = []
-  }
+  const transaction = getOrCreateTransaction(transactionHash, event)
 
   // mints
   let mints = transaction.mints
@@ -460,15 +472,7 @@ export function handleSwap(event: Swap): void {
   token1.save()
   uniswap.save()
 
-  let transaction = Transaction.load(event.transaction.hash.toHexString())
-  if (transaction === null) {
-    transaction = new Transaction(event.transaction.hash.toHexString())
-    transaction.blockNumber = event.block.number
-    transaction.timestamp = event.block.timestamp
-    transaction.mints = []
-    transaction.swaps = []
-    transaction.burns = []
-  }
+  const transaction = getOrCreateTransaction(event.transaction.hash.toHexString(), event)
   let swaps = transaction.swaps
   let swap = new SwapEvent(
     event.transaction.hash
