@@ -310,6 +310,7 @@ type TokenValue @entity {
 type Deposit @entity {
   id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
+  logIndex: BigInt!
 
   account: MarginAccount!
   token: Token!
@@ -324,6 +325,7 @@ type Deposit @entity {
 type Withdrawal @entity {
   id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
+  logIndex: BigInt!
 
   account: MarginAccount!
   token: Token!
@@ -338,6 +340,7 @@ type Withdrawal @entity {
 type Transfer @entity {
   id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
+  logIndex: BigInt!
 
   fromAccount: MarginAccount!
   toAccount: MarginAccount!
@@ -352,18 +355,20 @@ type Transfer @entity {
 type Liquidation @entity {
   id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
+  logIndex: BigInt!
 
   # populated from the Swap event
   solidAccount: MarginAccount!
   liquidAccount: MarginAccount!
-  suppliedToken: Token!
+  heldToken: Token!
   borrowedToken: Token!
 
-  borrowedTokenAmountDeltaWei: BigDecimal!
-  heldTokenAmountDeltaWei: BigDecimal!
-  heldTokenLiquidationRewardWei: BigDecimal!
+  solidBorrowedTokenAmountDeltaWei: BigDecimal!
+  solidHeldTokenAmountDeltaWei: BigDecimal!
+  liquidBorrowedTokenAmountDeltaWei: BigDecimal!
+  liquidHeldTokenAmountDeltaWei: BigDecimal!
 
-  logIndex: BigInt!
+  heldTokenLiquidationRewardWei: BigDecimal!
 
   # derived info
   collateralUSDLiquidated: BigDecimal! # The amount of heldTokenAmount liquidated to recover `borrowAmount`
@@ -374,26 +379,28 @@ type Vaporization @entity {
   id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
 
-  # populated from the Swap event
   solidAccount: MarginAccount!
-  liquidAccount: MarginAccount!
-  suppliedToken: Token!
+  vaporAccount: MarginAccount!
+
+  heldToken: Token!
   borrowedToken: Token!
 
-  borrowedTokenAmountDeltaWei: BigDecimal!
-  heldTokenAmountDeltaWei: BigDecimal!
+  solidBorrowedTokenAmountDeltaWei: BigDecimal!
+  solidHeldTokenAmountDeltaWei: BigDecimal!
+
+  vaporBorrowedTokenAmountDeltaWei: BigDecimal!
 
   logIndex: BigInt!
 
   # derived info
   amountUSDVaporized: BigDecimal!
-  amountUSDReward: BigDecimal!
 }
 
 type Trade @entity {
   # transaction hash + "-" + index in swaps Transaction array
   id: ID!
   transaction: Transaction!
+  logIndex: BigInt!
 
   takerAccount: MarginAccount!
   makerAccount: MarginAccount # NULLABLE
