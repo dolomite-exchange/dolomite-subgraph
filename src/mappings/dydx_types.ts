@@ -1,6 +1,6 @@
 import { Address, BigDecimal, BigInt } from '@graphprotocol/graph-ts'
 import { BI_18, convertTokenToDecimal, ZERO_BI } from './helpers'
-import { EthereumTuple, EthereumValue } from '@graphprotocol/graph-ts/index'
+import { EthereumTuple, EthereumValue } from '@graphprotocol/graph-ts'
 
 export class BalanceUpdate {
 

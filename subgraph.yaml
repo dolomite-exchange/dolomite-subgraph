@@ -103,6 +103,6 @@ templates:
         - event: Swap(indexed address,uint256,uint256,uint256,uint256,indexed address)
           handler: handleSwap
         - event: Transfer(indexed address,indexed address,uint256)
-          handler: handleTransfer
+          handler: handleERC20Transfer
         - event: Sync(uint112,uint112)
           handler: handleSync

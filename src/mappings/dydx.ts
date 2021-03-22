@@ -21,7 +21,7 @@ import {
   Transfer, Vaporization,
   Withdrawal
 } from '../types/schema'
-import { BI_18, BI_ONE_ETH, convertStructToDecimal, convertTokenToDecimal, ONE_BI } from './helpers'
+import { BI_18, BI_ONE_ETH, convertStructToDecimal, convertTokenToDecimal } from './helpers'
 import { getOrCreateTransaction } from './core'
 import { BalanceUpdate, ValueStruct } from './dydx_types'
 import { Address, BigInt, EthereumBlock, EthereumEvent } from '@graphprotocol/graph-ts'
@@ -98,14 +98,10 @@ function updateMarginAccountForEventAndSaveTokenValue(
   marginAccount.lastUpdatedTimestamp = event.block.timestamp
 
   const tokenValueID = getIDForTokenValue(marginAccount, marketId)
-  const tokenValueIndex = marginAccount.tokenValues.indexOf(tokenValueID)
-  if (tokenValueIndex === -1) {
-    marginAccount.tokenValues = marginAccount.tokenValues.concat([tokenValueID])
-  }
-
   let tokenValue = TokenValue.load(tokenValueID)
   if (tokenValue === null) {
     tokenValue = new TokenValue(tokenValueID)
+    tokenValue.marginAccount = marginAccount.id
     tokenValue.marketId = marketId
   }
 
@@ -125,8 +121,7 @@ export function handleDeposit(event: DepositEvent): void {
   )
   handleDyDxBalanceUpdate(balanceUpdate, event.block)
 
-  const transactionID = event.transaction.hash.toHexString()
-  const transaction = getOrCreateTransaction(transactionID, event)
+  const transaction = getOrCreateTransaction(event)
 
   const marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
   const dydxProtocol = DyDx.bind(event.address)
@@ -145,7 +140,7 @@ export function handleDeposit(event: DepositEvent): void {
     deposit = new Deposit(depositID)
   }
 
-  deposit.transaction = transactionID
+  deposit.transaction = transaction.id
   deposit.logIndex = event.logIndex
   deposit.account = marginAccount.id
   deposit.token = token.id
@@ -157,9 +152,6 @@ export function handleDeposit(event: DepositEvent): void {
     event.params.update.deltaWei.value.times(priceUSD.value)
   )
   deposit.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
-
-  const deposits = transaction.deposits
-  transaction.deposits = deposits.concat([deposit.id])
 
   marginAccount.save()
   deposit.save()
@@ -176,8 +168,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   )
   handleDyDxBalanceUpdate(balanceUpdate, event.block)
 
-  const transactionID = event.transaction.hash.toHexString()
-  const transaction = getOrCreateTransaction(transactionID, event)
+  const transaction = getOrCreateTransaction(event)
 
   const marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
   const dydxProtocol = DyDx.bind(event.address)
@@ -196,7 +187,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
     withdrawal = new Withdrawal(depositID)
   }
 
-  withdrawal.transaction = transactionID
+  withdrawal.transaction = transaction.id
   withdrawal.logIndex = event.logIndex
   withdrawal.account = marginAccount.id
   withdrawal.token = token.id
@@ -208,9 +199,6 @@ export function handleWithdraw(event: WithdrawEvent): void {
     event.params.update.deltaWei.value.times(priceUSD.value)
   )
   withdrawal.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
-
-  const withdrawals = transaction.withdrawals
-  transaction.withdrawals = withdrawals.concat([withdrawal.id])
 
   marginAccount.save()
   withdrawal.save()
@@ -236,8 +224,7 @@ export function handleTransfer(event: TransferEvent): void {
   )
   handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
 
-  const transactionID = event.transaction.hash.toHexString()
-  const transaction = getOrCreateTransaction(transactionID, event)
+  const transaction = getOrCreateTransaction(event)
 
   const dydxProtocol = DyDx.bind(event.address)
   const token = Token.load(dydxProtocol.getMarketTokenAddress(event.params.market).toHexString())
@@ -266,7 +253,7 @@ export function handleTransfer(event: TransferEvent): void {
     transfer = new Transfer(transferID)
   }
 
-  transfer.transaction = transactionID
+  transfer.transaction = transaction.id
   transfer.logIndex = event.logIndex
   transfer.fromAccount = event.params.updateOne.deltaWei.sign ? marginAccount2.id : marginAccount1.id
   transfer.toAccount = event.params.updateOne.deltaWei.sign ? marginAccount1.id : marginAccount2.id
@@ -280,9 +267,6 @@ export function handleTransfer(event: TransferEvent): void {
     amountDeltaWeiAbs.value.times(priceUSD.value)
   )
   transfer.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
-
-  const transfers = transaction.transfers
-  transaction.transfers = transfers.concat([transfer.id])
 
   marginAccount1.save()
   marginAccount2.save()
@@ -309,8 +293,7 @@ export function handleBuy(event: BuyEvent): void {
   )
   handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
 
-  const transactionID = event.transaction.hash.toHexString()
-  const transaction = getOrCreateTransaction(transactionID, event)
+  const transaction = getOrCreateTransaction(event)
 
   const dydxProtocol = DyDx.bind(event.address)
   const makerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.makerMarket).toHexString())
@@ -338,7 +321,7 @@ export function handleBuy(event: BuyEvent): void {
     trade = new Trade(tradeID)
   }
 
-  trade.transaction = transactionID
+  trade.transaction = transaction.id
   trade.logIndex = event.logIndex
   trade.takerAccount = marginAccount.id
   trade.makerAccount = null
@@ -357,9 +340,6 @@ export function handleBuy(event: BuyEvent): void {
     event.params.takerUpdate.deltaWei.value.abs().times(priceUSD.value)
   )
   trade.amountUSD = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
-
-  const trades = transaction.trades
-  transaction.trades = trades.concat([trade.id])
 
   marginAccount.save()
   trade.save()
@@ -385,8 +365,7 @@ export function handleSell(event: SellEvent): void {
   )
   handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
 
-  const transactionID = event.transaction.hash.toHexString()
-  const transaction = getOrCreateTransaction(transactionID, event)
+  const transaction = getOrCreateTransaction(event)
 
   const dydxProtocol = DyDx.bind(event.address)
   const makerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.makerMarket).toHexString())
@@ -414,7 +393,7 @@ export function handleSell(event: SellEvent): void {
     trade = new Trade(tradeID)
   }
 
-  trade.transaction = transactionID
+  trade.transaction = transaction.id
   trade.logIndex = event.logIndex
   trade.takerAccount = marginAccount.id
   trade.makerAccount = null
@@ -433,9 +412,6 @@ export function handleSell(event: SellEvent): void {
     event.params.takerUpdate.deltaWei.value.abs().times(priceUSD.value)
   )
   trade.amountUSD = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
-
-  const trades = transaction.trades
-  transaction.trades = trades.concat([trade.id])
 
   marginAccount.save()
   trade.save()
@@ -479,8 +455,7 @@ export function handleTrade(event: TradeEvent): void {
   )
   handleDyDxBalanceUpdate(balanceUpdateFour, event.block)
 
-  const transactionID = event.transaction.hash.toHexString()
-  const transaction = getOrCreateTransaction(transactionID, event)
+  const transaction = getOrCreateTransaction(event)
 
   const dydxProtocol = DyDx.bind(event.address)
   const inputToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.inputMarket).toHexString())
@@ -524,7 +499,7 @@ export function handleTrade(event: TradeEvent): void {
     trade = new Trade(tradeID)
   }
 
-  trade.transaction = transactionID
+  trade.transaction = transaction.id
   trade.logIndex = event.logIndex
   trade.takerAccount = takerMarginAccount.id
   trade.makerAccount = makerMarginAccount.id
@@ -543,9 +518,6 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerOutputUpdate.deltaWei.value.abs().times(priceUSD.value)
   )
   trade.amountUSD = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
-
-  const trades = transaction.trades
-  transaction.trades = trades.concat([trade.id])
 
   takerMarginAccount.save()
   makerMarginAccount.save()
@@ -590,8 +562,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
   )
   handleDyDxBalanceUpdate(balanceUpdateFour, event.block)
 
-  const transactionID = event.transaction.hash.toHexString()
-  const transaction = getOrCreateTransaction(transactionID, event)
+  const transaction = getOrCreateTransaction(event)
 
   const dydxProtocol = DyDx.bind(event.address)
   const heldToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.heldMarket).toHexString())
@@ -635,7 +606,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     liquidation = new Liquidation(liquidationID)
   }
 
-  liquidation.transaction = transactionID
+  liquidation.transaction = transaction.id
   liquidation.logIndex = event.logIndex
   liquidation.liquidAccount = liquidMarginAccount.id
   liquidation.solidAccount = solidMarginAccount.id
@@ -667,9 +638,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
     heldTokenLiquidationRewardWei.times(heldPriceUSD)
   )
   liquidation.collateralUSDLiquidationReward = convertStructToDecimal(liquidationRewardUSD, BigInt.fromI32(36))
-
-  const liquidations = transaction.liquidations
-  transaction.liquidations = liquidations.concat([liquidation.id])
 
   liquidMarginAccount.save()
   solidMarginAccount.save()
@@ -705,8 +673,7 @@ export function handleVaporize(event: VaporizationEvent): void {
   )
   handleDyDxBalanceUpdate(balanceUpdateThree, event.block)
 
-  const transactionID = event.transaction.hash.toHexString()
-  const transaction = getOrCreateTransaction(transactionID, event)
+  const transaction = getOrCreateTransaction(event)
 
   const dydxProtocol = DyDx.bind(event.address)
   const heldToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.heldMarket).toHexString())
@@ -743,7 +710,7 @@ export function handleVaporize(event: VaporizationEvent): void {
     vaporization = new Vaporization(vaporizationID)
   }
 
-  vaporization.transaction = transactionID
+  vaporization.transaction = transaction.id
   vaporization.logIndex = event.logIndex
   vaporization.vaporAccount = vaporMarginAccount.id
   vaporization.solidAccount = solidMarginAccount.id
@@ -758,9 +725,6 @@ export function handleVaporize(event: VaporizationEvent): void {
   const owedPriceUSD = dydxProtocol.getMarketPrice(event.params.owedMarket).value
 
   vaporization.amountUSDVaporized = convertTokenToDecimal(owedPriceUSD.times(event.params.vaporOwedUpdate.deltaWei.value), BigInt.fromI32(36))
-
-  const vaporizations = transaction.vaporizations
-  transaction.vaporizations = vaporizations.concat([vaporization.id])
 
   vaporMarginAccount.save()
   solidMarginAccount.save()

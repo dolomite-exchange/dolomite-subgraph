@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
 import { log } from '@graphprotocol/graph-ts'
-import { UniswapFactory, Pair, Token, Bundle } from '../types/schema'
+import { AmmFactory, AmmPair, Token, Bundle } from '../types/schema'
 import { PairCreated } from '../types/UniswapV2Factory/Factory'
 import { Pair as PairTemplate } from '../types/templates'
 import {
@@ -15,16 +15,16 @@ import {
 
 export function handleNewPair(event: PairCreated): void {
   // load factory (create if first exchange)
-  let factory = UniswapFactory.load(FACTORY_ADDRESS)
+  let factory = AmmFactory.load(FACTORY_ADDRESS)
   if (factory === null) {
-    factory = new UniswapFactory(FACTORY_ADDRESS)
+    factory = new AmmFactory(FACTORY_ADDRESS)
     factory.pairCount = 0
-    factory.totalVolumeETH = ZERO_BD
-    factory.totalLiquidityETH = ZERO_BD
-    factory.totalVolumeUSD = ZERO_BD
-    factory.untrackedVolumeUSD = ZERO_BD
-    factory.totalLiquidityUSD = ZERO_BD
-    factory.txCount = ZERO_BI
+    factory.totalAmmVolumeETH = ZERO_BD
+    factory.totalAmmLiquidityETH = ZERO_BD
+    factory.totalAmmVolumeUSD = ZERO_BD
+    factory.untrackedAmmVolumeUSD = ZERO_BD
+    factory.totalAmmLiquidityUSD = ZERO_BD
+    factory.transactionCount = ZERO_BI
 
     // create new bundle
     let bundle = new Bundle('1')
@@ -57,8 +57,7 @@ export function handleNewPair(event: PairCreated): void {
     token0.tradeVolumeUSD = ZERO_BD
     token0.untrackedVolumeUSD = ZERO_BD
     token0.totalLiquidity = ZERO_BD
-    // token0.allPairs = []
-    token0.txCount = ZERO_BI
+    token0.transactionCount = ZERO_BI
   }
 
   // fetch info if null
@@ -79,17 +78,16 @@ export function handleNewPair(event: PairCreated): void {
     token1.tradeVolumeUSD = ZERO_BD
     token1.untrackedVolumeUSD = ZERO_BD
     token1.totalLiquidity = ZERO_BD
-    // token1.allPairs = []
-    token1.txCount = ZERO_BI
+    token1.transactionCount = ZERO_BI
   }
 
-  let pair = new Pair(event.params.pair.toHexString()) as Pair
+  const pair = new AmmPair(event.params.pair.toHexString())
   pair.token0 = token0.id
   pair.token1 = token1.id
   pair.liquidityProviderCount = ZERO_BI
   pair.createdAtTimestamp = event.block.timestamp
   pair.createdAtBlockNumber = event.block.number
-  pair.txCount = ZERO_BI
+  pair.transactionCount = ZERO_BI
   pair.reserve0 = ZERO_BD
   pair.reserve1 = ZERO_BD
   pair.trackedReserveETH = ZERO_BD

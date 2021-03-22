@@ -123,68 +123,74 @@ export function fetchTokenName(tokenAddress: Address): string {
 }
 
 export function fetchTokenTotalSupply(tokenAddress: Address): BigInt {
-  let contract = ERC20.bind(tokenAddress)
-  let totalSupplyValue = null
-  let totalSupplyResult = contract.try_totalSupply()
+  const contract = ERC20.bind(tokenAddress)
+
+  const totalSupplyResult = contract.try_totalSupply()
   if (!totalSupplyResult.reverted) {
-    totalSupplyValue = totalSupplyResult as number
+    return totalSupplyResult.value
+  } else {
+    return BigInt.fromI32(0)
   }
-  return BigInt.fromI32(totalSupplyValue as number)
 }
 
 export function fetchTokenDecimals(tokenAddress: Address): BigInt {
   // hardcode overrides
-  if (tokenAddress.toHexString() == '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9') {
+  const aaveToken = '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9'
+  if (tokenAddress.toHexString() == aaveToken) {
     return BigInt.fromI32(18)
   }
 
-  let contract = ERC20.bind(tokenAddress)
+  const contract = ERC20.bind(tokenAddress)
   // try types uint8 for decimals
-  let decimalValue = null
-  let decimalResult = contract.try_decimals()
+  const decimalResult = contract.try_decimals()
   if (!decimalResult.reverted) {
-    decimalValue = decimalResult.value
+    return decimalResult.value
+  } else {
+    return BigInt.fromI32(0)
   }
-  return BigInt.fromI32(decimalValue as number)
 }
 
 export function createLiquidityPosition(exchange: Address, user: Address): AmmLiquidityPosition {
-  let id = exchange
-    .toHexString()
-    .concat('-')
-    .concat(user.toHexString())
-  let liquidityTokenBalance = AmmLiquidityPosition.load(id)
+  const positionID = `${exchange.toHexString()}-${user.toHex()}`
+
+  let liquidityTokenBalance = AmmLiquidityPosition.load(positionID)
   if (liquidityTokenBalance === null) {
-    let pair = AmmPair.load(exchange.toHexString())
+    const pair = AmmPair.load(exchange.toHexString())
     pair.liquidityProviderCount = pair.liquidityProviderCount.plus(ONE_BI)
-    liquidityTokenBalance = new AmmLiquidityPosition(id)
+
+    liquidityTokenBalance = new AmmLiquidityPosition(positionID)
     liquidityTokenBalance.liquidityTokenBalance = ZERO_BD
     liquidityTokenBalance.pair = exchange.toHexString()
     liquidityTokenBalance.user = user.toHexString()
-    liquidityTokenBalance.save()
+
     pair.save()
+    liquidityTokenBalance.save()
   }
-  return liquidityTokenBalance as AmmLiquidityPosition
+
+  return liquidityTokenBalance
 }
 
 export function createUser(address: Address): void {
   let user = User.load(address.toHexString())
   if (user === null) {
     user = new User(address.toHexString())
-    user.usdSwapped = ZERO_BD
+    user.totalUsdBorrowed = ZERO_BD
+    user.totalUsdLiquidated = ZERO_BD
+    user.totalUsdSwapped = ZERO_BD
+    user.totalUsdTraded = ZERO_BD
     user.save()
   }
 }
 
 export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: EthereumEvent): void {
-  let timestamp = event.block.timestamp.toI32()
-  let bundle = Bundle.load('1')
-  let pair = AmmPair.load(position.pair)
-  let token0 = Token.load(pair.token0)
-  let token1 = Token.load(pair.token1)
+  const timestamp = event.block.timestamp.toI32()
+  const bundle = Bundle.load('1')
+  const pair = AmmPair.load(position.pair)
+  const token0 = Token.load(pair.token0)
+  const token1 = Token.load(pair.token1)
 
   // create new snapshot
-  let snapshot = new AmmLiquidityPositionSnapshot(position.id.concat(timestamp.toString()))
+  const snapshot = new AmmLiquidityPositionSnapshot(position.id.concat(timestamp.toString()))
   snapshot.liquidityPosition = position.id
   snapshot.timestamp = timestamp
   snapshot.block = event.block.number.toI32()

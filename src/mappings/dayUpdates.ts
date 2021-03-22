@@ -12,28 +12,47 @@ import {
 import { BigDecimal, BigInt, EthereumEvent } from '@graphprotocol/graph-ts'
 import { FACTORY_ADDRESS, ONE_BI, ZERO_BD, ZERO_BI } from './helpers'
 
-export function updateUniswapDayData(event: EthereumEvent): DolomiteDayData {
-  let uniswap = AmmFactory.load(FACTORY_ADDRESS)
-  let timestamp = event.block.timestamp.toI32()
-  let dayID = timestamp / 86400
-  let dayStartTimestamp = dayID * 86400
-  let uniswapDayData = DolomiteDayData.load(dayID.toString())
-  if (uniswapDayData === null) {
-    uniswapDayData = new DolomiteDayData(dayID.toString())
-    uniswapDayData.date = dayStartTimestamp
-    uniswapDayData.dailyVolumeUSD = ZERO_BD
-    uniswapDayData.dailyVolumeETH = ZERO_BD
-    uniswapDayData.totalVolumeUSD = ZERO_BD
-    uniswapDayData.totalVolumeETH = ZERO_BD
-    uniswapDayData.dailyVolumeUntracked = ZERO_BD
+export function updateDolomiteDayData(event: EthereumEvent): DolomiteDayData {
+  const factory = AmmFactory.load(FACTORY_ADDRESS)
+  const timestamp = event.block.timestamp.toI32()
+  const dayID = timestamp / 86400
+  const dayStartTimestamp = dayID * 86400
+
+  let dolomiteDayData = DolomiteDayData.load(dayID.toString())
+  if (dolomiteDayData === null) {
+    dolomiteDayData = new DolomiteDayData(dayID.toString())
+    dolomiteDayData.date = dayStartTimestamp
+
+    dolomiteDayData.allDailyVolumeUSD = ZERO_BD
+    dolomiteDayData.allDailyVolumeETH = ZERO_BD
+
+    dolomiteDayData.swapDailyVolumeETH = ZERO_BD
+    dolomiteDayData.swapDailyVolumeUSD = ZERO_BD
+    dolomiteDayData.swapDailyVolumeUntracked = ZERO_BD
+    dolomiteDayData.swapTransacionCount = factory.transactionCount
+
+    dolomiteDayData.totalVolumeUSD = ZERO_BD
+    dolomiteDayData.totalVolumeETH = ZERO_BD
   }
 
-  uniswapDayData.totalLiquidityUSD = uniswap.totalLiquidityUSD
-  uniswapDayData.totalLiquidityETH = uniswap.totalLiquidityETH
-  uniswapDayData.txCount = uniswap.txCount
-  uniswapDayData.save()
+  const previousDayData = DolomiteDayData.load((dayID - 1).toString())
 
-  return uniswapDayData as DolomiteDayData
+  // dolomiteDayData.totalAmmLiquidityUSD = factory.totalLiquidityUSD
+  // dolomiteDayData.totalAmmLiquidityETH = factory.totalLiquidityETH
+
+  dolomiteDayData.totalVolumeETH = factory.totalAmmVolumeETH
+  dolomiteDayData.totalAmmLiquidityETH = factory.totalAmmLiquidityETH
+  dolomiteDayData.totalMarginLiquidityETH = factory.totalMarginLiquidityETH
+  dolomiteDayData.totalAmmLiquidityUSD = factory.totalAmmLiquidityUSD
+  dolomiteDayData.totalVolumeUSD = factory.totalAmmVolumeUSD
+  dolomiteDayData.totalMarginLiquidityUSD = factory.totalMarginLiquidityUSD
+  dolomiteDayData.totalLiquidationVolumeUSD = factory.totalLiquidationVolumeUSD
+  dolomiteDayData.totalVaporizationVolumeUSD = factory.totalVaporizationVolumeUSD
+
+  dolomiteDayData.transactionCount = previousDayData?.transactionCount || ZERO_BI
+  dolomiteDayData.save()
+
+  return dolomiteDayData as DolomiteDayData
 }
 
 export function updatePairDayData(event: EthereumEvent): AmmPairDayData {
