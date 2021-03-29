@@ -7,17 +7,38 @@ type AmmFactory @entity {
 
   # total volume
   totalAmmVolumeUSD: BigDecimal!
-  totalAmmVolumeETH: BigDecimal!
 
   # untracked values - less confident USD scores
   untrackedAmmVolumeUSD: BigDecimal!
 
-  # total liquidity
-  totalAmmLiquidityUSD: BigDecimal!
-  totalAmmLiquidityETH: BigDecimal!
+  # current liquidity across all pairs
+  ammLiquidityUSD: BigDecimal!
 
   # transactions
   transactionCount: BigInt!
+  swapCount: BigInt!
+}
+
+type DyDxSoloMargin @entity {
+  # contract address
+  id: ID!
+
+  # current liquidity across all markets
+  supplyLiquidityUSD: BigDecimal!
+  borrowLiquidityUSD: BigDecimal!
+
+  # totals over all-time USD
+  totalBorrowVolumeUSD: BigDecimal!
+  totalLiquidationVolumeUSD: BigDecimal!
+  totalSupplyVolumeUSD: BigDecimal!
+  totalTradeVolumeUSD: BigDecimal!
+  totalVaporizationVolumeUSD: BigDecimal!
+
+  allTransactionCount: BigInt!
+  liquidationCount: BigInt!
+  tradeCount: BigInt!
+  transactionCount: BigInt!
+  vaporizationCount: BigInt!
 }
 
 type Token @entity {
@@ -41,7 +62,12 @@ type Token @entity {
   transactionCount: BigInt!
 
   # liquidity across all pairs
-  totalLiquidity: BigDecimal!
+  ammSwapLiquidity: BigDecimal!
+  supplyLiquidity: BigDecimal!
+  borrowLiquidity: BigDecimal!
+
+  supplyLiquidityUSD: BigDecimal!
+  borrowLiquidityUSD: BigDecimal!
 
   # derived prices
   derivedETH: BigDecimal
@@ -228,8 +254,53 @@ type Bundle @entity {
   ethPrice: BigDecimal! # price of ETH usd
 }
 
+type TokenHourData @entity {
+  id: ID! # contractAddress-hourID ; dayID hourID timestamp rounded to current day by dividing by 3600
+  date: Int!
+  token: Token!
+
+  # Hourly Figures
+  ## Hourly Volume Figures USD
+  hourlyAmmSwapVolumeUSD: BigDecimal!
+  hourlyBorrowVolumeUSD: BigDecimal!
+  hourlyLiquidationVolumeUSD: BigDecimal!
+  hourlyTradeVolumeUSD: BigDecimal!
+  hourlyVaporizationVolumeUSD: BigDecimal!
+
+  ## Hourly Volume Figures Token
+  hourlyAmmSwapVolumeToken: BigDecimal!
+  hourlyBorrowVolumeToken: BigDecimal!
+  hourlyLiquidationVolumeToken: BigDecimal!
+  hourlyTradeVolumeToken: BigDecimal!
+  hourlyVaporizationVolumeToken: BigDecimal!
+
+  ## Real-Time Closing Liquidity USD
+  ammLiquidityUSD: BigDecimal!
+  borrowLiquidityUSD: BigDecimal!
+  supplyLiquidityUSD: BigDecimal!
+
+  ## Real-Time Closing Liquidity Token
+  ammLiquidityToken: BigDecimal!
+  borrowLiquidityToken: BigDecimal!
+  supplyLiquidityToken: BigDecimal!
+
+  ## Hourly Counts
+  hourlyAllTransactionCount: BigInt!
+  hourlyAmmSwapCount: BigInt!
+  hourlyLiquidationCount: BigInt!
+  hourlyTradeCount: BigInt!
+  hourlyVaporizationCount: BigInt!
+
+  # Price stats
+  ammPriceUSD: BigDecimal!
+  openPriceUSD: BigDecimal!
+  highPriceUSD: BigDecimal!
+  lowPriceUSD: BigDecimal!
+  closePriceUSD: BigDecimal!
+}
+
 type TokenDayData @entity {
-  id: ID! # contractAddress-dayID
+  id: ID! # contractAddress-dayID ; dayID is timestamp rounded to current day by dividing by 86400
   date: Int!
   token: Token!
 
@@ -241,10 +312,6 @@ type TokenDayData @entity {
   dailyTradeVolumeUSD: BigDecimal!
   dailyVaporizationVolumeUSD: BigDecimal!
 
-  ## Daily Liquidity USD
-  dailyAmmLiquidityUSD: BigDecimal!
-  dailyMarginLiquidityUSD: BigDecimal!
-
   ## Daily Volume Figures Token
   dailyAmmSwapVolumeToken: BigDecimal!
   dailyBorrowVolumeToken: BigDecimal!
@@ -252,16 +319,15 @@ type TokenDayData @entity {
   dailyTradeVolumeToken: BigDecimal!
   dailyVaporizationVolumeToken: BigDecimal!
 
-  ## Daily Volume Figures ETH
-  dailyAmmSwapVolumeETH: BigDecimal!
-  dailyBorrowVolumeETH: BigDecimal!
-  dailyLiquidationVolumeETH: BigDecimal!
-  dailyTradeVolumeETH: BigDecimal!
-  dailyVaporizationVolumeETH: BigDecimal!
+  ## Real-Time Closing Liquidity USD
+  ammLiquidityUSD: BigDecimal!
+  borrowLiquidityUSD: BigDecimal!
+  supplyLiquidityUSD: BigDecimal!
 
-  ## Daily Liquidity Token
-  dailyAmmLiquidityToken: BigDecimal!
-  dailyMarginLiquidityToken: BigDecimal!
+  ## Real-Time Closing Liquidity Token
+  ammLiquidityToken: BigDecimal!
+  borrowLiquidityToken: BigDecimal!
+  supplyLiquidityToken: BigDecimal!
 
   ## Daily Counts
   dailyAllTransactionCount: BigInt!
@@ -270,46 +336,12 @@ type TokenDayData @entity {
   dailyTradeCount: BigInt!
   dailyVaporizationCount: BigInt!
 
-  # Aggregate Data
-  ## Total Volume Figures USD
-  totalAmmSwapVolumeUSD: BigDecimal!
-  totalBorrowVolumeUSD: BigDecimal!
-  totalLiquidationVolumeUSD: BigDecimal!
-  totalTradeVolumeUSD: BigDecimal!
-  totalVaporizationVolumeUSD: BigDecimal!
-
-  ## Total Liquidity USD
-  totalAmmLiquidityUSD: BigDecimal!
-  totalMarginLiquidityUSD: BigDecimal!
-
-  ## Total Volume Figures Token
-  totalAmmSwapVolumeToken: BigDecimal!
-  totalBorrowVolumeToken: BigDecimal!
-  totalLiquidationVolumeToken: BigDecimal!
-  totalTradeVolumeToken: BigDecimal!
-  totalVaporizationVolumeToken: BigDecimal!
-
-  ## Total Volume Figures ETH
-  totalAmmSwapVolumeETH: BigDecimal!
-  totalBorrowVolumeETH: BigDecimal!
-  totalLiquidationVolumeETH: BigDecimal!
-  totalTradeVolumeETH: BigDecimal!
-  totalVaporizationVolumeETH: BigDecimal!
-
-  ## Total Liquidity Token
-  totalAmmLiquidityToken: BigDecimal!
-  totalMarginLiquidityToken: BigDecimal!
-
-  ## Total Counts
-  totalAllTransactionCount: BigInt!
-  totalAmmSwapCount: BigInt!
-  totalLiquidationCount: BigInt!
-  totalTradeCount: BigInt!
-  totalVaporizationCount: BigInt!
-
-  # price stats
+  # Price stats
   ammPriceUSD: BigDecimal!
-  lastPriceUSD: BigDecimal!
+  openPriceUSD: BigDecimal!
+  highPriceUSD: BigDecimal!
+  lowPriceUSD: BigDecimal!
+  closePriceUSD: BigDecimal!
 }
 
 # Data accumulated and condensed into day stats for all of Dolomite (includes AMM)
@@ -322,50 +354,19 @@ type DolomiteDayData @entity {
   dailyAmmSwapVolumeUSD: BigDecimal!
   dailyBorrowVolumeUSD: BigDecimal!
   dailyLiquidationVolumeUSD: BigDecimal!
+  dailySupplyVolumeUSD: BigDecimal!
   dailyTradeVolumeUSD: BigDecimal!
   dailyVaporizationVolumeUSD: BigDecimal!
-
-  ## Daily Volume Figures ETH
-  dailyAmmSwapVolumeETH: BigDecimal!
-  dailyBorrowVolumeETH: BigDecimal!
-  dailyLiquidationVolumeETH: BigDecimal!
-  dailyTradeVolumeETH: BigDecimal!
-  dailyVaporizationVolumeETH: BigDecimal!
 
   ## Daily Volume Figures Untracked
   dailyAmmSwapVolumeUntracked: BigDecimal!
 
-  ## Daily Liquidity
-  dailyAmmLiquidityUSD: BigDecimal!
-  dailyMarginLiquidityUSD: BigDecimal!
+  ## Closing liquidity on the day
+  ammLiquidityUSD: BigDecimal!
+  borrowLiquidityUSD: BigDecimal!
+  supplyLiquidityUSD: BigDecimal!
 
   ## Daily Counts
-  dailyAllTransactionCount: BigInt!
-  dailyAmmSwapCount: BigInt!
-  dailyLiquidationCount: BigInt!
-  dailyTradeCount: BigInt!
-  dailyVaporizationCount: BigInt!
-
-  # Aggregate Data
-  ## Total Volume Figures USD
-  totalAmmSwapVolumeUSD: BigDecimal!
-  totalBorrowVolumeUSD: BigDecimal!
-  totalLiquidationVolumeUSD: BigDecimal!
-  totalTradeVolumeUSD: BigDecimal!
-  totalVaporizationVolumeUSD: BigDecimal!
-
-  ## Total Volume Figures ETH
-  totalAmmSwapVolumeETH: BigDecimal!
-  totalBorrowVolumeETH: BigDecimal!
-  totalLiquidationVolumeETH: BigDecimal!
-  totalTradeVolumeETH: BigDecimal!
-  totalVaporizationVolumeETH: BigDecimal!
-
-  ## Total Liquidity
-  totalAmmLiquidityUSD: BigDecimal!
-  totalMarginLiquidityUSD: BigDecimal!
-
-  ## Total Counts
   totalAllTransactionCount: BigInt!
   totalAmmSwapCount: BigInt!
   totalLiquidationCount: BigInt!
@@ -554,8 +555,8 @@ type Trade @entity {
   takerAccount: MarginAccount!
   makerAccount: MarginAccount # NULLABLE
 
-  takerToken: Token! # the token sold by the `takerAccount`
-  makerToken: Token! # the token sold by the `makerAccount`
+  takerToken: Token! # the token sold (spent) by the `takerAccount`
+  makerToken: Token! # the token sold (spent) by the `makerAccount`
 
   takerInputDeltaWei: BigDecimal! # the `makerToken` received by the `takerAccount`
   takerOutputDeltaWei: BigDecimal! # the `takerToken` spent by the `takerAccount`

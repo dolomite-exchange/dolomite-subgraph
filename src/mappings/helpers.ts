@@ -1,14 +1,24 @@
 /* eslint-disable prefer-const */
-import { BigInt, BigDecimal, Address, EthereumEvent } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, EthereumEvent } from '@graphprotocol/graph-ts'
 import { ERC20 } from '../types/UniswapV2Factory/ERC20'
 import { ERC20SymbolBytes } from '../types/UniswapV2Factory/ERC20SymbolBytes'
 import { ERC20NameBytes } from '../types/UniswapV2Factory/ERC20NameBytes'
-import { User, Bundle, Token, AmmLiquidityPosition, AmmLiquidityPositionSnapshot, AmmPair } from '../types/schema'
+import {
+  AmmLiquidityPosition,
+  AmmLiquidityPositionSnapshot,
+  AmmPair,
+  Bundle,
+  DyDxSoloMargin,
+  InterestIndex,
+  Token,
+  User
+} from '../types/schema'
 import { Factory as FactoryContract } from '../types/templates/Pair/Factory'
 import { ValueStruct } from './dydx_types'
 
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
 export const FACTORY_ADDRESS = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'
+export const SOLO_MARGIN_ADDRESS = '0x1E0447b19BB6EcFdAe1e4AE1694b0C3659614e4e'
 
 export let ZERO_BI = BigInt.fromI32(0)
 export let ONE_BI = BigInt.fromI32(1)
@@ -55,7 +65,7 @@ export function convertStructToDecimal(struct: ValueStruct, exchangeDecimals: Bi
 export function equalToZero(value: BigDecimal): boolean {
   const formattedVal = parseFloat(value.toString())
   const zero = parseFloat(ZERO_BD.toString())
-  return zero == formattedVal;
+  return zero == formattedVal
 }
 
 export function isNullEthValue(value: string): boolean {
@@ -206,4 +216,96 @@ export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: E
   snapshot.liquidityPosition = position.id
   snapshot.save()
   position.save()
+}
+
+export function weiToPar(wei: BigDecimal, index: InterestIndex): BigDecimal {
+  if (wei.ge(ZERO_BD)) {
+    return wei.div(index.supplyIndex)
+  } else {
+    return wei.div(index.borrowIndex)
+  }
+}
+
+function isRepaymentOfBorrowAmount(
+  newPar: BigDecimal,
+  deltaWei: BigDecimal,
+  index: InterestIndex
+): boolean {
+  const deltaPar = weiToPar(deltaWei, index)
+  const oldPar = newPar.minus(deltaPar)
+  return deltaWei.gt(ZERO_BD) && oldPar.lt(ZERO_BD) // the user added to the negative balance (decreasing it)
+}
+
+export function changeProtocolBalance(
+  token: Token,
+  newParStruct: ValueStruct,
+  deltaWeiStruct: ValueStruct,
+  index: InterestIndex,
+  isVirtualTransfer: boolean
+): void {
+  const soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS)
+  const bundle = Bundle.load('1')
+
+  const newPar = convertStructToDecimal(newParStruct, token.decimals)
+  const deltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
+
+  let shouldSave = false
+
+  if (newPar.lt(ZERO_BD) && deltaWei.lt(ZERO_BD)) {
+    shouldSave = true
+
+    // The user borrowed funds
+    const borrowVolumeToken = ZERO_BD.minus(deltaWei) // this will negate deltaWei
+    const borrowVolumeUSD = borrowVolumeToken.times(token.derivedETH).times(bundle.ethPrice)
+
+    // tokenDayData.dailyBorrowVolumeETH = tokenDayData.dailyBorrowVolumeETH.plus(deltaWeiETH)
+    // tokenDayData.dailyBorrowVolumeToken = tokenDayData.dailyBorrowVolumeToken.plus(borrowVolumeToken)
+    // tokenDayData.dailyBorrowVolumeUSD = tokenDayData.dailyBorrowVolumeUSD.plus(deltaWeiUSD)
+
+    // temporarily get rid of the old USD liquidity
+    soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
+
+    token.borrowLiquidity = token.borrowLiquidity.plus(borrowVolumeToken)
+    token.borrowLiquidityUSD = token.borrowLiquidity.times(token.derivedETH).times(bundle.ethPrice)
+
+    // add the new liquidity back in
+    soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
+    soloMargin.totalBorrowVolumeUSD = soloMargin.totalBorrowVolumeUSD.plus(borrowVolumeUSD)
+  } else if (isRepaymentOfBorrowAmount(newPar, deltaWei, index)) {
+    shouldSave = true
+
+    const borrowVolumeToken = deltaWei
+
+    // temporarily get rid of the old USD liquidity
+    soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
+
+    token.borrowLiquidity = token.borrowLiquidity.minus(borrowVolumeToken)
+    token.borrowLiquidityUSD = token.borrowLiquidity.times(token.derivedETH).times(bundle.ethPrice)
+
+    // add the new liquidity back in
+    soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
+  }
+
+  if (!isVirtualTransfer) {
+    // the balance change affected the ERC20.balanceOf(protocol)
+    shouldSave = true
+    // temporarily get rid of the old USD liquidity
+    soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
+
+    token.supplyLiquidity = token.supplyLiquidity.plus(deltaWei)
+    token.supplyLiquidityUSD = token.supplyLiquidity.times(token.derivedETH).times(bundle.ethPrice)
+
+    // add the new liquidity back in
+    soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
+
+    if (deltaWei.gt(ZERO_BD)) {
+      const deltaWeiUSD = deltaWei.times(token.derivedETH).times(bundle.ethPrice)
+      soloMargin.totalSupplyVolumeUSD = soloMargin.totalSupplyVolumeUSD.plus(deltaWeiUSD)
+    }
+  }
+
+  if (shouldSave) {
+    soloMargin.save()
+    token.save()
+  }
 }

@@ -1,5 +1,5 @@
 /* eslint-disable prefer-const */
-import { Address, BigDecimal, BigInt, EthereumEvent, store } from '@graphprotocol/graph-ts'
+import { BigDecimal, BigInt, EthereumEvent, store } from '@graphprotocol/graph-ts'
 import { AmmBurn, AmmFactory, AmmMint, AmmPair, AmmSwap, Bundle, Token, Transaction } from '../types/schema'
 import {
   Burn as BurnEvent,
@@ -9,7 +9,13 @@ import {
   Sync as SyncEvent,
   Transfer as TransferEvent
 } from '../types/templates/Pair/Pair'
-import { updateDolomiteDayData, updatePairDayData, updatePairHourData, updateTokenDayData } from './dayUpdates'
+import {
+  updateDolomiteDayData,
+  updatePairDayData,
+  updatePairHourData,
+  updateTokenDayDataForAmmEvent,
+  updateTokenHourDataForAmmEvent
+} from './dayUpdates'
 import { findEthPerToken, getEthPriceInUSD, getTrackedLiquidityUSD, getTrackedVolumeUSD } from './pricing'
 import {
   ADDRESS_ZERO,
@@ -194,19 +200,26 @@ export function handleSync(event: SyncEvent): void {
   const ammFactory = AmmFactory.load(FACTORY_ADDRESS)
 
   // reset factory liquidity by subtracting only tracked liquidity
-  ammFactory.totalAmmLiquidityETH = ammFactory.totalAmmLiquidityETH.minus(ammPair.trackedReserveETH)
+  ammFactory.ammLiquidityETH = ammFactory.ammLiquidityETH.minus(ammPair.trackedReserveETH)
 
   // reset token total liquidity amounts
-  token0.totalLiquidity = token0.totalLiquidity.minus(ammPair.reserve0)
-  token1.totalLiquidity = token1.totalLiquidity.minus(ammPair.reserve1)
+  token0.ammSwapLiquidity = token0.ammSwapLiquidity.minus(ammPair.reserve0)
+  token1.ammSwapLiquidity = token1.ammSwapLiquidity.minus(ammPair.reserve1)
 
   ammPair.reserve0 = convertTokenToDecimal(event.params.reserve0, token0.decimals)
   ammPair.reserve1 = convertTokenToDecimal(event.params.reserve1, token1.decimals)
 
-  if (ammPair.reserve1.notEqual(ZERO_BD)) ammPair.token0Price = ammPair.reserve0.div(ammPair.reserve1)
-  else ammPair.token0Price = ZERO_BD
-  if (ammPair.reserve0.notEqual(ZERO_BD)) ammPair.token1Price = ammPair.reserve1.div(ammPair.reserve0)
-  else ammPair.token1Price = ZERO_BD
+  if (ammPair.reserve1.notEqual(ZERO_BD)) {
+    ammPair.token0Price = ammPair.reserve0.div(ammPair.reserve1)
+  } else {
+    ammPair.token0Price = ZERO_BD
+  }
+
+  if (ammPair.reserve0.notEqual(ZERO_BD)) {
+    ammPair.token1Price = ammPair.reserve1.div(ammPair.reserve0)
+  } else {
+    ammPair.token1Price = ZERO_BD
+  }
 
   ammPair.save()
 
@@ -215,8 +228,8 @@ export function handleSync(event: SyncEvent): void {
   bundle.ethPrice = getEthPriceInUSD()
   bundle.save()
 
-  token0.derivedETH = findEthPerToken(token0 as Token)
-  token1.derivedETH = findEthPerToken(token1 as Token)
+  token0.derivedETH = findEthPerToken(token0)
+  token1.derivedETH = findEthPerToken(token1)
   token0.save()
   token1.save()
 
@@ -234,12 +247,12 @@ export function handleSync(event: SyncEvent): void {
   ammPair.reserveUSD = ammPair.reserveETH.times(bundle.ethPrice)
 
   // use tracked amounts globally
-  ammFactory.totalAmmLiquidityETH = ammFactory.totalAmmLiquidityETH.plus(trackedLiquidityETH)
-  ammFactory.totalAmmLiquidityUSD = ammFactory.totalAmmLiquidityETH.times(bundle.ethPrice)
+  ammFactory.ammLiquidityETH = ammFactory.ammLiquidityETH.plus(trackedLiquidityETH)
+  ammFactory.ammLiquidityUSD = ammFactory.ammLiquidityETH.times(bundle.ethPrice)
 
   // now correctly set liquidity amounts for each token
-  token0.totalLiquidity = token0.totalLiquidity.plus(ammPair.reserve0)
-  token1.totalLiquidity = token1.totalLiquidity.plus(ammPair.reserve1)
+  token0.ammSwapLiquidity = token0.ammSwapLiquidity.plus(ammPair.reserve0)
+  token1.ammSwapLiquidity = token1.ammSwapLiquidity.plus(ammPair.reserve1)
 
   // save entities
   ammPair.save()
@@ -292,15 +305,17 @@ export function handleMint(event: MintEvent): void {
   mint.save()
 
   // update the LP position
-  const liquidityPosition = createLiquidityPosition(event.address, mint.to as Address)
+  const liquidityPosition = createLiquidityPosition(event.address, mint.to)
   createLiquiditySnapshot(liquidityPosition, event)
 
   // update day entities
   updatePairDayData(event)
   updatePairHourData(event)
   updateDolomiteDayData(event)
-  updateTokenDayData(token0 as Token, event)
-  updateTokenDayData(token1 as Token, event)
+  updateTokenHourDataForAmmEvent(token0, event)
+  updateTokenHourDataForAmmEvent(token1, event)
+  updateTokenDayDataForAmmEvent(token0, event)
+  updateTokenDayDataForAmmEvent(token1, event)
 }
 
 export function handleBurn(event: BurnEvent): void {
@@ -354,15 +369,15 @@ export function handleBurn(event: BurnEvent): void {
   burn.save()
 
   // update the LP position
-  const liquidityPosition = createLiquidityPosition(event.address, burn.sender as Address)
+  const liquidityPosition = createLiquidityPosition(event.address, burn.sender)
   createLiquiditySnapshot(liquidityPosition, event)
 
   // update day entities
   updatePairDayData(event)
   updatePairHourData(event)
   updateDolomiteDayData(event)
-  updateTokenDayData(token0 as Token, event)
-  updateTokenDayData(token1 as Token, event)
+  updateTokenDayDataForAmmEvent(token0, event)
+  updateTokenDayDataForAmmEvent(token1, event)
 }
 
 export function handleSwap(event: SwapEvent): void {
@@ -427,6 +442,7 @@ export function handleSwap(event: SwapEvent): void {
   ammFactory.totalAmmVolumeETH = ammFactory.totalAmmVolumeETH.plus(trackedAmountETH)
   ammFactory.untrackedAmmVolumeUSD = ammFactory.untrackedAmmVolumeUSD.plus(derivedAmountUSD)
   ammFactory.transactionCount = ammFactory.transactionCount.plus(ONE_BI)
+  ammFactory.swapCount = ammFactory.swapCount.plus(ONE_BI)
 
   // save entities
   pair.save()
@@ -462,8 +478,8 @@ export function handleSwap(event: SwapEvent): void {
   const ammPairDayData = updatePairDayData(event)
   const ammPairHourData = updatePairHourData(event)
   const dolomiteDayData = updateDolomiteDayData(event)
-  const token0DayData = updateTokenDayData(token0, event)
-  const token1DayData = updateTokenDayData(token1, event)
+  const token0DayData = updateTokenDayDataForAmmEvent(token0, event)
+  const token1DayData = updateTokenDayDataForAmmEvent(token1, event)
 
   // swap specific updating
   dolomiteDayData.dailyAmmSwapVolumeUSD = dolomiteDayData.dailyAmmSwapVolumeUSD.plus(trackedAmountUSD)
@@ -487,11 +503,13 @@ export function handleSwap(event: SwapEvent): void {
   token0DayData.dailyAmmSwapVolumeToken = token0DayData.dailyAmmSwapVolumeToken.plus(amount0Total)
   token0DayData.dailyAmmSwapVolumeETH = token0DayData.dailyAmmSwapVolumeETH.plus(amount0Total.times(token0.derivedETH))
   token0DayData.dailyAmmSwapVolumeUSD = token0DayData.dailyAmmSwapVolumeUSD.plus(amount0Total.times(token0.derivedETH).times(bundle.ethPrice))
+  token0DayData.dailyAmmSwapCount = token0DayData.dailyAmmSwapCount.plus(ONE_BI)
   token0DayData.save()
 
   // swap specific updating
   token1DayData.dailyAmmSwapVolumeToken = token1DayData.dailyAmmSwapVolumeToken.plus(amount1Total)
   token1DayData.dailyAmmSwapVolumeETH = token1DayData.dailyAmmSwapVolumeETH.plus(amount1Total.times(token1.derivedETH))
   token1DayData.dailyAmmSwapVolumeUSD = token1DayData.dailyAmmSwapVolumeUSD.plus(amount1Total.times(token1.derivedETH).times(bundle.ethPrice))
+  token1DayData.dailyAmmSwapCount = token1DayData.dailyAmmSwapCount.plus(ONE_BI)
   token1DayData.save()
 }

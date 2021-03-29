@@ -1,7 +1,7 @@
 /* eslint-disable prefer-const */
-import { AmmPair, Token, Bundle } from '../types/schema'
-import { BigDecimal, Address, BigInt } from '@graphprotocol/graph-ts'
-import { ZERO_BD, factoryContract, ADDRESS_ZERO, ONE_BD } from './helpers'
+import { AmmPair, Bundle, Token, Trade } from '../types/schema'
+import { Address, BigDecimal, BigInt, EthereumBlock } from '@graphprotocol/graph-ts'
+import { ADDRESS_ZERO, factoryContract, ONE_BD, ZERO_BD } from './helpers'
 
 const WETH_ADDRESS = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
 const USDC_WETH_PAIR = '0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc' // created 10008355
@@ -64,6 +64,10 @@ const MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('400000')
 // minimum liquidity for price to get tracked
 const MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
 
+export function handleBlock(block: EthereumBlock): void {
+
+}
+
 /**
  * Search through graph to find derived Eth per token.
  * @todo update to be derived ETH (add stablecoin estimates)
@@ -80,14 +84,25 @@ export function findEthPerToken(token: Token): BigDecimal {
       if (pair.token0 == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
         const token1 = Token.load(pair.token1)
         return pair.token1Price.times(token1.derivedETH as BigDecimal) // return token1 per our token * Eth per token 1
-      }
-      if (pair.token1 == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
+      } else if (pair.token1 == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
         const token0 = Token.load(pair.token0)
         return pair.token0Price.times(token0.derivedETH as BigDecimal) // return token0 per our token * ETH per token 0
       }
     }
   }
   return ZERO_BD // nothing was found return 0
+}
+
+export function findETHPerTokenForTrade(trade: Trade, token: Token): BigDecimal {
+  if (token.id == trade.makerToken) {
+    const takerToken = Token.load(trade.takerToken)
+    const takerTokenPrice = trade.takerOutputDeltaWei.div(trade.takerInputDeltaWei)
+    return takerTokenPrice.times(takerToken.derivedETH) // return token1 per our token * ETH per token1
+  } else {
+    const makerToken = Token.load(trade.makerToken)
+    const makerTokenPrice = trade.takerInputDeltaWei.div(trade.takerOutputDeltaWei)
+    return makerTokenPrice.times(makerToken.derivedETH) // return token0 per our token * ETH per token0
+  }
 }
 
 /**

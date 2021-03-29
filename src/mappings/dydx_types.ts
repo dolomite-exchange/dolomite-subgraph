@@ -48,6 +48,10 @@ export class ValueStruct {
     return ValueStruct.fromFields(true, this.value.abs())
   }
 
+  applied(): BigInt {
+    return this.sign ? this.value : this.value.neg()
+  }
+
   static fromFields(sign: boolean, value: BigInt): ValueStruct {
     return new ValueStruct(new EthereumTuple(
       EthereumValue.fromBoolean(sign),
