@@ -567,3 +567,23 @@ type Trade @entity {
   # derived info
   amountUSD: BigDecimal! # based on the value of the takerInputDeltaWei
 }
+
+type MarginPosition @entity {
+  id: ID! # Defined as "userAddress-accountNumber"
+
+  heldToken: Token!
+  marginDeposit: BigDecimal!
+  initialHeldAmount: BigDecimal!
+  initialHeldPrice: BigDecimal!
+  heldAmount: BigDecimal!
+
+  owedToken: Token!
+  owedAmount: BigDecimal!
+  initialOwedAmount: BigDecimal!
+  initialOwePrice: BigDecimal!
+
+  status: String! # one of OPEN, CLOSED, EXPIRED, LIQUIDATED
+  isInvalidated: Boolean! # true if the user messed with the way positions are normally created/closed by using a custom interaction
+  closeTimestamp: BigInt
+  expirationTimestamp: BigInt
+}
