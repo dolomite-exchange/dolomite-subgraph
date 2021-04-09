@@ -59,3 +59,10 @@ export class ValueStruct {
     ))
   }
 }
+
+export enum MarginPositionStatus {
+  Open = 'OPEN',
+  Closed = 'CLOSED',
+  Expired = 'EXPIRED',
+  Liquidated = 'LIQUIDATED',
+}

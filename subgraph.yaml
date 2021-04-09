@@ -76,6 +76,8 @@ dataSources:
           handler: handleLiquidate
         - event: LogVaporize(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
           handler: handleVaporize
+        - event: ExpirySet(address,uint256,uint256,uint32)
+          handler: handleSetExpiry
 templates:
   - kind: ethereum/contract
     name: Pair

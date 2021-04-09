@@ -1,5 +1,36 @@
 [
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "number",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "marketId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "time",
+        "type": "uint32"
+      }
+    ],
+    "name": "ExpirySet",
+    "type": "event"
+  },
+  {
     "constant": true,
     "inputs": [],
     "name": "getMarginRatio",

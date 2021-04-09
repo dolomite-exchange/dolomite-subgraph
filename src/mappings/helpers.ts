@@ -29,6 +29,14 @@ export let BI_ONE_ETH = BigInt.fromI32(10).pow(18)
 
 export let factoryContract = FactoryContract.bind(Address.fromString(FACTORY_ADDRESS))
 
+export function bigDecimalAbs(bd: BigDecimal): BigDecimal {
+  if (bd.lt(ZERO_BD)) {
+    return ZERO_BD.minus(bd)
+  } else {
+    return bd
+  }
+}
+
 export function exponentToBigDecimal(decimals: BigInt): BigDecimal {
   let bd = BigDecimal.fromString('1')
   for (let i = ZERO_BI; i.lt(decimals as BigInt); i = i.plus(ONE_BI)) {
@@ -192,6 +200,22 @@ export function createUser(address: Address): void {
   }
 }
 
+export function absBD(bd: BigDecimal): BigDecimal {
+  if (bd.lt(ZERO_BD)) {
+    ZERO_BD.minus(bd)
+  } else {
+    return bd
+  }
+}
+
+export function absBI(bi: BigInt): BigInt {
+  if (bi.lt(ZERO_BI)) {
+    ZERO_BI.minus(bi)
+  } else {
+    return bi
+  }
+}
+
 export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: EthereumEvent): void {
   const timestamp = event.block.timestamp.toI32()
   const bundle = Bundle.load('1')
@@ -252,9 +276,9 @@ export function changeProtocolBalance(
   let shouldSave = false
 
   if (newPar.lt(ZERO_BD) && deltaWei.lt(ZERO_BD)) {
+    // The user borrowed funds
     shouldSave = true
 
-    // The user borrowed funds
     const borrowVolumeToken = ZERO_BD.minus(deltaWei) // this will negate deltaWei
     const borrowVolumeUSD = borrowVolumeToken.times(token.derivedETH).times(bundle.ethPrice)
 
@@ -272,6 +296,7 @@ export function changeProtocolBalance(
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
     soloMargin.totalBorrowVolumeUSD = soloMargin.totalBorrowVolumeUSD.plus(borrowVolumeUSD)
   } else if (isRepaymentOfBorrowAmount(newPar, deltaWei, index)) {
+    // the user is repaying funds
     shouldSave = true
 
     const borrowVolumeToken = deltaWei

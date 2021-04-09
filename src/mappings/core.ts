@@ -200,7 +200,7 @@ export function handleSync(event: SyncEvent): void {
   const ammFactory = AmmFactory.load(FACTORY_ADDRESS)
 
   // reset factory liquidity by subtracting only tracked liquidity
-  ammFactory.ammLiquidityETH = ammFactory.ammLiquidityETH.minus(ammPair.trackedReserveETH)
+  ammFactory.ammLiquidityUSD = ammFactory.ammLiquidityUSD.minus(ammPair.reserveUSD)
 
   // reset token total liquidity amounts
   token0.ammSwapLiquidity = token0.ammSwapLiquidity.minus(ammPair.reserve0)
@@ -247,8 +247,7 @@ export function handleSync(event: SyncEvent): void {
   ammPair.reserveUSD = ammPair.reserveETH.times(bundle.ethPrice)
 
   // use tracked amounts globally
-  ammFactory.ammLiquidityETH = ammFactory.ammLiquidityETH.plus(trackedLiquidityETH)
-  ammFactory.ammLiquidityUSD = ammFactory.ammLiquidityETH.times(bundle.ethPrice)
+  ammFactory.ammLiquidityUSD = ammFactory.ammLiquidityUSD.plus(ammPair.reserveUSD)
 
   // now correctly set liquidity amounts for each token
   token0.ammSwapLiquidity = token0.ammSwapLiquidity.plus(ammPair.reserve0)
@@ -407,13 +406,6 @@ export function handleSwap(event: SwapEvent): void {
   // only accounts for volume through white listed tokens
   const trackedAmountUSD = getTrackedVolumeUSD(amount0Total, token0, amount1Total, token1, pair)
 
-  let trackedAmountETH: BigDecimal
-  if (bundle.ethPrice.equals(ZERO_BD)) {
-    trackedAmountETH = ZERO_BD
-  } else {
-    trackedAmountETH = trackedAmountUSD.div(bundle.ethPrice)
-  }
-
   // update token0 global volume and token liquidity stats
   token0.tradeVolume = token0.tradeVolume.plus(amount0In.plus(amount0Out))
   token0.tradeVolumeUSD = token0.tradeVolumeUSD.plus(trackedAmountUSD)
@@ -439,7 +431,6 @@ export function handleSwap(event: SwapEvent): void {
   // update global values, only used tracked amounts for volume
   const ammFactory = AmmFactory.load(FACTORY_ADDRESS)
   ammFactory.totalAmmVolumeUSD = ammFactory.totalAmmVolumeUSD.plus(trackedAmountUSD)
-  ammFactory.totalAmmVolumeETH = ammFactory.totalAmmVolumeETH.plus(trackedAmountETH)
   ammFactory.untrackedAmmVolumeUSD = ammFactory.untrackedAmmVolumeUSD.plus(derivedAmountUSD)
   ammFactory.transactionCount = ammFactory.transactionCount.plus(ONE_BI)
   ammFactory.swapCount = ammFactory.swapCount.plus(ONE_BI)
@@ -483,7 +474,6 @@ export function handleSwap(event: SwapEvent): void {
 
   // swap specific updating
   dolomiteDayData.dailyAmmSwapVolumeUSD = dolomiteDayData.dailyAmmSwapVolumeUSD.plus(trackedAmountUSD)
-  dolomiteDayData.dailyAmmSwapVolumeETH = dolomiteDayData.dailyAmmSwapVolumeETH.plus(trackedAmountETH)
   dolomiteDayData.dailyAmmSwapVolumeUntracked = dolomiteDayData.dailyAmmSwapVolumeUntracked.plus(derivedAmountUSD)
   dolomiteDayData.save()
 
@@ -501,14 +491,12 @@ export function handleSwap(event: SwapEvent): void {
 
   // swap specific updating for token0
   token0DayData.dailyAmmSwapVolumeToken = token0DayData.dailyAmmSwapVolumeToken.plus(amount0Total)
-  token0DayData.dailyAmmSwapVolumeETH = token0DayData.dailyAmmSwapVolumeETH.plus(amount0Total.times(token0.derivedETH))
   token0DayData.dailyAmmSwapVolumeUSD = token0DayData.dailyAmmSwapVolumeUSD.plus(amount0Total.times(token0.derivedETH).times(bundle.ethPrice))
   token0DayData.dailyAmmSwapCount = token0DayData.dailyAmmSwapCount.plus(ONE_BI)
   token0DayData.save()
 
   // swap specific updating
   token1DayData.dailyAmmSwapVolumeToken = token1DayData.dailyAmmSwapVolumeToken.plus(amount1Total)
-  token1DayData.dailyAmmSwapVolumeETH = token1DayData.dailyAmmSwapVolumeETH.plus(amount1Total.times(token1.derivedETH))
   token1DayData.dailyAmmSwapVolumeUSD = token1DayData.dailyAmmSwapVolumeUSD.plus(amount1Total.times(token1.derivedETH).times(bundle.ethPrice))
   token1DayData.dailyAmmSwapCount = token1DayData.dailyAmmSwapCount.plus(ONE_BI)
   token1DayData.save()

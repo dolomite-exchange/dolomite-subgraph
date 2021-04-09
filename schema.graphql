@@ -50,6 +50,9 @@ type Token @entity {
   name: String!
   decimals: BigInt!
 
+  # Taken from dYdX
+  marketId: BigInt!
+
   # used for other stats like marketcap
   totalSupply: BigInt!
 
@@ -431,7 +434,6 @@ type MarginAccount @entity {
   accountNumber: BigInt!
   lastUpdatedTimestamp: BigInt! # Timestamp at which any token value was last updated
   lastUpdatedBlockNumber: BigInt!
-  isClosed: Boolean! # true if the accountNumber != 0 and all `tokenValues` are 0
   tokenValues: [MarginAccountTokenValue!]! @derivedFrom(field: "marginAccount")
 }
 
@@ -441,6 +443,7 @@ type MarginAccountTokenValue @entity {
   marketId: BigInt!
   token: Token!
   valuePar: BigDecimal! # Par value of the user's held token. Can be negative, meaning it's borrowed funds.
+  expirationTimestamp: BigInt
 }
 
 type MarginAccountTokenValueSnapshot @entity {
@@ -558,11 +561,8 @@ type Trade @entity {
   takerToken: Token! # the token sold (spent) by the `takerAccount`
   makerToken: Token! # the token sold (spent) by the `makerAccount`
 
-  takerInputDeltaWei: BigDecimal! # the `makerToken` received by the `takerAccount`
-  takerOutputDeltaWei: BigDecimal! # the `takerToken` spent by the `takerAccount`
-
-  makerInputDeltaWei: BigDecimal # NULLABLE: the `takerToken` received by the `makerAccount`
-  makerOutputDeltaWei: BigDecimal # NULLABLE: the `makerToken` spent by the `makerAccount`
+  takerTokenDeltaWei: BigDecimal! # the `takerToken` spent by the `takerAccount`
+  makerTokenDeltaWei: BigDecimal! # the `makerToken` received by the `takerAccount` (spent by the `makerAccount`)
 
   # derived info
   amountUSD: BigDecimal! # based on the value of the takerInputDeltaWei
@@ -570,20 +570,38 @@ type Trade @entity {
 
 type MarginPosition @entity {
   id: ID! # Defined as "userAddress-accountNumber"
+  openTimestamp: BigInt!
 
-  heldToken: Token!
+  heldToken: Token
   marginDeposit: BigDecimal!
-  initialHeldAmount: BigDecimal!
-  initialHeldPrice: BigDecimal!
+  marginDepositUSD: BigDecimal!
+
+  # set for tracking interest accrued. This number is only set initially
+  initialHeldAmountPar: BigDecimal!
+  initialHeldAmountWei: BigDecimal!
+  initialHeldAmountUSD: BigDecimal!
+  initialHeldPriceUSD: BigDecimal!
+
+  closeHeldPriceUSD: BigDecimal
+  closeHeldAmountWei: BigDecimal
+  closeHeldAmountUSD: BigDecimal
+
   heldAmount: BigDecimal!
 
-  owedToken: Token!
+  owedToken: Token
+
+  initialOwedAmountPar: BigDecimal!
+  initialOwedAmountWei: BigDecimal!
+  initialOwedAmountUSD: BigDecimal!
+  initialOwedPriceUSD: BigDecimal!
+
+  closeOwedPriceUSD: BigDecimal
+  closeOwedAmountWei: BigDecimal
+  closeOwedAmountUSD: BigDecimal
+
   owedAmount: BigDecimal!
-  initialOwedAmount: BigDecimal!
-  initialOwePrice: BigDecimal!
 
   status: String! # one of OPEN, CLOSED, EXPIRED, LIQUIDATED
-  isInvalidated: Boolean! # true if the user messed with the way positions are normally created/closed by using a custom interaction
   closeTimestamp: BigInt
   expirationTimestamp: BigInt
 }

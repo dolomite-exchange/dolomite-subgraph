@@ -1,5 +1,7 @@
 /* eslint-disable prefer-const */
 import {
+  DyDx,
+  ExpirySet as ExpirySetEvent,
   LogBuy as BuyEvent,
   LogDeposit as DepositEvent,
   LogIndexUpdate as IndexUpdateEvent,
@@ -9,13 +11,15 @@ import {
   LogTransfer as TransferEvent,
   LogVaporize as VaporizationEvent,
   LogWithdraw as WithdrawEvent
-} from '../types/MarginTrade/DyDxEvents'
+} from '../types/MarginTrade/DyDx'
 import {
   Deposit,
   DyDxSoloMargin,
   InterestIndex,
   Liquidation,
-  MarginAccount, MarginAccountTokenValue,
+  MarginAccount,
+  MarginAccountTokenValue,
+  MarginPosition,
   Token,
   Trade,
   Transfer,
@@ -24,7 +28,9 @@ import {
 } from '../types/schema'
 import {
   BI_18,
-  BI_ONE_ETH, changeProtocolBalance,
+  BI_ONE_ETH,
+  bigDecimalAbs,
+  changeProtocolBalance,
   convertStructToDecimal,
   convertTokenToDecimal,
   ONE_BI,
@@ -33,16 +39,20 @@ import {
   ZERO_BI
 } from './helpers'
 import { getOrCreateTransaction } from './core'
-import { BalanceUpdate, ValueStruct } from './dydx_types'
-import { Address, BigInt, EthereumBlock, EthereumEvent } from '@graphprotocol/graph-ts'
-import { DyDx } from '../types/MarginTrade/DyDx'
+import { BalanceUpdate, MarginPositionStatus, ValueStruct } from './dydx_types'
+import { Address, BigDecimal, BigInt, EthereumBlock, EthereumEvent } from '@graphprotocol/graph-ts'
 import {
   updateAndReturnTokenDayDataForDyDxEvent,
-  updateAndReturnTokenHourDataForDyDxEvent, updateDolomiteDayData,
+  updateAndReturnTokenHourDataForDyDxEvent,
+  updateDolomiteDayData,
   updateTimeDataForLiquidation,
   updateTimeDataForTrade,
-  updateTokenHourDataForDyDxEvent
+  updateTimeDataForVaporization
 } from './dayUpdates'
+
+function isMarginPositionExpired(marginPosition: MarginPosition, event: EthereumEvent): boolean {
+  return marginPosition.expirationTimestamp !== null && marginPosition.expirationTimestamp.lt(event.block.timestamp)
+}
 
 export function handleCallToDyDx(): DyDxSoloMargin {
   let soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS)
@@ -98,23 +108,30 @@ function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: 
   return marginAccount
 }
 
-function handleDyDxBalanceUpdate(balanceUpdate: BalanceUpdate, block: EthereumBlock): void {
-  const id = `${balanceUpdate.accountOwner}-${balanceUpdate.accountNumber.toString()}`
-  let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, block)
-
-  const tokenValueId = `${id}-${balanceUpdate.market.toString()}`
-  const tokenValueIndex = marginAccount.tokenValues.indexOf(tokenValueId)
-  let tokenValue: MarginAccountTokenValue
-  if (tokenValueIndex === -1) {
-    tokenValue = new MarginAccountTokenValue(tokenValueId)
-    tokenValue.marketId = balanceUpdate.market
-
-    const tokenValues = marginAccount.tokenValues
-    tokenValues.push(tokenValueId)
-    marginAccount.tokenValues = tokenValues
-  } else {
-    tokenValue = MarginAccountTokenValue.load(marginAccount.tokenValues[tokenValueIndex])
+function getOrCreateTokenValue(
+  marginAccount: MarginAccount,
+  token: Token
+): MarginAccountTokenValue {
+  const id = `${marginAccount.user}-${marginAccount.accountNumber.toString()}-${token.marketId.toString()}`
+  let tokenValue = MarginAccountTokenValue.load(id)
+  if (tokenValue === null) {
+    tokenValue = new MarginAccountTokenValue(id)
+    tokenValue.marginAccount = marginAccount.id
+    tokenValue.marketId = token.marketId
+    tokenValue.token = token.id
+    tokenValue.valuePar = ZERO_BD
   }
+
+  return tokenValue
+}
+
+function handleDyDxBalanceUpdate(balanceUpdate: BalanceUpdate, block: EthereumBlock): void {
+  const marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, block)
+
+  const dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  const tokenAddress = dydx.getMarketTokenAddress(balanceUpdate.market)
+  const token = Token.load(tokenAddress.toHexString())
+  const tokenValue = getOrCreateTokenValue(marginAccount, token)
 
   tokenValue.valuePar = balanceUpdate.valuePar
 
@@ -152,7 +169,116 @@ function updateMarginAccountForEventAndSaveTokenValue(
   tokenValue.save()
 }
 
-// TODO day stats
+function getOrCreateMarginPosition(event: EthereumEvent, user: MarginAccount): MarginPosition {
+  let marginPosition = MarginPosition.load(user.id)
+  if (marginPosition === null) {
+    marginPosition = new MarginPosition(user.id)
+    marginPosition.openTimestamp = event.block.timestamp
+
+    marginPosition.marginDeposit = ZERO_BD
+    marginPosition.marginDepositUSD = ZERO_BD
+
+    marginPosition.initialHeldAmountPar = ZERO_BD
+    marginPosition.initialHeldAmountWei = ZERO_BD
+    marginPosition.initialHeldAmountUSD = ZERO_BD
+    marginPosition.initialHeldPriceUSD = ZERO_BD
+    marginPosition.heldAmount = ZERO_BD
+
+    marginPosition.owedAmount = ZERO_BD
+    marginPosition.initialOwedAmountPar = ZERO_BD
+    marginPosition.initialOwedAmountWei = ZERO_BD
+    marginPosition.initialOwedAmountUSD = ZERO_BD
+    marginPosition.initialOwedPriceUSD = ZERO_BD
+  }
+
+  return marginPosition
+}
+
+function getTokenPriceUSD(token: Token, dydx: DyDx): BigDecimal {
+  const value = dydx.getMarketPrice(token.marketId).value
+  return convertTokenToDecimal(value.times(BigInt.fromI32(10).pow(token.decimals)), BigInt.fromI32(36))
+}
+
+function updateMarginPositionForTrade(
+  marginPosition: MarginPosition,
+  trade: Trade,
+  event: EthereumEvent,
+  dydx: DyDx,
+  isTaker: boolean,
+  makerTokenIndex: InterestIndex,
+  takerTokenIndex: InterestIndex
+): void {
+  if (marginPosition.owedToken === null || marginPosition.heldToken === null) {
+    // the position is being opened
+    marginPosition.owedToken = trade.makerToken
+    marginPosition.heldToken = trade.takerToken
+  }
+
+  const makerToken = Token.load(trade.makerToken)
+  const takerToken = Token.load(trade.takerToken)
+
+  // if the trader is the taker, the taker gets `makerToken` and spends `takerToken`, else the opposite is true
+  // if the trader is the taker and is receiving owed token, the taker is repaying the loan OR
+  // if the trader is the maker and is receiving owed token, the maker is repaying a loan
+  const isRepayingLoan = (isTaker && trade.takerToken === marginPosition.heldToken) || (!isTaker && trade.makerToken === marginPosition.heldToken)
+
+  const takerAmount = isRepayingLoan ? trade.takerTokenDeltaWei.neg() : trade.takerTokenDeltaWei
+  const makerAmount = isRepayingLoan ? trade.makerTokenDeltaWei.neg() : trade.makerTokenDeltaWei
+
+  if (marginPosition.owedToken === trade.makerToken) {
+    const owedPriceUSD = getTokenPriceUSD(makerToken, dydx)
+    const heldPriceUSD = getTokenPriceUSD(takerToken, dydx)
+
+    marginPosition.owedAmount = marginPosition.owedAmount.plus(makerAmount)
+    marginPosition.heldAmount = marginPosition.heldAmount.plus(takerAmount)
+
+    if (makerAmount.gt(ZERO_BD)) {
+      // The user is initially opening the position if they are sizing up the trade
+      marginPosition.initialOwedAmountPar = marginPosition.initialOwedAmountPar.plus(makerAmount.div(makerTokenIndex.borrowIndex))
+      marginPosition.initialOwedAmountWei = marginPosition.initialOwedAmountWei.plus(makerAmount)
+      marginPosition.initialOwedAmountUSD = marginPosition.initialOwedAmountUSD.plus(makerAmount.times(owedPriceUSD))
+      marginPosition.initialOwedPriceUSD = owedPriceUSD
+
+      marginPosition.initialHeldAmountPar = marginPosition.initialHeldAmountPar.plus(takerAmount.div(takerTokenIndex.supplyIndex))
+      marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(takerAmount)
+      marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(takerAmount.times(heldPriceUSD))
+      marginPosition.initialHeldPriceUSD = heldPriceUSD
+    }
+  } else if (marginPosition.heldToken == trade.makerToken) {
+    const owedPriceUSD = getTokenPriceUSD(takerToken, dydx)
+    const heldPriceUSD = getTokenPriceUSD(makerToken, dydx)
+
+    marginPosition.owedAmount = marginPosition.owedAmount.plus(takerAmount)
+    marginPosition.heldAmount = marginPosition.heldAmount.plus(makerAmount)
+
+    if (takerAmount.gt(ZERO_BD)) {
+      // The user is initially opening the position if they are sizing up the trade
+      marginPosition.initialOwedAmountPar = marginPosition.initialOwedAmountPar.plus(takerAmount.div(takerTokenIndex.borrowIndex))
+      marginPosition.initialOwedAmountWei = marginPosition.initialOwedAmountWei.plus(takerAmount)
+      marginPosition.initialOwedAmountUSD = marginPosition.initialOwedAmountUSD.plus(takerAmount.times(owedPriceUSD))
+      marginPosition.initialOwedPriceUSD = owedPriceUSD
+
+      marginPosition.initialHeldAmountPar = marginPosition.initialHeldAmountPar.plus(takerAmount.div(takerTokenIndex.supplyIndex))
+      marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(takerAmount)
+      marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(takerAmount.times(heldPriceUSD))
+      marginPosition.initialHeldPriceUSD = heldPriceUSD
+    }
+  }
+
+  if (marginPosition.heldAmount.equals(ZERO_BD) && isMarginPositionExpired(marginPosition, event)) {
+    marginPosition.status = MarginPositionStatus.Expired
+  }
+
+  marginPosition.save()
+}
+
+function getOwedPriceUSD(dydxProtocol: DyDx, marginPosition: MarginPosition): BigDecimal {
+  if (marginPosition.owedToken !== null) {
+    return getTokenPriceUSD(Token.load(marginPosition.owedToken), dydxProtocol)
+  } else {
+    return ZERO_BD
+  }
+}
 
 export function handleDeposit(event: DepositEvent): void {
   const balanceUpdate = new BalanceUpdate(
@@ -230,12 +356,15 @@ export function handleWithdraw(event: WithdrawEvent): void {
     withdrawal = new Withdrawal(depositID)
   }
 
+  const deltaWeiStruct = new ValueStruct(event.params.update.deltaWei)
+  const newParStruct = new ValueStruct(event.params.update.newPar)
+
   withdrawal.transaction = transaction.id
   withdrawal.logIndex = event.logIndex
   withdrawal.account = marginAccount.id
   withdrawal.token = token.id
   withdrawal.to = event.params.to
-  withdrawal.amountDeltaWei = convertStructToDecimal(new ValueStruct(event.params.update.deltaWei), token.decimals)
+  withdrawal.amountDeltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
   const priceUSD = dydxProtocol.getMarketPrice(event.params.market)
   const deltaWeiUSD = ValueStruct.fromFields(
     event.params.update.deltaWei.sign,
@@ -246,6 +375,15 @@ export function handleWithdraw(event: WithdrawEvent): void {
   marginAccount.save()
   withdrawal.save()
   transaction.save()
+
+  updateDolomiteDayData(event)
+
+  const market = InterestIndex.load(event.params.market.toString())
+  const isVirtualTransfer = false
+  changeProtocolBalance(token, newParStruct, deltaWeiStruct, market, isVirtualTransfer)
+
+  updateAndReturnTokenHourDataForDyDxEvent(token, event)
+  updateAndReturnTokenDayDataForDyDxEvent(token, event)
 }
 
 export function handleTransfer(event: TransferEvent): void {
@@ -304,10 +442,11 @@ export function handleTransfer(event: TransferEvent): void {
 
   const amountDeltaWeiAbs = new ValueStruct(event.params.updateOne.deltaWei).abs()
   transfer.amountDeltaWei = convertStructToDecimal(amountDeltaWeiAbs, token.decimals)
-  const priceUSD = dydxProtocol.getMarketPrice(event.params.market)
+  const priceUSDStruct = dydxProtocol.getMarketPrice(event.params.market)
+  const priceUSD = convertTokenToDecimal(priceUSDStruct.value.times(BigInt.fromI32(10).pow(token.decimals)), BigInt.fromI32(36))
   const deltaWeiUSD = ValueStruct.fromFields(
     amountDeltaWeiAbs.sign,
-    amountDeltaWeiAbs.value.times(priceUSD.value)
+    amountDeltaWeiAbs.value.times(priceUSDStruct.value)
   )
   transfer.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
 
@@ -315,6 +454,57 @@ export function handleTransfer(event: TransferEvent): void {
   marginAccount2.save()
   transfer.save()
   transaction.save()
+
+  const tokenIndex = InterestIndex.load(token.marketId.toString())
+
+  if (marginAccount1.user === marginAccount2.user) {
+    const marginPosition = getOrCreateMarginPosition(event, marginAccount2)
+    if (marginAccount1.accountNumber.equals(ZERO_BI) && marginAccount2.accountNumber.notEqual(ZERO_BI)) {
+      // The user is opening the position or transferring collateral
+      if (marginPosition.status === null) {
+        marginPosition.status = MarginPositionStatus.Open
+
+        marginPosition.heldToken = token.id
+
+        marginPosition.marginDeposit = transfer.amountDeltaWei
+        marginPosition.marginDepositUSD = transfer.amountUSDDeltaWei
+
+        marginPosition.initialHeldAmountPar = marginPosition.initialHeldAmountPar.plus(marginPosition.marginDeposit.div(tokenIndex.supplyIndex))
+        marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(marginPosition.marginDeposit)
+        marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(marginPosition.marginDepositUSD)
+        marginPosition.initialHeldPriceUSD = priceUSD
+      }
+
+      marginPosition.heldAmount = marginPosition.heldAmount.plus(transfer.amountDeltaWei)
+
+      marginPosition.save()
+    } else if (marginAccount2.accountNumber.equals(ZERO_BI) && marginAccount1.accountNumber.notEqual(ZERO_BI)) {
+      // The user is closing the position or removing collateral
+      if (token.id === marginPosition.heldToken) {
+        const owedToken = Token.load(marginPosition.owedToken)
+        const owedTokenIndex = InterestIndex.load(owedToken?.id)
+
+        marginPosition.heldAmount = marginPosition.heldAmount.minus(transfer.amountDeltaWei)
+
+        if (marginPosition.heldAmount.le(ZERO_BD) && marginPosition.status === MarginPositionStatus.Open) {
+          marginPosition.status = MarginPositionStatus.Closed
+          marginPosition.closeTimestamp = event.block.timestamp
+
+          marginPosition.closeHeldPriceUSD = priceUSD
+          marginPosition.closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(tokenIndex.supplyIndex)
+          marginPosition.closeHeldAmountUSD = marginPosition.closeHeldAmountWei.times(priceUSD)
+
+          marginPosition.closeOwedPriceUSD = getOwedPriceUSD(dydxProtocol, marginPosition)
+          marginPosition.closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedTokenIndex?.borrowIndex)
+          marginPosition.closeOwedAmountUSD = marginPosition.closeOwedAmountWei.times(marginPosition.closeOwedPriceUSD)
+        }
+      } else if (token.id === marginPosition.owedToken) {
+        marginPosition.owedAmount = marginPosition.owedAmount.minus(transfer.amountDeltaWei)
+      }
+
+      marginPosition.save()
+    }
+  }
 }
 
 export function handleBuy(event: BuyEvent): void {
@@ -371,11 +561,13 @@ export function handleBuy(event: BuyEvent): void {
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
 
-  trade.takerInputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.takerUpdate.deltaWei), takerToken.decimals)
-  trade.takerOutputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.makerUpdate.deltaWei), makerToken.decimals)
+  const takerDeltaWeiStruct = new ValueStruct(event.params.takerUpdate.deltaWei)
+  const takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
+  trade.takerTokenDeltaWei = convertStructToDecimal(takerNewParStruct.abs(), takerToken.decimals)
 
-  trade.makerInputDeltaWei = null
-  trade.makerOutputDeltaWei = null
+  const makerDeltaWeiStruct = new ValueStruct(event.params.makerUpdate.deltaWei)
+  const makerNewParStruct = new ValueStruct(event.params.makerUpdate.newPar)
+  trade.makerTokenDeltaWei = convertStructToDecimal(makerDeltaWeiStruct.abs(), makerToken.decimals)
 
   const priceUSD = dydxProtocol.getMarketPrice(event.params.takerMarket)
   const deltaWeiUSD = ValueStruct.fromFields(
@@ -387,6 +579,30 @@ export function handleBuy(event: BuyEvent): void {
   marginAccount.save()
   trade.save()
   transaction.save()
+
+  const dolomiteDayData = updateDolomiteDayData(event)
+
+  const makerIndex = InterestIndex.load(event.params.makerMarket.toString())
+  const takerIndex = InterestIndex.load(event.params.takerMarket.toString())
+  const isVirtualTransfer = false
+  changeProtocolBalance(makerToken, takerNewParStruct, takerDeltaWeiStruct, makerIndex, isVirtualTransfer)
+  changeProtocolBalance(takerToken, makerNewParStruct, makerDeltaWeiStruct, takerIndex, isVirtualTransfer)
+
+  const inputTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(makerToken, event)
+  const outputTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(takerToken, event)
+  const inputTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(makerToken, event)
+  const outputTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(takerToken, event)
+
+  updateTimeDataForTrade(dolomiteDayData, inputTokenDayData, inputTokenHourData, makerToken, trade)
+  updateTimeDataForTrade(dolomiteDayData, outputTokenDayData, outputTokenHourData, takerToken, trade)
+
+  if (marginAccount.accountNumber.notEqual(ZERO_BI)) {
+    const marginPosition = getOrCreateMarginPosition(event, marginAccount)
+    if (marginPosition.status === MarginPositionStatus.Open) {
+      updateMarginPositionForTrade(marginPosition, trade, event, dydxProtocol, true, makerIndex, takerIndex)
+      marginPosition.save()
+    }
+  }
 }
 
 export function handleSell(event: SellEvent): void {
@@ -443,11 +659,13 @@ export function handleSell(event: SellEvent): void {
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
 
-  trade.takerInputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.takerUpdate.deltaWei), takerToken.decimals)
-  trade.takerOutputDeltaWei = convertStructToDecimal(new ValueStruct(event.params.makerUpdate.deltaWei), makerToken.decimals)
+  const takerDeltaWeiStruct = new ValueStruct(event.params.takerUpdate.deltaWei)
+  const takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
 
-  trade.makerInputDeltaWei = null
-  trade.makerOutputDeltaWei = null
+  const makerDeltaWeiStruct = new ValueStruct(event.params.makerUpdate.deltaWei)
+  const makerNewParStruct = new ValueStruct(event.params.makerUpdate.newPar)
+  trade.takerTokenDeltaWei = convertStructToDecimal(takerDeltaWeiStruct.abs(), takerToken.decimals)
+  trade.makerTokenDeltaWei = convertStructToDecimal(makerDeltaWeiStruct.abs(), makerToken.decimals)
 
   const priceUSD = dydxProtocol.getMarketPrice(event.params.takerMarket)
   const deltaWeiUSD = ValueStruct.fromFields(
@@ -459,6 +677,30 @@ export function handleSell(event: SellEvent): void {
   marginAccount.save()
   trade.save()
   transaction.save()
+
+  const dolomiteDayData = updateDolomiteDayData(event)
+
+  const makerIndex = InterestIndex.load(event.params.makerMarket.toString())
+  const takerIndex = InterestIndex.load(event.params.takerMarket.toString())
+  const isVirtualTransfer = false
+  changeProtocolBalance(makerToken, takerNewParStruct, takerDeltaWeiStruct, makerIndex, isVirtualTransfer)
+  changeProtocolBalance(takerToken, makerNewParStruct, makerDeltaWeiStruct, takerIndex, isVirtualTransfer)
+
+  const inputTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(makerToken, event)
+  const outputTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(takerToken, event)
+  const inputTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(makerToken, event)
+  const outputTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(takerToken, event)
+
+  updateTimeDataForTrade(dolomiteDayData, inputTokenDayData, inputTokenHourData, makerToken, trade)
+  updateTimeDataForTrade(dolomiteDayData, outputTokenDayData, outputTokenHourData, takerToken, trade)
+
+  if (marginAccount.accountNumber.notEqual(ZERO_BI)) {
+    const marginPosition = getOrCreateMarginPosition(event, marginAccount)
+    if (marginPosition.status === MarginPositionStatus.Open) {
+      updateMarginPositionForTrade(marginPosition, trade, event, dydxProtocol, true, makerIndex, takerIndex)
+      marginPosition.save()
+    }
+  }
 }
 
 export function handleTrade(event: TradeEvent): void {
@@ -551,19 +793,17 @@ export function handleTrade(event: TradeEvent): void {
 
   const takerInputDeltaWeiStruct = new ValueStruct(event.params.takerInputUpdate.deltaWei)
   const takerInputNewParStruct = new ValueStruct(event.params.takerInputUpdate.newPar)
-  trade.takerInputDeltaWei = convertStructToDecimal(takerInputDeltaWeiStruct, outputToken.decimals)
+  trade.takerTokenDeltaWei = convertStructToDecimal(takerInputDeltaWeiStruct.abs(), outputToken.decimals)
 
   const takerOutputDeltaWeiStruct = new ValueStruct(event.params.takerOutputUpdate.deltaWei)
   const takerOutputNewParStruct = new ValueStruct(event.params.takerOutputUpdate.newPar)
-  trade.takerOutputDeltaWei = convertStructToDecimal(takerOutputDeltaWeiStruct, inputToken.decimals)
+  trade.makerTokenDeltaWei = convertStructToDecimal(takerOutputDeltaWeiStruct.abs(), inputToken.decimals)
 
   const makerInputDeltaWeiStruct = new ValueStruct(event.params.makerInputUpdate.deltaWei)
   const makerInputNewParStruct = new ValueStruct(event.params.makerInputUpdate.newPar)
-  trade.makerInputDeltaWei = convertStructToDecimal(makerInputDeltaWeiStruct, inputToken.decimals)
 
   const makerOutputDeltaWeiStruct = new ValueStruct(event.params.makerOutputUpdate.deltaWei)
   const makerOutputNewParStruct = new ValueStruct(event.params.makerOutputUpdate.newPar)
-  trade.makerOutputDeltaWei = convertStructToDecimal(makerOutputDeltaWeiStruct, outputToken.decimals)
 
   const priceUSD = dydxProtocol.getMarketPrice(event.params.outputMarket)
   const deltaWeiUSD = ValueStruct.fromFields(
@@ -586,18 +826,33 @@ export function handleTrade(event: TradeEvent): void {
   changeProtocolBalance(inputToken, makerInputNewParStruct, makerInputDeltaWeiStruct, inputIndex, isVirtualTransfer)
   changeProtocolBalance(outputToken, makerOutputNewParStruct, makerOutputDeltaWeiStruct, outputIndex, isVirtualTransfer)
 
-  const inputTokenHourData = updateTokenHourDataForDyDxEvent(inputToken, event)
-  const outputTokenHourData = updateTokenHourDataForDyDxEvent(outputToken, event)
+  const inputTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(inputToken, event)
+  const outputTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(outputToken, event)
   const inputTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(inputToken, event)
   const outputTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(outputToken, event)
 
-  updateTimeDataForTrade(inputTokenDayData, inputTokenHourData, inputToken, trade)
-  updateTimeDataForTrade(outputTokenDayData, outputTokenHourData, outputToken, trade)
+  updateTimeDataForTrade(dolomiteDayData, inputTokenDayData, inputTokenHourData, inputToken, trade)
+  updateTimeDataForTrade(dolomiteDayData, outputTokenDayData, outputTokenHourData, outputToken, trade)
 
   takerMarginAccount.save()
   makerMarginAccount.save()
   trade.save()
   transaction.save()
+
+  if (makerMarginAccount.accountNumber.notEqual(ZERO_BI)) {
+    const marginPosition = getOrCreateMarginPosition(event, makerMarginAccount)
+    if (marginPosition.status === MarginPositionStatus.Open) {
+      updateMarginPositionForTrade(marginPosition, trade, event, dydxProtocol, false, outputIndex, inputIndex)
+      marginPosition.save()
+    }
+  }
+  if (takerMarginAccount.accountNumber.notEqual(ZERO_BI)) {
+    const marginPosition = getOrCreateMarginPosition(event, takerMarginAccount)
+    if (marginPosition.status === MarginPositionStatus.Open) {
+      updateMarginPositionForTrade(marginPosition, trade, event, dydxProtocol, false, inputIndex, outputIndex)
+      marginPosition.save()
+    }
+  }
 }
 
 export function handleLiquidate(event: LiquidationEvent): void {
@@ -736,18 +991,46 @@ export function handleLiquidate(event: LiquidationEvent): void {
   changeProtocolBalance(heldToken, liquidHeldNewParStruct, liquidHeldDeltaWeiStruct, heldIndex, isVirtualTransfer)
   changeProtocolBalance(owedToken, liquidOwedNewParStruct, liquidOwedDeltaWeiStruct, owedIndex, isVirtualTransfer)
 
-  const heldTokenHourData = updateTokenHourDataForDyDxEvent(heldToken, event)
-  const owedTokenHourData = updateTokenHourDataForDyDxEvent(owedToken, event)
+  const heldTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(heldToken, event)
+  const owedTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(owedToken, event)
   const heldTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(heldToken, event)
   const owedTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(owedToken, event)
 
-  updateTimeDataForLiquidation(heldTokenDayData, heldTokenHourData, heldToken, liquidation)
-  updateTimeDataForLiquidation(owedTokenDayData, owedTokenHourData, owedToken, liquidation)
+  const dolomiteDayData = updateDolomiteDayData(event)
+
+  updateTimeDataForLiquidation(dolomiteDayData, heldTokenDayData, heldTokenHourData, heldToken, liquidation)
+  updateTimeDataForLiquidation(dolomiteDayData, owedTokenDayData, owedTokenHourData, owedToken, liquidation)
 
   liquidMarginAccount.save()
   solidMarginAccount.save()
   liquidation.save()
   transaction.save()
+
+  if (liquidMarginAccount.accountNumber.notEqual(ZERO_BI)) {
+    const marginPosition = getOrCreateMarginPosition(event, liquidMarginAccount)
+    if (marginPosition.status === MarginPositionStatus.Open || marginPosition.status === MarginPositionStatus.Liquidated) {
+      marginPosition.status = MarginPositionStatus.Liquidated
+      marginPosition.closeTimestamp = event.block.timestamp
+
+      marginPosition.owedAmount = marginPosition.owedAmount.minus(bigDecimalAbs(liquidation.liquidBorrowedTokenAmountDeltaWei))
+      marginPosition.heldAmount = marginPosition.heldAmount.minus(bigDecimalAbs(liquidation.liquidHeldTokenAmountDeltaWei))
+
+      if (marginPosition.closeHeldAmountUSD === null && marginPosition.closeOwedAmountUSD === null) {
+        const heldPriceUSD = getTokenPriceUSD(heldToken, dydxProtocol)
+        const owedPriceUSD = getTokenPriceUSD(owedToken, dydxProtocol)
+
+        marginPosition.closeHeldPriceUSD = heldPriceUSD
+        marginPosition.closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(heldIndex.supplyIndex)
+        marginPosition.closeHeldAmountUSD = marginPosition.closeHeldAmountWei.times(heldPriceUSD)
+
+        marginPosition.closeOwedPriceUSD = owedPriceUSD
+        marginPosition.closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedIndex.borrowIndex)
+        marginPosition.closeOwedAmountUSD = marginPosition.closeOwedAmountWei.times(owedPriceUSD)
+      }
+
+      marginPosition.save()
+    }
+  }
 }
 
 export function handleVaporize(event: VaporizationEvent): void {
@@ -785,27 +1068,35 @@ export function handleVaporize(event: VaporizationEvent): void {
   const owedToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.owedMarket).toHexString())
 
   const vaporMarginAccount = getOrCreateMarginAccount(event.params.vaporAccountOwner, event.params.vaporAccountNumber, event.block)
+  const vaporOwedNewParStruct = new ValueStruct(event.params.vaporOwedUpdate.newPar)
+  const vaporOwedDeltaWeiStruct = new ValueStruct(event.params.vaporOwedUpdate.deltaWei)
   updateMarginAccountForEventAndSaveTokenValue(
     vaporMarginAccount,
     event,
     event.params.owedMarket,
-    new ValueStruct(event.params.vaporOwedUpdate.newPar),
+    vaporOwedNewParStruct,
     owedToken
   )
 
   const solidMarginAccount = getOrCreateMarginAccount(event.params.solidAccountOwner, event.params.solidAccountNumber, event.block)
+
+  const solidHeldNewParStruct = new ValueStruct(event.params.solidHeldUpdate.newPar)
+  const solidHeldDeltaWeiStruct = new ValueStruct(event.params.solidHeldUpdate.deltaWei)
   updateMarginAccountForEventAndSaveTokenValue(
     solidMarginAccount,
     event,
     event.params.heldMarket,
-    new ValueStruct(event.params.solidHeldUpdate.newPar),
+    solidHeldNewParStruct,
     heldToken
   )
+
+  const solidOwedNewParStruct = new ValueStruct(event.params.solidOwedUpdate.newPar)
+  const solidOwedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
   updateMarginAccountForEventAndSaveTokenValue(
     solidMarginAccount,
     event,
     event.params.owedMarket,
-    new ValueStruct(event.params.solidOwedUpdate.newPar),
+    solidOwedNewParStruct,
     owedToken
   )
 
@@ -831,8 +1122,47 @@ export function handleVaporize(event: VaporizationEvent): void {
 
   vaporization.amountUSDVaporized = convertTokenToDecimal(owedPriceUSD.times(event.params.vaporOwedUpdate.deltaWei.value), BigInt.fromI32(36))
 
+  const heldIndex = InterestIndex.load(event.params.heldMarket.toString())
+  const owedIndex = InterestIndex.load(event.params.owedMarket.toString())
+  const isVirtualTransfer = true
+  changeProtocolBalance(heldToken, solidHeldNewParStruct, solidHeldDeltaWeiStruct, heldIndex, isVirtualTransfer)
+  changeProtocolBalance(owedToken, solidOwedNewParStruct, solidOwedDeltaWeiStruct, owedIndex, isVirtualTransfer)
+  changeProtocolBalance(owedToken, vaporOwedNewParStruct, vaporOwedDeltaWeiStruct, owedIndex, isVirtualTransfer)
+
+  const heldTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(heldToken, event)
+  const owedTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(owedToken, event)
+  const heldTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(heldToken, event)
+  const owedTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(owedToken, event)
+
+  const dolomiteDayData = updateDolomiteDayData(event)
+
+  updateTimeDataForVaporization(dolomiteDayData, heldTokenDayData, heldTokenHourData, heldToken, vaporization)
+  updateTimeDataForVaporization(dolomiteDayData, owedTokenDayData, owedTokenHourData, owedToken, vaporization)
+
   vaporMarginAccount.save()
   solidMarginAccount.save()
   vaporization.save()
   transaction.save()
+}
+
+export function handleSetExpiry(event: ExpirySetEvent): void {
+  const params = event.params
+  const marginAccount = getOrCreateMarginAccount(event.params.owner, event.params.number, event.block)
+  marginAccount.save()
+
+  const marginPosition = getOrCreateMarginPosition(event, marginAccount)
+  if (params.time.equals(ZERO_BI)) {
+    marginPosition.expirationTimestamp = null
+  } else {
+    marginPosition.expirationTimestamp = params.time
+  }
+  marginPosition.save()
+
+  const dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  const tokenAddress = dydx.getMarketTokenAddress(event.params.marketId).toHexString()
+  const token = Token.load(tokenAddress)
+
+  const tokenValue = getOrCreateTokenValue(marginAccount, token)
+  tokenValue.expirationTimestamp = event.block.timestamp
+  tokenValue.save()
 }

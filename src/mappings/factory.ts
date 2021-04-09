@@ -1,5 +1,5 @@
 /* eslint-disable prefer-const */
-import { log } from '@graphprotocol/graph-ts'
+import { log, Address } from '@graphprotocol/graph-ts'
 import { AmmFactory, AmmPair, Token, Bundle } from '../types/schema'
 import { PairCreated } from '../types/UniswapV2Factory/Factory'
 import { Pair as PairTemplate } from '../types/templates'
@@ -10,10 +10,11 @@ import {
   fetchTokenSymbol,
   fetchTokenName,
   fetchTokenDecimals,
-  fetchTokenTotalSupply
+  fetchTokenTotalSupply, SOLO_MARGIN_ADDRESS
 } from './helpers'
+import { DyDx } from '../types/MarginTrade/DyDx'
 
-function initializeToken(token: Token, event: PairCreated): void {
+function initializeToken(token: Token, event: PairCreated, dydx: DyDx): void {
   token.symbol = fetchTokenSymbol(event.params.token0)
   token.name = fetchTokenName(event.params.token0)
   token.totalSupply = fetchTokenTotalSupply(event.params.token0)
@@ -25,15 +26,16 @@ function initializeToken(token: Token, event: PairCreated): void {
   }
 
   token.decimals = decimals
+  token.marketId = dydx.getMarketIdByTokenAddress(Address.fromString(token.id))
   token.derivedETH = ZERO_BD
   token.tradeVolume = ZERO_BD
   token.tradeVolumeUSD = ZERO_BD
   token.untrackedVolumeUSD = ZERO_BD
   token.ammSwapLiquidity = ZERO_BD
-  token.borrowedLiquidity = ZERO_BD
-  token.borrowedLiquidityUSD = ZERO_BD
-  token.suppliedLiquidity = ZERO_BD
-  token.suppliedLiquidityUSD = ZERO_BD
+  token.borrowLiquidity = ZERO_BD
+  token.borrowLiquidityUSD = ZERO_BD
+  token.supplyLiquidity = ZERO_BD
+  token.supplyLiquidityUSD = ZERO_BD
   token.transactionCount = ZERO_BI
 }
 
@@ -43,8 +45,6 @@ export function handleNewPair(event: PairCreated): void {
   if (factory === null) {
     factory = new AmmFactory(FACTORY_ADDRESS)
     factory.pairCount = 0
-    factory.totalAmmVolumeETH = ZERO_BD
-    factory.ammLiquidityETH = ZERO_BD
     factory.totalAmmVolumeUSD = ZERO_BD
     factory.untrackedAmmVolumeUSD = ZERO_BD
     factory.ammLiquidityUSD = ZERO_BD
@@ -63,16 +63,18 @@ export function handleNewPair(event: PairCreated): void {
   let token0 = Token.load(event.params.token0.toHexString())
   let token1 = Token.load(event.params.token1.toHexString())
 
+  const dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+
   // fetch info if null
   if (token0 === null) {
     token0 = new Token(event.params.token0.toHexString())
-    initializeToken(token0, event)
+    initializeToken(token0, event, dydx)
   }
 
   // fetch info if null
   if (token1 === null) {
     token1 = new Token(event.params.token1.toHexString())
-    initializeToken(token1, event)
+    initializeToken(token1, event, dydx)
   }
 
   const pair = new AmmPair(event.params.pair.toHexString())

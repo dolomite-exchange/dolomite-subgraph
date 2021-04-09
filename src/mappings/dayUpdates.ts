@@ -208,31 +208,6 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: EthereumEven
   return tokenHourData
 }
 
-export function updateTokenHourDataForDyDxEvent(token: Token, event: EthereumEvent): TokenHourData {
-  const timestamp = event.block.timestamp.toI32()
-  const dayID = timestamp / 3600
-  const dayStartTimestamp = dayID * 3600
-  const tokenHourID = `${token.id}-${BigInt.fromI32(dayID).toString()}`
-
-  let tokenHourData = TokenHourData.load(tokenHourID)
-  if (tokenHourData === null) {
-    tokenHourData = new TokenHourData(tokenHourID)
-    setupTokenHourData(tokenHourData, dayStartTimestamp, token)
-  }
-
-  tokenHourData.borrowLiquidityToken = token.borrowLiquidity
-  tokenHourData.supplyLiquidityToken = token.supplyLiquidity
-
-  tokenHourData.borrowLiquidityUSD = token.borrowLiquidityUSD
-  tokenHourData.supplyLiquidityUSD = token.supplyLiquidityUSD
-
-  tokenHourData.hourlyAllTransactionCount = tokenHourData.hourlyAllTransactionCount.plus(ONE_BI)
-
-  tokenHourData.save()
-
-  return tokenHourData
-}
-
 function setupTokenDayData(tokenDayData: TokenDayData, dayStartTimestamp: number, token: Token): TokenDayData {
   tokenDayData.date = dayStartTimestamp
   tokenDayData.token = token.id
@@ -357,9 +332,10 @@ export function updateTimeDataForTrade(
   tokenHourData: TokenHourData,
   token: Token,
   trade: Trade
-): TokenDayData {
+): void {
   const bundle = Bundle.load('1')
   const dayID = tokenDayData.date / 86400
+  const hourID = tokenHourData.date / 3600
 
   // Using the below examples of buying / selling, token == USD || token == ETH
   const closePriceETH = findETHPerTokenForTrade(trade, token)
@@ -405,20 +381,38 @@ export function updateTimeDataForTrade(
     tokenDayData.highPriceUSD = tokenDayData.openPriceUSD
     tokenDayData.lowPriceUSD = tokenDayData.openPriceUSD
   }
+  if (tokenHourData.openPriceUSD.equals(ZERO_BD)) {
+    const previousHourTokenId = `${token.id}-${BigInt.fromI32(hourID - 1).toString()}`
+    const previousHourToken = TokenHourData.load(previousHourTokenId)
+    if (previousHourToken === null) {
+      tokenHourData.openPriceUSD = closePriceUSD
+    } else {
+      tokenHourData.openPriceUSD = previousHourToken.closePriceUSD
+    }
+    tokenHourData.highPriceUSD = tokenHourData.openPriceUSD
+    tokenHourData.lowPriceUSD = tokenHourData.openPriceUSD
+  }
 
   if (tokenDayData.lowPriceUSD.gt(closePriceUSD)) {
     tokenDayData.lowPriceUSD = closePriceUSD
+  }
+  if (tokenHourData.lowPriceUSD.gt(closePriceUSD)) {
+    tokenHourData.lowPriceUSD = closePriceUSD
   }
 
   if (tokenDayData.highPriceUSD.lt(closePriceUSD)) {
     tokenDayData.highPriceUSD = closePriceUSD
   }
+  if (tokenHourData.highPriceUSD.lt(closePriceUSD)) {
+    tokenHourData.highPriceUSD = closePriceUSD
+  }
 
   tokenDayData.closePriceUSD = closePriceUSD
+  tokenHourData.closePriceUSD = closePriceUSD
 
   tokenDayData.save()
-
-  return tokenDayData
+  tokenHourData.save()
+  dolomiteDayData.save()
 }
 
 export function updateTimeDataForLiquidation(
