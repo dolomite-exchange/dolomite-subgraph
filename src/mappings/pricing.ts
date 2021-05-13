@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
 import { AmmPair, Bundle, Token, Trade } from '../types/schema'
-import { Address, BigDecimal, BigInt, EthereumBlock } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt } from '@graphprotocol/graph-ts'
 import {
   ADDRESS_ZERO,
   DAI_WETH_PAIR,
@@ -43,23 +43,29 @@ export function getEthPriceInUSD(): BigDecimal {
 }
 
 // token where amounts should contribute to tracked volume and liquidity
+// const WHITELIST: string[] = [
+//   '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
+//   '0x6b175474e89094c44da98b954eedeac495271d0f', // DAI
+//   '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+//   '0xdac17f958d2ee523a2206206994597c13d831ec7', // USDT
+//   '0x0000000000085d4780b73119b644ae5ecd22b376', // TUSD
+//   '0x5d3a536e4d6dbd6114cc1ead35777bab948e3643', // cDAI
+//   '0x39aa39c021dfbae8fac545936693ac917d5e7563', // cUSDC
+//   '0x86fadb80d8d2cff3c3680819e4da99c10232ba0f', // EBASE
+//   '0x57ab1ec28d129707052df4df418d58a2d46d5f51', // sUSD
+//   '0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2', // MKR
+//   '0xc00e94cb662c3520282e6f5717214004a7f26888', // COMP
+//   '0x514910771af9ca656af840dff83e8264ecf986ca', //LINK
+//   '0x960b236a07cf122663c4303350609a66a7b288c0', //ANT
+//   '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f', //SNX
+//   '0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e', //YFI
+//   '0xdf5e0e81dff6faf3a7e52ba697820c5e32d806a8' // yCurv
+// ]
 const WHITELIST: string[] = [
-  '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
-  '0x6b175474e89094c44da98b954eedeac495271d0f', // DAI
-  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
-  '0xdac17f958d2ee523a2206206994597c13d831ec7', // USDT
-  '0x0000000000085d4780b73119b644ae5ecd22b376', // TUSD
-  '0x5d3a536e4d6dbd6114cc1ead35777bab948e3643', // cDAI
-  '0x39aa39c021dfbae8fac545936693ac917d5e7563', // cUSDC
-  '0x86fadb80d8d2cff3c3680819e4da99c10232ba0f', // EBASE
-  '0x57ab1ec28d129707052df4df418d58a2d46d5f51', // sUSD
-  '0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2', // MKR
-  '0xc00e94cb662c3520282e6f5717214004a7f26888', // COMP
-  '0x514910771af9ca656af840dff83e8264ecf986ca', //LINK
-  '0x960b236a07cf122663c4303350609a66a7b288c0', //ANT
-  '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f', //SNX
-  '0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e', //YFI
-  '0xdf5e0e81dff6faf3a7e52ba697820c5e32d806a8' // yCurv
+  '0xf5ba7ca17aF300F52112C4CC8A7AB1A0482e84D5'.toLowerCase(), // WETH
+  '0x362eD516f2E8eEab895043AF976864126BdD9C7b'.toLowerCase(), // USDC
+  '0x267dc5f342e139b5E407684e3A731aeaE8A71E3e'.toLowerCase(), // DAI
+  '0x48c40e8B9F45E199238e3131B232ADf12d88eA2C'.toLowerCase(), // WMATIC
 ]
 
 // minimum liquidity required to count towards tracked volume for pairs with small # of Lps
@@ -67,10 +73,6 @@ const MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('400000')
 
 // minimum liquidity for price to get tracked
 const MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
-
-export function handleBlock(block: EthereumBlock): void {
-
-}
 
 /**
  * Search through graph to find derived Eth per token.
