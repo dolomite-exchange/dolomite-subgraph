@@ -9,9 +9,9 @@ dataSources:
     network: mainnet
     source:
 #      address: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f' # Mainnet
-      address: '0xFC628dd79137395F3C9744e33b1c5DE554D94882' # Local Node
+      address: '0x03eDcA30023c214FFb282d1ed18722B6411d468c' # Matic Testnet
       abi: Factory
-      startBlock: 10000834
+      startBlock: 13728080
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.3
@@ -37,9 +37,9 @@ dataSources:
     network: mainnet
     source:
 #      address: '' # Mainnet
-      address: '0xb09bCc172050fBd4562da8b229Cf3E45Dc3045A6' # Local Node
+      address: '0x4b1e09162bB8DB114a8C17fabD62cC4d33951578' # Matic Testnet
       abi: DyDx
-      startBlock: 0
+      startBlock: 13728080
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.3

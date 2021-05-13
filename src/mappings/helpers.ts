@@ -16,9 +16,13 @@ import {
 import { Factory as FactoryContract } from '../types/templates/Pair/Factory'
 import { ValueStruct } from './dydx_types'
 
-export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
-export const FACTORY_ADDRESS = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'
-export const SOLO_MARGIN_ADDRESS = '0x1E0447b19BB6EcFdAe1e4AE1694b0C3659614e4e'
+export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'.toLowerCase()
+export const FACTORY_ADDRESS = '0x03eDcA30023c214FFb282d1ed18722B6411d468c'.toLowerCase()
+export const SOLO_MARGIN_ADDRESS = '0x4b1e09162bB8DB114a8C17fabD62cC4d33951578'.toLowerCase()
+export const WETH_ADDRESS = '0xf5ba7ca17aF300F52112C4CC8A7AB1A0482e84D5'.toLowerCase()
+export const USDC_WETH_PAIR = '0xde8682EB23E3954Fb7eDCa86dBBfA427bA217178'.toLowerCase()
+export const DAI_WETH_PAIR = '' // not on testnet
+export const USDT_WETH_PAIR = '' // not on testnet
 
 export let ZERO_BI = BigInt.fromI32(0)
 export let ONE_BI = BigInt.fromI32(1)
