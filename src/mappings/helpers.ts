@@ -16,11 +16,11 @@ import {
 import { Factory as FactoryContract } from '../types/templates/Pair/Factory'
 import { ValueStruct } from './dydx_types'
 
-export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'.toLowerCase()
-export const FACTORY_ADDRESS = '0x03eDcA30023c214FFb282d1ed18722B6411d468c'.toLowerCase()
-export const SOLO_MARGIN_ADDRESS = '0x4b1e09162bB8DB114a8C17fabD62cC4d33951578'.toLowerCase()
-export const WETH_ADDRESS = '0xf5ba7ca17aF300F52112C4CC8A7AB1A0482e84D5'.toLowerCase()
-export const USDC_WETH_PAIR = '0xde8682EB23E3954Fb7eDCa86dBBfA427bA217178'.toLowerCase()
+export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
+export const FACTORY_ADDRESS = '0x03edca30023c214ffb282d1ed18722b6411d468c'
+export const SOLO_MARGIN_ADDRESS = '0x4b1e09162bb8db114a8c17fabd62cc4d33951578'
+export const WETH_ADDRESS = '0xf5ba7ca17af300f52112c4cc8a7ab1a0482e84d5'
+export const USDC_WETH_PAIR = '0xde8682eb23e3954fb7edca86dbbfa427ba217178'
 export const DAI_WETH_PAIR = '' // not on testnet
 export const USDT_WETH_PAIR = '' // not on testnet
 
@@ -145,9 +145,9 @@ export function fetchTokenName(tokenAddress: Address): string {
 }
 
 export function fetchTokenTotalSupply(tokenAddress: Address): BigInt {
-  const contract = ERC20.bind(tokenAddress)
+  let contract = ERC20.bind(tokenAddress)
 
-  const totalSupplyResult = contract.try_totalSupply()
+  let totalSupplyResult = contract.try_totalSupply()
   if (!totalSupplyResult.reverted) {
     return totalSupplyResult.value
   } else {
@@ -162,11 +162,11 @@ export function fetchTokenDecimals(tokenAddress: Address): BigInt {
     return BigInt.fromI32(18)
   }
 
-  const contract = ERC20.bind(tokenAddress)
+  let contract = ERC20.bind(tokenAddress)
   // try types uint8 for decimals
-  const decimalResult = contract.try_decimals()
+  let decimalResult = contract.try_decimals()
   if (!decimalResult.reverted) {
-    return decimalResult.value
+    return BigInt.fromI32(decimalResult.value)
   } else {
     return BigInt.fromI32(0)
   }
@@ -259,8 +259,8 @@ function isRepaymentOfBorrowAmount(
   deltaWei: BigDecimal,
   index: InterestIndex
 ): boolean {
-  const deltaPar = weiToPar(deltaWei, index)
-  const oldPar = newPar.minus(deltaPar)
+  let deltaPar = weiToPar(deltaWei, index)
+  let oldPar = newPar.minus(deltaPar)
   return deltaWei.gt(ZERO_BD) && oldPar.lt(ZERO_BD) // the user added to the negative balance (decreasing it)
 }
 
@@ -271,11 +271,11 @@ export function changeProtocolBalance(
   index: InterestIndex,
   isVirtualTransfer: boolean
 ): void {
-  const soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS)
-  const bundle = Bundle.load('1')
+  let soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS)
+  let bundle = Bundle.load('1')
 
-  const newPar = convertStructToDecimal(newParStruct, token.decimals)
-  const deltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
+  let newPar = convertStructToDecimal(newParStruct, token.decimals)
+  let deltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
 
   let shouldSave = false
 
@@ -283,8 +283,8 @@ export function changeProtocolBalance(
     // The user borrowed funds
     shouldSave = true
 
-    const borrowVolumeToken = ZERO_BD.minus(deltaWei) // this will negate deltaWei
-    const borrowVolumeUSD = borrowVolumeToken.times(token.derivedETH).times(bundle.ethPrice)
+    let borrowVolumeToken = ZERO_BD.minus(deltaWei) // this will negate deltaWei
+    let borrowVolumeUSD = borrowVolumeToken.times(token.derivedETH).times(bundle.ethPrice)
 
     // tokenDayData.dailyBorrowVolumeETH = tokenDayData.dailyBorrowVolumeETH.plus(deltaWeiETH)
     // tokenDayData.dailyBorrowVolumeToken = tokenDayData.dailyBorrowVolumeToken.plus(borrowVolumeToken)
@@ -303,7 +303,7 @@ export function changeProtocolBalance(
     // the user is repaying funds
     shouldSave = true
 
-    const borrowVolumeToken = deltaWei
+    let borrowVolumeToken = deltaWei
 
     // temporarily get rid of the old USD liquidity
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
@@ -328,7 +328,7 @@ export function changeProtocolBalance(
     soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
 
     if (deltaWei.gt(ZERO_BD)) {
-      const deltaWeiUSD = deltaWei.times(token.derivedETH).times(bundle.ethPrice)
+      let deltaWeiUSD = deltaWei.times(token.derivedETH).times(bundle.ethPrice)
       soloMargin.totalSupplyVolumeUSD = soloMargin.totalSupplyVolumeUSD.plus(deltaWeiUSD)
     }
   }

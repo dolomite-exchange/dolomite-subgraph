@@ -60,9 +60,13 @@ export class ValueStruct {
   }
 }
 
-export enum MarginPositionStatus {
-  Open = 'OPEN',
-  Closed = 'CLOSED',
-  Expired = 'EXPIRED',
-  Liquidated = 'LIQUIDATED',
+export class MarginPositionStatus {
+  // eslint-disable-next-line
+  static Open: string = 'OPEN'
+  // eslint-disable-next-line
+  static Closed: string = 'CLOSED'
+  // eslint-disable-next-line
+  static Expired: string = 'EXPIRED'
+  // eslint-disable-next-line
+  static Liquidated: string = 'LIQUIDATED'
 }
