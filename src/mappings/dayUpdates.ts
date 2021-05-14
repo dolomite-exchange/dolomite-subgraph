@@ -18,14 +18,14 @@ import { FACTORY_ADDRESS, ONE_BI, SOLO_MARGIN_ADDRESS, ZERO_BD, ZERO_BI } from '
 import { findETHPerTokenForTrade } from './pricing'
 
 function setupDolomiteDayData(dolomiteDayData: DolomiteDayData, dayTimestamp: number): DolomiteDayData {
-  dolomiteDayData.date = dayTimestamp
+  dolomiteDayData.date = BigInt.fromI32(dayTimestamp).toI32()
 
   // # Daily Figures
   // ## Daily Volume Figures USD
   dolomiteDayData.dailyAmmSwapVolumeUSD = ZERO_BD
   dolomiteDayData.dailyBorrowVolumeUSD = ZERO_BD
-  dolomiteDayData.dailyLendVolumeUSD = ZERO_BD
   dolomiteDayData.dailyLiquidationVolumeUSD = ZERO_BD
+  dolomiteDayData.dailySupplyVolumeUSD = ZERO_BD
   dolomiteDayData.dailyTradeVolumeUSD = ZERO_BD
   dolomiteDayData.dailyVaporizationVolumeUSD = ZERO_BD
 
@@ -48,16 +48,16 @@ function setupDolomiteDayData(dolomiteDayData: DolomiteDayData, dayTimestamp: nu
 }
 
 export function updateDolomiteDayData(event: EthereumEvent): DolomiteDayData {
-  const factory = AmmFactory.load(FACTORY_ADDRESS)
-  const soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS)
-  const timestamp = event.block.timestamp.toI32()
-  const dayID = timestamp / 86400
-  const dayStartTimestamp = dayID * 86400
+  let factory = AmmFactory.load(FACTORY_ADDRESS)
+  let soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS)
+  let timestamp = event.block.timestamp.toI32()
+  let dayID = timestamp / 86400
+  let dayStartTimestamp = dayID * 86400
 
   let dolomiteDayData = DolomiteDayData.load(dayID.toString())
   if (dolomiteDayData === null) {
     dolomiteDayData = new DolomiteDayData(dayID.toString())
-    setupDolomiteDayData(dolomiteDayData, dayStartTimestamp)
+    setupDolomiteDayData(dolomiteDayData as DolomiteDayData, dayStartTimestamp)
   }
 
   // ## Daily Liquidity
@@ -74,15 +74,15 @@ export function updateDolomiteDayData(event: EthereumEvent): DolomiteDayData {
 
   dolomiteDayData.save()
 
-  return dolomiteDayData
+  return dolomiteDayData as DolomiteDayData
 }
 
 export function updatePairDayData(event: EthereumEvent): AmmPairDayData {
-  const timestamp = event.block.timestamp.toI32()
-  const dayID = timestamp / 86400
-  const dayStartTimestamp = dayID * 86400
-  const dayPairID = `${event.address.toHexString()}-${BigInt.fromI32(dayID).toString()}`
-  const pair = AmmPair.load(event.address.toHexString())
+  let timestamp = event.block.timestamp.toI32()
+  let dayID = timestamp / 86400
+  let dayStartTimestamp = dayID * 86400
+  let dayPairID = `${event.address.toHexString()}-${BigInt.fromI32(dayID).toString()}`
+  let pair = AmmPair.load(event.address.toHexString())
 
   let pairDayData = AmmPairDayData.load(dayPairID)
   if (pairDayData === null) {
@@ -108,11 +108,11 @@ export function updatePairDayData(event: EthereumEvent): AmmPairDayData {
 }
 
 export function updatePairHourData(event: EthereumEvent): AmmPairHourData {
-  const timestamp = event.block.timestamp.toI32()
-  const hourIndex = timestamp / 3600 // get unique hour within unix history
-  const hourStartUnix = hourIndex * 3600 // want the rounded effect
-  const hourPairID = `${event.address.toHexString()}-${BigInt.fromI32(hourIndex).toString()}`
-  const pair = AmmPair.load(event.address.toHexString())
+  let timestamp = event.block.timestamp.toI32()
+  let hourIndex = timestamp / 3600 // get unique hour within unix history
+  let hourStartUnix = hourIndex * 3600 // want the rounded effect
+  let hourPairID = `${event.address.toHexString()}-${BigInt.fromI32(hourIndex).toString()}`
+  let pair = AmmPair.load(event.address.toHexString())
 
   let pairHourData = AmmPairHourData.load(hourPairID)
   if (pairHourData === null) {
@@ -181,11 +181,11 @@ function setupTokenHourData(tokenHourData: TokenHourData, hourStartTimestamp: nu
 }
 
 export function updateTokenHourDataForAmmEvent(token: Token, event: EthereumEvent): TokenHourData {
-  const bundle = Bundle.load('1')
-  const timestamp = event.block.timestamp.toI32()
-  const hourID = timestamp / 3600
-  const hourStartTimestamp = hourID * 3600
-  const tokenHourID = `${token.id}-${BigInt.fromI32(hourID).toString()}`
+  let bundle = Bundle.load('1')
+  let timestamp = event.block.timestamp.toI32()
+  let hourID = timestamp / 3600
+  let hourStartTimestamp = hourID * 3600
+  let tokenHourID = `${token.id}-${BigInt.fromI32(hourID).toString()}`
 
   let tokenHourData = TokenHourData.load(tokenHourID)
   if (tokenHourData === null) {
@@ -209,7 +209,7 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: EthereumEven
 }
 
 function setupTokenDayData(tokenDayData: TokenDayData, dayStartTimestamp: number, token: Token): TokenDayData {
-  tokenDayData.date = dayStartTimestamp
+  tokenDayData.date = BigInt.fromI32(dayStartTimestamp).toI32()
   tokenDayData.token = token.id
 
   // # Daily Figures
@@ -255,11 +255,11 @@ function setupTokenDayData(tokenDayData: TokenDayData, dayStartTimestamp: number
 }
 
 export function updateTokenDayDataForAmmEvent(token: Token, event: EthereumEvent): TokenDayData {
-  const bundle = Bundle.load('1')
-  const timestamp = event.block.timestamp.toI32()
-  const dayID = timestamp / 86400
-  const dayStartTimestamp = dayID * 86400
-  const tokenDayID = `${token.id}-${BigInt.fromI32(dayID).toString()}`
+  let bundle = Bundle.load('1')
+  let timestamp = event.block.timestamp.toI32()
+  let dayID = timestamp / 86400
+  let dayStartTimestamp = dayID * 86400
+  let tokenDayID = `${token.id}-${BigInt.fromI32(dayID).toString()}`
 
   let tokenDayData = TokenDayData.load(tokenDayID)
   if (tokenDayData === null) {
@@ -277,10 +277,10 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: EthereumEvent
 }
 
 export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: EthereumEvent): TokenHourData {
-  const timestamp = event.block.timestamp.toI32()
-  const dayID = timestamp / 3600
-  const dayStartTimestamp = dayID * 3600
-  const tokenHourID = `${token.id}-${BigInt.fromI32(dayID).toString()}`
+  let timestamp = event.block.timestamp.toI32()
+  let dayID = timestamp / 3600
+  let dayStartTimestamp = dayID * 3600
+  let tokenHourID = `${token.id}-${BigInt.fromI32(dayID).toString()}`
 
   let tokenHourData = TokenHourData.load(tokenHourID)
   if (tokenHourData === null) {
@@ -298,19 +298,19 @@ export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: Et
 
   tokenHourData.save()
 
-  return tokenHourData
+  return tokenHourData as TokenHourData
 }
 
 export function updateAndReturnTokenDayDataForDyDxEvent(token: Token, event: EthereumEvent): TokenDayData {
-  const timestamp = event.block.timestamp.toI32()
-  const dayID = timestamp / 86400
-  const dayStartTimestamp = dayID * 86400
-  const tokenDayID = `${token.id}-${BigInt.fromI32(dayID).toString()}`
+  let timestamp = event.block.timestamp.toI32()
+  let dayID = timestamp / 86400
+  let dayStartTimestamp = dayID * 86400
+  let tokenDayID = `${token.id}-${BigInt.fromI32(dayID).toString()}`
 
   let tokenDayData = TokenDayData.load(tokenDayID)
   if (tokenDayData === null) {
     tokenDayData = new TokenDayData(tokenDayID)
-    setupTokenDayData(tokenDayData, dayStartTimestamp, token)
+    setupTokenDayData(tokenDayData as TokenDayData, dayStartTimestamp, token)
   }
 
   tokenDayData.borrowLiquidityToken = token.borrowLiquidity
@@ -323,7 +323,7 @@ export function updateAndReturnTokenDayDataForDyDxEvent(token: Token, event: Eth
 
   tokenDayData.save()
 
-  return tokenDayData
+  return tokenDayData as TokenDayData
 }
 
 export function updateTimeDataForTrade(
@@ -333,18 +333,18 @@ export function updateTimeDataForTrade(
   token: Token,
   trade: Trade
 ): void {
-  const bundle = Bundle.load('1')
-  const dayID = tokenDayData.date / 86400
-  const hourID = tokenHourData.date / 3600
+  let bundle = Bundle.load('1')
+  let dayID = tokenDayData.date / 86400
+  let hourID = tokenHourData.date / 3600
 
   // Using the below examples of buying / selling, token == USD || token == ETH
-  const closePriceETH = findETHPerTokenForTrade(trade, token)
-  const closePriceUSD = bundle.ethPrice.times(closePriceETH)
+  let closePriceETH = findETHPerTokenForTrade(trade, token)
+  let closePriceUSD = bundle.ethPrice.times(closePriceETH)
 
   // IE: BUY 4 ETH @ $300 --> outputDeltaWei = $1200; inputDeltaWei = 4 ETH; takerToken = USD; makerToken = ETH
   // IE: SELL 4 ETH @ $300 --> outputDeltaWei = 4 ETH; inputDeltaWei = $1200; takerToken = ETH; makerToken = USD
   if (trade.takerToken == token.id) {
-    const amountUSD = trade.takerOutputDeltaWei.times(closePriceUSD)
+    let amountUSD = trade.takerOutputDeltaWei.times(closePriceUSD)
 
     dolomiteDayData.dailyTradeVolumeUSD = dolomiteDayData.dailyTradeVolumeUSD.plus(amountUSD)
 
@@ -355,7 +355,7 @@ export function updateTimeDataForTrade(
     tokenHourData.hourlyTradeVolumeUSD = tokenHourData.hourlyTradeVolumeUSD.plus(amountUSD)
   } else {
     // trade.makerToken == token.id
-    const amountUSD = trade.takerInputDeltaWei.times(closePriceUSD)
+    let amountUSD = trade.takerInputDeltaWei.times(closePriceUSD)
 
     dolomiteDayData.dailyTradeVolumeUSD = dolomiteDayData.dailyTradeVolumeUSD.plus(amountUSD)
 
@@ -371,8 +371,8 @@ export function updateTimeDataForTrade(
 
   // Price stats
   if (tokenDayData.openPriceUSD.equals(ZERO_BD)) {
-    const previousDayTokenId = `${token.id}-${BigInt.fromI32(dayID - 1).toString()}`
-    const previousDayToken = TokenDayData.load(previousDayTokenId)
+    let previousDayTokenId = `${token.id}-${BigInt.fromI32(dayID - 1).toString()}`
+    let previousDayToken = TokenDayData.load(previousDayTokenId)
     if (previousDayToken === null) {
       tokenDayData.openPriceUSD = closePriceUSD
     } else {
@@ -382,8 +382,8 @@ export function updateTimeDataForTrade(
     tokenDayData.lowPriceUSD = tokenDayData.openPriceUSD
   }
   if (tokenHourData.openPriceUSD.equals(ZERO_BD)) {
-    const previousHourTokenId = `${token.id}-${BigInt.fromI32(hourID - 1).toString()}`
-    const previousHourToken = TokenHourData.load(previousHourTokenId)
+    let previousHourTokenId = `${token.id}-${BigInt.fromI32(hourID - 1).toString()}`
+    let previousHourToken = TokenHourData.load(previousHourTokenId)
     if (previousHourToken === null) {
       tokenHourData.openPriceUSD = closePriceUSD
     } else {
@@ -423,7 +423,7 @@ export function updateTimeDataForLiquidation(
   liquidation: Liquidation
 ): void {
   if (liquidation.borrowedToken === token.id) {
-    const bundle = Bundle.load('1')
+    let bundle = Bundle.load('1')
 
     let liquidationVolumeToken = liquidation.liquidBorrowedTokenAmountDeltaWei
     if (liquidationVolumeToken.lt(ZERO_BD)) {
@@ -431,7 +431,7 @@ export function updateTimeDataForLiquidation(
       liquidationVolumeToken = ZERO_BD.minus(liquidationVolumeToken)
     }
 
-    const liquidationVolumeUSD = liquidationVolumeToken.times(token.derivedETH).times(bundle.ethPrice)
+    let liquidationVolumeUSD = liquidationVolumeToken.times(token.derivedETH).times(bundle.ethPrice)
 
     tokenDayData.dailyLiquidationVolumeToken = tokenDayData.dailyLiquidationVolumeToken.plus(liquidationVolumeToken)
     tokenDayData.dailyLiquidationVolumeUSD = tokenDayData.dailyLiquidationVolumeUSD.plus(liquidationVolumeUSD)
@@ -457,7 +457,7 @@ export function updateTimeDataForVaporization(
   vaporization: Vaporization
 ): void {
   if (vaporization.borrowedToken === token.id) {
-    const bundle = Bundle.load('1')
+    let bundle = Bundle.load('1')
 
     let vaporizationVolumeToken = vaporization.vaporBorrowedTokenAmountDeltaWei
     if (vaporizationVolumeToken.lt(ZERO_BD)) {
@@ -465,7 +465,7 @@ export function updateTimeDataForVaporization(
       vaporizationVolumeToken = ZERO_BD.minus(vaporizationVolumeToken)
     }
 
-    const vaporizationVolumeUSD = vaporizationVolumeToken.times(token.derivedETH).times(bundle.ethPrice)
+    let vaporizationVolumeUSD = vaporizationVolumeToken.times(token.derivedETH).times(bundle.ethPrice)
 
     tokenDayData.dailyVaporizationVolumeToken = tokenDayData.dailyVaporizationVolumeToken.plus(vaporizationVolumeToken)
     tokenDayData.dailyVaporizationVolumeUSD = tokenDayData.dailyVaporizationVolumeUSD.plus(vaporizationVolumeUSD)

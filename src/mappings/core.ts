@@ -34,7 +34,7 @@ function isCompleteMint(mintId: string): boolean {
 }
 
 export function getOrCreateTransaction(event: EthereumEvent): Transaction {
-  const transactionID = event.transaction.hash.toHexString()
+  let transactionID = event.transaction.hash.toHexString()
   let transaction = Transaction.load(transactionID)
   if (transaction === null) {
     transaction = new Transaction(transactionID)

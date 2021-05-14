@@ -1,4 +1,4 @@
-/* eslint-disable prefer-const */
+/* eslint-disable prefer-let */
 import { AmmPair, Bundle, Token, Trade } from '../types/schema'
 import { Address, BigDecimal, BigInt } from '@graphprotocol/graph-ts'
 import {
@@ -14,25 +14,25 @@ import {
 
 export function getEthPriceInUSD(): BigDecimal {
   // fetch eth prices for each stablecoin
-  const daiPair = AmmPair.load(DAI_WETH_PAIR) // dai is token0
-  const usdcPair = AmmPair.load(USDC_WETH_PAIR) // usdc is token0
-  const usdtPair = AmmPair.load(USDT_WETH_PAIR) // usdt is token1
+  let daiPair = AmmPair.load(DAI_WETH_PAIR) // dai is token0
+  let usdcPair = AmmPair.load(USDC_WETH_PAIR) // usdc is token0
+  let usdtPair = AmmPair.load(USDT_WETH_PAIR) // usdt is token1
 
   // all 3 have been created
   if (daiPair !== null && usdcPair !== null && usdtPair !== null) {
-    const totalLiquidityETH = daiPair.reserve1.plus(usdcPair.reserve1).plus(usdtPair.reserve0)
-    const daiWeight = daiPair.reserve1.div(totalLiquidityETH)
-    const usdcWeight = usdcPair.reserve1.div(totalLiquidityETH)
-    const usdtWeight = usdtPair.reserve0.div(totalLiquidityETH)
+    let totalLiquidityETH = daiPair.reserve1.plus(usdcPair.reserve1).plus(usdtPair.reserve0)
+    let daiWeight = daiPair.reserve1.div(totalLiquidityETH)
+    let usdcWeight = usdcPair.reserve1.div(totalLiquidityETH)
+    let usdtWeight = usdtPair.reserve0.div(totalLiquidityETH)
     return daiPair.token0Price
       .times(daiWeight)
       .plus(usdcPair.token0Price.times(usdcWeight))
       .plus(usdtPair.token1Price.times(usdtWeight))
     // dai and USDC have been created
   } else if (daiPair !== null && usdcPair !== null) {
-    const totalLiquidityETH = daiPair.reserve1.plus(usdcPair.reserve1)
-    const daiWeight = daiPair.reserve1.div(totalLiquidityETH)
-    const usdcWeight = usdcPair.reserve1.div(totalLiquidityETH)
+    let totalLiquidityETH = daiPair.reserve1.plus(usdcPair.reserve1)
+    let daiWeight = daiPair.reserve1.div(totalLiquidityETH)
+    let usdcWeight = usdcPair.reserve1.div(totalLiquidityETH)
     return daiPair.token0Price.times(daiWeight).plus(usdcPair.token0Price.times(usdcWeight))
     // USDC is the only pair so far
   } else if (usdcPair !== null) {
@@ -69,11 +69,10 @@ const WHITELIST: string[] = [
 ]
 
 // minimum liquidity required to count towards tracked volume for pairs with small # of Lps
-const MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('400000')
+let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('400000')
 
 // minimum liquidity for price to get tracked
-const MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
-
+let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
 /**
  * Search through graph to find derived Eth per token.
  * @todo update to be derived ETH (add stablecoin estimates)
@@ -101,12 +100,12 @@ export function findEthPerToken(token: Token): BigDecimal {
 
 export function findETHPerTokenForTrade(trade: Trade, token: Token): BigDecimal {
   if (token.id == trade.makerToken) {
-    const takerToken = Token.load(trade.takerToken)
-    const takerTokenPrice = trade.takerOutputDeltaWei.div(trade.takerInputDeltaWei)
+    let takerToken = Token.load(trade.takerToken)
+    let takerTokenPrice = trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei)
     return takerTokenPrice.times(takerToken.derivedETH) // return token1 per our token * ETH per token1
   } else {
-    const makerToken = Token.load(trade.makerToken)
-    const makerTokenPrice = trade.takerInputDeltaWei.div(trade.takerOutputDeltaWei)
+    let makerToken = Token.load(trade.makerToken)
+    let makerTokenPrice = trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei)
     return makerTokenPrice.times(makerToken.derivedETH) // return token0 per our token * ETH per token0
   }
 }
@@ -124,14 +123,14 @@ export function getTrackedVolumeUSD(
   token1: Token,
   pair: AmmPair
 ): BigDecimal {
-  const bundle = Bundle.load('1')
-  const price0 = token0.derivedETH.times(bundle.ethPrice)
-  const price1 = token1.derivedETH.times(bundle.ethPrice)
+  let bundle = Bundle.load('1')
+  let price0 = token0.derivedETH.times(bundle.ethPrice)
+  let price1 = token1.derivedETH.times(bundle.ethPrice)
 
   // if less than 5 LPs, require high minimum reserve amount or return 0
   if (pair.liquidityProviderCount.lt(BigInt.fromI32(5))) {
-    const reserve0USD = pair.reserve0.times(price0)
-    const reserve1USD = pair.reserve1.times(price1)
+    let reserve0USD = pair.reserve0.times(price0)
+    let reserve1USD = pair.reserve1.times(price1)
     if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
       if (reserve0USD.plus(reserve1USD).lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
         return ZERO_BD
@@ -183,9 +182,9 @@ export function getTrackedLiquidityUSD(
   tokenAmount1: BigDecimal,
   token1: Token
 ): BigDecimal {
-  const bundle = Bundle.load('1')
-  const price0 = token0.derivedETH.times(bundle.ethPrice)
-  const price1 = token1.derivedETH.times(bundle.ethPrice)
+  let bundle = Bundle.load('1')
+  let price0 = token0.derivedETH.times(bundle.ethPrice)
+  let price1 = token1.derivedETH.times(bundle.ethPrice)
 
   // both are whitelist tokens, take average of both amounts
   if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {

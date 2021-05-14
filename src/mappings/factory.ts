@@ -63,21 +63,21 @@ export function handleNewPair(event: PairCreated): void {
   let token0 = Token.load(event.params.token0.toHexString())
   let token1 = Token.load(event.params.token1.toHexString())
 
-  const dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
 
   // fetch info if null
   if (token0 === null) {
     token0 = new Token(event.params.token0.toHexString())
-    initializeToken(token0, event, dydx)
+    initializeToken(token0 as Token, event, dydx)
   }
 
   // fetch info if null
   if (token1 === null) {
     token1 = new Token(event.params.token1.toHexString())
-    initializeToken(token1, event, dydx)
+    initializeToken(token1 as Token, event, dydx)
   }
 
-  const pair = new AmmPair(event.params.pair.toHexString())
+  let pair = new AmmPair(event.params.pair.toHexString())
   pair.token0 = token0.id
   pair.token1 = token1.id
   pair.liquidityProviderCount = ZERO_BI
