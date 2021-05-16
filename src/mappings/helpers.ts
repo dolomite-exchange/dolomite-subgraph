@@ -66,7 +66,7 @@ export function convertTokenToDecimal(tokenAmount: BigInt, exchangeDecimals: Big
 }
 
 export function convertStructToDecimal(struct: ValueStruct, exchangeDecimals: BigInt): BigDecimal {
-  const value = struct.sign ? struct.value : ZERO_BI.minus(struct.value)
+  let value = struct.sign ? struct.value : ZERO_BI.minus(struct.value)
   if (exchangeDecimals == ZERO_BI) {
     return value.toBigDecimal()
   } else {
@@ -177,7 +177,7 @@ export function createLiquidityPosition(exchange: Address, user: Address): AmmLi
 
   let liquidityTokenBalance = AmmLiquidityPosition.load(positionID)
   if (liquidityTokenBalance === null) {
-    const pair = AmmPair.load(exchange.toHexString())
+    let pair = AmmPair.load(exchange.toHexString())
     pair.liquidityProviderCount = pair.liquidityProviderCount.plus(ONE_BI)
 
     liquidityTokenBalance = new AmmLiquidityPosition(positionID)
@@ -189,7 +189,7 @@ export function createLiquidityPosition(exchange: Address, user: Address): AmmLi
     liquidityTokenBalance.save()
   }
 
-  return liquidityTokenBalance
+  return liquidityTokenBalance as AmmLiquidityPosition
 }
 
 export function createUser(address: Address): void {
@@ -221,14 +221,14 @@ export function absBI(bi: BigInt): BigInt {
 }
 
 export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: EthereumEvent): void {
-  const timestamp = event.block.timestamp.toI32()
-  const bundle = Bundle.load('1')
-  const pair = AmmPair.load(position.pair)
-  const token0 = Token.load(pair.token0)
-  const token1 = Token.load(pair.token1)
+  let timestamp = event.block.timestamp.toI32()
+  let bundle = Bundle.load('1')
+  let pair = AmmPair.load(position.pair)
+  let token0 = Token.load(pair.token0)
+  let token1 = Token.load(pair.token1)
 
   // create new snapshot
-  const snapshot = new AmmLiquidityPositionSnapshot(position.id.concat(timestamp.toString()))
+  let snapshot = new AmmLiquidityPositionSnapshot(position.id.concat(timestamp.toString()))
   snapshot.liquidityPosition = position.id
   snapshot.timestamp = timestamp
   snapshot.block = event.block.number.toI32()
@@ -284,7 +284,7 @@ export function changeProtocolBalance(
     shouldSave = true
 
     let borrowVolumeToken = ZERO_BD.minus(deltaWei) // this will negate deltaWei
-    let borrowVolumeUSD = borrowVolumeToken.times(token.derivedETH).times(bundle.ethPrice)
+    let borrowVolumeUSD = borrowVolumeToken.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
 
     // tokenDayData.dailyBorrowVolumeETH = tokenDayData.dailyBorrowVolumeETH.plus(deltaWeiETH)
     // tokenDayData.dailyBorrowVolumeToken = tokenDayData.dailyBorrowVolumeToken.plus(borrowVolumeToken)
@@ -294,7 +294,7 @@ export function changeProtocolBalance(
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
 
     token.borrowLiquidity = token.borrowLiquidity.plus(borrowVolumeToken)
-    token.borrowLiquidityUSD = token.borrowLiquidity.times(token.derivedETH).times(bundle.ethPrice)
+    token.borrowLiquidityUSD = token.borrowLiquidity.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
 
     // add the new liquidity back in
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
@@ -309,7 +309,7 @@ export function changeProtocolBalance(
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
 
     token.borrowLiquidity = token.borrowLiquidity.minus(borrowVolumeToken)
-    token.borrowLiquidityUSD = token.borrowLiquidity.times(token.derivedETH).times(bundle.ethPrice)
+    token.borrowLiquidityUSD = token.borrowLiquidity.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
 
     // add the new liquidity back in
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
@@ -322,13 +322,13 @@ export function changeProtocolBalance(
     soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
 
     token.supplyLiquidity = token.supplyLiquidity.plus(deltaWei)
-    token.supplyLiquidityUSD = token.supplyLiquidity.times(token.derivedETH).times(bundle.ethPrice)
+    token.supplyLiquidityUSD = token.supplyLiquidity.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
 
     // add the new liquidity back in
     soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
 
     if (deltaWei.gt(ZERO_BD)) {
-      let deltaWeiUSD = deltaWei.times(token.derivedETH).times(bundle.ethPrice)
+      let deltaWeiUSD = deltaWei.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
       soloMargin.totalSupplyVolumeUSD = soloMargin.totalSupplyVolumeUSD.plus(deltaWeiUSD)
     }
   }

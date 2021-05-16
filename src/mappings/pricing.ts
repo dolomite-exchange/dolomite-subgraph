@@ -62,10 +62,10 @@ export function getEthPriceInUSD(): BigDecimal {
 //   '0xdf5e0e81dff6faf3a7e52ba697820c5e32d806a8' // yCurv
 // ]
 const WHITELIST: string[] = [
-  '0xf5ba7ca17aF300F52112C4CC8A7AB1A0482e84D5'.toLowerCase(), // WETH
-  '0x362eD516f2E8eEab895043AF976864126BdD9C7b'.toLowerCase(), // USDC
-  '0x267dc5f342e139b5E407684e3A731aeaE8A71E3e'.toLowerCase(), // DAI
-  '0x48c40e8B9F45E199238e3131B232ADf12d88eA2C'.toLowerCase(), // WMATIC
+  '0xf5ba7ca17af300f52112c4cc8a7ab1a0482e84d5', // WETH
+  '0x362ed516f2e8eeab895043af976864126bdd9c7b', // USDC
+  '0x267dc5f342e139b5e407684e3a731aeae8a71e3e', // DAI
+  '0x48c40e8b9f45e199238e3131b232adf12d88ea2c', // WMATIC
 ]
 
 // minimum liquidity required to count towards tracked volume for pairs with small # of Lps
@@ -73,6 +73,7 @@ let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('400000')
 
 // minimum liquidity for price to get tracked
 let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
+
 /**
  * Search through graph to find derived Eth per token.
  * @todo update to be derived ETH (add stablecoin estimates)
@@ -83,14 +84,14 @@ export function findEthPerToken(token: Token): BigDecimal {
   }
   // loop through whitelist and check if paired with any
   for (let i = 0; i < WHITELIST.length; ++i) {
-    const pairAddress = factoryContract.getPair(Address.fromString(token.id), Address.fromString(WHITELIST[i]))
+    let pairAddress = factoryContract.getPair(Address.fromString(token.id), Address.fromString(WHITELIST[i]))
     if (pairAddress.toHexString() != ADDRESS_ZERO) {
-      const pair = AmmPair.load(pairAddress.toHexString())
+      let pair = AmmPair.load(pairAddress.toHexString())
       if (pair.token0 == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
-        const token1 = Token.load(pair.token1)
+        let token1 = Token.load(pair.token1)
         return pair.token1Price.times(token1.derivedETH as BigDecimal) // return token1 per our token * Eth per token 1
       } else if (pair.token1 == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
-        const token0 = Token.load(pair.token0)
+        let token0 = Token.load(pair.token0)
         return pair.token0Price.times(token0.derivedETH as BigDecimal) // return token0 per our token * ETH per token 0
       }
     }
@@ -102,11 +103,11 @@ export function findETHPerTokenForTrade(trade: Trade, token: Token): BigDecimal 
   if (token.id == trade.makerToken) {
     let takerToken = Token.load(trade.takerToken)
     let takerTokenPrice = trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei)
-    return takerTokenPrice.times(takerToken.derivedETH) // return token1 per our token * ETH per token1
+    return takerTokenPrice.times(takerToken.derivedETH as BigDecimal) // return token1 per our token * ETH per token1
   } else {
     let makerToken = Token.load(trade.makerToken)
     let makerTokenPrice = trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei)
-    return makerTokenPrice.times(makerToken.derivedETH) // return token0 per our token * ETH per token0
+    return makerTokenPrice.times(makerToken.derivedETH as BigDecimal) // return token0 per our token * ETH per token0
   }
 }
 
