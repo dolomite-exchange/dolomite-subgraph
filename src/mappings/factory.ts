@@ -2,7 +2,7 @@
 import { log, Address } from '@graphprotocol/graph-ts'
 import { AmmFactory, AmmPair, Token, Bundle } from '../types/schema'
 import { PairCreated } from '../types/UniswapV2Factory/Factory'
-import { Pair as PairTemplate } from '../types/templates'
+import { AmmPair as PairTemplate } from '../types/templates'
 import {
   FACTORY_ADDRESS,
   ZERO_BD,
@@ -15,10 +15,11 @@ import {
 import { DyDx } from '../types/MarginTrade/DyDx'
 
 function initializeToken(token: Token, event: PairCreated, dydx: DyDx): void {
-  token.symbol = fetchTokenSymbol(event.params.token0)
-  token.name = fetchTokenName(event.params.token0)
-  token.totalSupply = fetchTokenTotalSupply(event.params.token0)
-  let decimals = fetchTokenDecimals(event.params.token0)
+  let tokenAddress = Address.fromString(token.id)
+  token.symbol = fetchTokenSymbol(tokenAddress)
+  token.name = fetchTokenName(tokenAddress)
+  token.totalSupply = fetchTokenTotalSupply(tokenAddress)
+  let decimals = fetchTokenDecimals(tokenAddress)
   // bail if we couldn't figure out the decimals
   if (decimals === null) {
     log.debug('the decimal on token was null', [])
@@ -26,7 +27,7 @@ function initializeToken(token: Token, event: PairCreated, dydx: DyDx): void {
   }
 
   token.decimals = decimals
-  token.marketId = dydx.getMarketIdByTokenAddress(Address.fromString(token.id))
+  token.marketId = dydx.getMarketIdByTokenAddress(tokenAddress)
   token.derivedETH = ZERO_BD
   token.tradeVolume = ZERO_BD
   token.tradeVolumeUSD = ZERO_BD

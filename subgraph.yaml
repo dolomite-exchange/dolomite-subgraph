@@ -6,11 +6,11 @@ schema:
 dataSources:
   - kind: ethereum/contract
     name: UniswapV2Factory
-    network: mainnet
+    network: mumbai
     source:
 #      address: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f' # Mainnet
       address: '0x03eDcA30023c214FFb282d1ed18722B6411d468c' # Matic Testnet
-      abi: Factory
+      abi: UniswapV2Factory
       startBlock: 13728080
     mapping:
       kind: ethereum/events
@@ -18,23 +18,25 @@ dataSources:
       language: wasm/assemblyscript
       file: ./src/mappings/factory.ts
       entities:
-        - Pair
+        - AmmPair
         - Token
       abis:
-        - name: Factory
-          file: ./abis/factory.json
+        - name: UniswapV2Factory
+          file: ./abis/uniswap-v2-factory.json
         - name: ERC20
-          file: ./abis/ERC20.json
+          file: ./abis/erc20.json
         - name: ERC20SymbolBytes
-          file: ./abis/ERC20SymbolBytes.json
+          file: ./abis/erc20-symbol-bytes.json
         - name: ERC20NameBytes
-          file: ./abis/ERC20NameBytes.json
+          file: ./abis/erc20-name-bytes.json
+        - name: DyDx
+          file: ./abis/dydx.json
       eventHandlers:
         - event: PairCreated(indexed address,indexed address,address,uint256)
           handler: handleNewPair
   - kind: ethereum/contract
     name: MarginTrade
-    network: mainnet
+    network: mumbai
     source:
 #      address: '' # Mainnet
       address: '0x4b1e09162bB8DB114a8C17fabD62cC4d33951578' # Matic Testnet
@@ -46,18 +48,20 @@ dataSources:
       language: wasm/assemblyscript
       file: ./src/mappings/dydx.ts
       entities:
-        - Pair
+        - AmmPair
         - Token
       abis:
         - name: DyDx
-          file: ./abis/DyDx.json
+          file: ./abis/dydx.json
         - name: ERC20
-          file: ./abis/ERC20.json
+          file: ./abis/erc20.json
         - name: ERC20SymbolBytes
-          file: ./abis/ERC20SymbolBytes.json
+          file: ./abis/erc20-symbol-bytes.json
         - name: ERC20NameBytes
-          file: ./abis/ERC20NameBytes.json
+          file: ./abis/erc20-name-bytes.json
       eventHandlers:
+        - event: LogAddMarket(uint256,address)
+          handler: handleMarketAdded
         - event: LogIndexUpdate(indexed uint256,(uint96,uint96,uint32))
           handler: handleIndexUpdate
         - event: LogDeposit(indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),address)
@@ -80,23 +84,23 @@ dataSources:
           handler: handleSetExpiry
 templates:
   - kind: ethereum/contract
-    name: Pair
-    network: mainnet
+    name: AmmPair
+    network: mumbai
     source:
-      abi: Pair
+      abi: AmmPair
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.3
       language: wasm/assemblyscript
       file: ./src/mappings/core.ts
       entities:
-        - Pair
+        - AmmPair
         - Token
       abis:
-        - name: Pair
-          file: ./abis/pair.json
-        - name: Factory
-          file: ./abis/factory.json
+        - name: AmmPair
+          file: ./abis/amm-pair.json
+        - name: UniswapV2Factory
+          file: ./abis/uniswap-v2-factory.json
       eventHandlers:
         - event: Mint(indexed address,uint256,uint256)
           handler: handleMint

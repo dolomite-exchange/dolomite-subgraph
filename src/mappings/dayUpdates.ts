@@ -66,7 +66,7 @@ export function updateDolomiteDayData(event: EthereumEvent): DolomiteDayData {
   dolomiteDayData.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD
 
   // ## Total Counts
-  dolomiteDayData.totalAllTransactionCount = soloMargin.allTransactionCount
+  dolomiteDayData.totalAllTransactionCount = soloMargin.transactionCount
   dolomiteDayData.totalAmmSwapCount = factory.transactionCount
   dolomiteDayData.totalLiquidationCount = soloMargin.liquidationCount
   dolomiteDayData.totalTradeCount = soloMargin.tradeCount
@@ -425,7 +425,7 @@ export function updateTimeDataForLiquidation(
   if (liquidation.borrowedToken === token.id) {
     let bundle = Bundle.load('1')
 
-    let liquidationVolumeToken = liquidation.liquidBorrowedTokenAmountDeltaWei
+    let liquidationVolumeToken = liquidation.borrowedTokenAmountDeltaWei
     if (liquidationVolumeToken.lt(ZERO_BD)) {
       // This should always be positive but just to be sure
       liquidationVolumeToken = ZERO_BD.minus(liquidationVolumeToken)

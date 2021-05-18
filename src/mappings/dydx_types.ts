@@ -51,6 +51,10 @@ export class ValueStruct {
     return this.tuple[1].toBigInt()
   }
 
+  neg(): ValueStruct {
+    return ValueStruct.fromFields(!this.sign, this.value)
+  }
+
   abs(): ValueStruct {
     return ValueStruct.fromFields(true, this.value.abs())
   }

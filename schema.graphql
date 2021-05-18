@@ -27,6 +27,9 @@ type DyDxSoloMargin @entity {
   supplyLiquidityUSD: BigDecimal!
   borrowLiquidityUSD: BigDecimal!
 
+  # used for tracking transactionCount
+  lastTransactionHash: Bytes!
+
   # totals over all-time USD
   totalBorrowVolumeUSD: BigDecimal!
   totalLiquidationVolumeUSD: BigDecimal!
@@ -34,7 +37,7 @@ type DyDxSoloMargin @entity {
   totalTradeVolumeUSD: BigDecimal!
   totalVaporizationVolumeUSD: BigDecimal!
 
-  allTransactionCount: BigInt!
+  actionCount: BigInt!
   liquidationCount: BigInt!
   tradeCount: BigInt!
   transactionCount: BigInt!
@@ -516,14 +519,13 @@ type Liquidation @entity {
   heldToken: Token!
   borrowedToken: Token!
 
-  solidBorrowedTokenAmountDeltaWei: BigDecimal!
-  solidHeldTokenAmountDeltaWei: BigDecimal!
-  liquidBorrowedTokenAmountDeltaWei: BigDecimal!
-  liquidHeldTokenAmountDeltaWei: BigDecimal!
+  borrowedTokenAmountDeltaWei: BigDecimal!
+  heldTokenAmountDeltaWei: BigDecimal!
 
   heldTokenLiquidationRewardWei: BigDecimal!
 
   # derived info
+  debtUSDLiquidated: BigDecimal! # The amount of borrowedTokenAMount liquidated
   collateralUSDLiquidated: BigDecimal! # The amount of heldTokenAmount liquidated to recover `borrowAmount`
   collateralUSDLiquidationReward: BigDecimal! # The amount of heldTokenAmount given as a reward to the liquidator
 }
