@@ -9,9 +9,9 @@ dataSources:
     network: mumbai
     source:
 #      address: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f' # Mainnet
-      address: '0x03eDcA30023c214FFb282d1ed18722B6411d468c' # Matic Testnet
+      address: '0xeD2e1f95Fe6978C30F6Ecf2B316458e8271CE67F' # Matic Testnet
       abi: UniswapV2Factory
-      startBlock: 13728080
+      startBlock: 13996000
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.3
@@ -39,9 +39,9 @@ dataSources:
     network: mumbai
     source:
 #      address: '' # Mainnet
-      address: '0x4b1e09162bB8DB114a8C17fabD62cC4d33951578' # Matic Testnet
+      address: '0x9B319b032bB37194B12fe3257678c3a3Ad6Eb720' # Matic Testnet
       abi: DyDx
-      startBlock: 13728080
+      startBlock: 13996000
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.3

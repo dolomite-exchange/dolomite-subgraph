@@ -17,10 +17,10 @@ import { Factory as FactoryContract } from '../types/templates/Pair/Factory'
 import { ValueStruct } from './dydx_types'
 
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
-export const FACTORY_ADDRESS = '0x03edca30023c214ffb282d1ed18722b6411d468c'
-export const SOLO_MARGIN_ADDRESS = '0x4b1e09162bb8db114a8c17fabd62cc4d33951578'
-export const WETH_ADDRESS = '0xf5ba7ca17af300f52112c4cc8a7ab1a0482e84d5'
-export const USDC_WETH_PAIR = '0xde8682eb23e3954fb7edca86dbbfa427ba217178'
+export const FACTORY_ADDRESS = '0xeD2e1f95Fe6978C30F6Ecf2B316458e8271CE67F'
+export const SOLO_MARGIN_ADDRESS = '0x9B319b032bB37194B12fe3257678c3a3Ad6Eb720'
+export const WETH_ADDRESS = '0xa38eF095D071ebBAFeA5E7D1Ce02BE79fc376793'
+export const USDC_WETH_PAIR = ''
 export const DAI_WETH_PAIR = '' // not on testnet
 export const USDT_WETH_PAIR = '' // not on testnet
 
