@@ -469,6 +469,7 @@ type Deposit @entity {
   logIndex: BigInt!
 
   account: MarginAccount!
+  accountAddress: Bytes!
   token: Token!
   from: Bytes!
 
@@ -484,6 +485,7 @@ type Withdrawal @entity {
   logIndex: BigInt!
 
   account: MarginAccount!
+  accountAddress: Bytes!
   token: Token!
   to: Bytes!
 
@@ -499,7 +501,10 @@ type Transfer @entity {
   logIndex: BigInt!
 
   fromAccount: MarginAccount!
+  fromAccountAddress: Bytes!
   toAccount: MarginAccount!
+  toAccountAddress: Bytes!
+
   token: Token!
 
   amountDeltaWei: BigDecimal!
@@ -515,7 +520,9 @@ type Liquidation @entity {
 
   # populated from the Swap event
   solidAccount: MarginAccount!
+  solidAccountAddress: Bytes!
   liquidAccount: MarginAccount!
+  liquidAccountAddress: Bytes!
   heldToken: Token!
   borrowedToken: Token!
 
@@ -535,7 +542,9 @@ type Vaporization @entity {
   transaction: Transaction!
 
   solidAccount: MarginAccount!
+  solidAccountAddress: Bytes!
   vaporAccount: MarginAccount!
+  vaporAccountAddress: Bytes!
 
   heldToken: Token!
   borrowedToken: Token!
@@ -558,7 +567,9 @@ type Trade @entity {
   logIndex: BigInt!
 
   takerAccount: MarginAccount!
+  takerAccountAddress: Bytes!
   makerAccount: MarginAccount # NULLABLE
+  makerAccountAddress: Bytes!
 
   takerToken: Token! # the token sold (spent) by the `takerAccount`
   makerToken: Token! # the token sold (spent) by the `makerAccount`
@@ -572,6 +583,9 @@ type Trade @entity {
 
 type MarginPosition @entity {
   id: ID! # Defined as "userAddress-accountNumber"
+  account: MarginAccount!
+  accountAddress: Bytes!
+
   openTimestamp: BigInt!
 
   heldToken: Token
