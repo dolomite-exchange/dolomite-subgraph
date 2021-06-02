@@ -459,7 +459,7 @@ export function updateTimeDataForVaporization(
   if (vaporization.borrowedToken === token.id) {
     let bundle = Bundle.load('1')
 
-    let vaporizationVolumeToken = vaporization.vaporBorrowedTokenAmountDeltaWei
+    let vaporizationVolumeToken = vaporization.borrowedTokenAmountDeltaWei
     if (vaporizationVolumeToken.lt(ZERO_BD)) {
       // This should always be positive but just to be sure
       vaporizationVolumeToken = ZERO_BD.minus(vaporizationVolumeToken)

@@ -549,10 +549,8 @@ type Vaporization @entity {
   heldToken: Token!
   borrowedToken: Token!
 
-  solidBorrowedTokenAmountDeltaWei: BigDecimal!
-  solidHeldTokenAmountDeltaWei: BigDecimal!
-
-  vaporBorrowedTokenAmountDeltaWei: BigDecimal!
+  borrowedTokenAmountDeltaWei: BigDecimal!
+  heldTokenAmountDeltaWei: BigDecimal!
 
   logIndex: BigInt!
 

@@ -1205,10 +1205,11 @@ export function handleVaporize(event: VaporizationEvent): void {
   vaporization.heldToken = heldToken.id
   vaporization.borrowedToken = owedToken.id
 
-  vaporization.solidBorrowedTokenAmountDeltaWei = convertStructToDecimal(new ValueStruct(event.params.solidOwedUpdate.deltaWei), owedToken.decimals)
-  vaporization.solidHeldTokenAmountDeltaWei = convertStructToDecimal(new ValueStruct(event.params.solidHeldUpdate.deltaWei), heldToken.decimals)
+  let borrowedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
+  vaporization.borrowedTokenAmountDeltaWei = convertStructToDecimal(borrowedDeltaWeiStruct.abs(), owedToken.decimals)
 
-  vaporization.vaporBorrowedTokenAmountDeltaWei = convertStructToDecimal(new ValueStruct(event.params.vaporOwedUpdate.deltaWei), owedToken.decimals)
+  let heldDeltaWeiStruct = new ValueStruct(event.params.solidHeldUpdate.deltaWei)
+  vaporization.heldTokenAmountDeltaWei = convertStructToDecimal(heldDeltaWeiStruct.abs(), heldToken.decimals)
 
   let owedPriceUSD = dydxProtocol.getMarketPrice(event.params.owedMarket).value
 
