@@ -452,6 +452,7 @@ type MarginAccountTokenValue @entity {
 type MarginAccountTokenValueSnapshot @entity {
   id: ID! # Defined as "user-accountNumber-marketId"
   marginAccount: MarginAccount!
+  user: User!
   marketId: BigInt!
   token: Token!
   valuePar: BigDecimal! # Par value of the user's held token. Can be negative, meaning it's borrowed funds.
@@ -468,8 +469,8 @@ type Deposit @entity {
   transaction: Transaction!
   logIndex: BigInt!
 
-  account: MarginAccount!
-  accountAddress: Bytes!
+  marginAccount: MarginAccount!
+  user: User!
   token: Token!
   from: Bytes!
 
@@ -484,8 +485,8 @@ type Withdrawal @entity {
   transaction: Transaction!
   logIndex: BigInt!
 
-  account: MarginAccount!
-  accountAddress: Bytes!
+  marginAccount: MarginAccount!
+  user: User!
   token: Token!
   to: Bytes!
 
@@ -500,10 +501,10 @@ type Transfer @entity {
   transaction: Transaction!
   logIndex: BigInt!
 
-  fromAccount: MarginAccount!
-  fromAccountAddress: Bytes!
-  toAccount: MarginAccount!
-  toAccountAddress: Bytes!
+  fromMarginAccount: MarginAccount!
+  fromUser: User!
+  toMarginAccount: MarginAccount!
+  toUser: User!
 
   token: Token!
 
@@ -519,10 +520,10 @@ type Liquidation @entity {
   logIndex: BigInt!
 
   # populated from the Swap event
-  solidAccount: MarginAccount!
-  solidAccountAddress: Bytes!
-  liquidAccount: MarginAccount!
-  liquidAccountAddress: Bytes!
+  solidMarginAccount: MarginAccount!
+  solidUser: User!
+  liquidMarginAccount: MarginAccount!
+  liquidUser: User!
   heldToken: Token!
   borrowedToken: Token!
 
@@ -541,10 +542,10 @@ type Vaporization @entity {
   id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
 
-  solidAccount: MarginAccount!
-  solidAccountAddress: Bytes!
-  vaporAccount: MarginAccount!
-  vaporAccountAddress: Bytes!
+  solidMarginAccount: MarginAccount!
+  solidUser: User!
+  vaporMarginAccount: MarginAccount!
+  vaporUser: User!
 
   heldToken: Token!
   borrowedToken: Token!
@@ -564,10 +565,10 @@ type Trade @entity {
   transaction: Transaction!
   logIndex: BigInt!
 
-  takerAccount: MarginAccount!
-  takerAccountAddress: Bytes!
-  makerAccount: MarginAccount # NULLABLE
-  makerAccountAddress: Bytes!
+  takerMarginAccount: MarginAccount!
+  takerUser: User!
+  makerMarginAccount: MarginAccount # NULLABLE
+  makerUser: User!
 
   takerToken: Token! # the token sold (spent) by the `takerAccount`
   makerToken: Token! # the token sold (spent) by the `makerAccount`
@@ -581,8 +582,8 @@ type Trade @entity {
 
 type MarginPosition @entity {
   id: ID! # Defined as "userAddress-accountNumber"
-  account: MarginAccount!
-  accountAddress: Bytes!
+  marginAccount: MarginAccount!
+  user: User!
 
   openTimestamp: BigInt!
 
