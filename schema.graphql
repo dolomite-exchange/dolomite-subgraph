@@ -470,6 +470,7 @@ type Deposit @entity {
   id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
   logIndex: BigInt!
+  serialId: BigInt!
 
   marginAccount: MarginAccount!
   token: Token!
@@ -485,6 +486,7 @@ type Withdrawal @entity {
   id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
   logIndex: BigInt!
+  serialId: BigInt!
 
   marginAccount: MarginAccount!
   token: Token!
@@ -500,9 +502,12 @@ type Transfer @entity {
   id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
   logIndex: BigInt!
+  serialId: BigInt!
 
   fromMarginAccount: MarginAccount!
   toMarginAccount: MarginAccount!
+  isSelfTransfer: Boolean!
+  walletsConcatenated: String! # concatenated wallets for querying on being a sender/receiver 0x...F-0x...F
 
   token: Token!
 
@@ -516,6 +521,7 @@ type Liquidation @entity {
   id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
   logIndex: BigInt!
+  serialId: BigInt!
 
   # populated from the Swap event
   solidMarginAccount: MarginAccount!
@@ -537,6 +543,8 @@ type Liquidation @entity {
 type Vaporization @entity {
   id: ID! # Defined as "transactionHash-logIndex"
   transaction: Transaction!
+  logIndex: BigInt!
+  serialId: BigInt!
 
   solidMarginAccount: MarginAccount!
   vaporMarginAccount: MarginAccount!
@@ -547,8 +555,6 @@ type Vaporization @entity {
   borrowedTokenAmountDeltaWei: BigDecimal!
   heldTokenAmountDeltaWei: BigDecimal!
 
-  logIndex: BigInt!
-
   # derived info
   amountUSDVaporized: BigDecimal!
 }
@@ -558,9 +564,11 @@ type Trade @entity {
   id: ID!
   transaction: Transaction!
   logIndex: BigInt!
+  serialId: BigInt!
 
   takerMarginAccount: MarginAccount!
   makerMarginAccount: MarginAccount # NULLABLE
+  walletsConcatenated: String! # concatenated wallets for querying on being a maker/taker 0x...F-0x...F
 
   takerToken: Token! # the token sold (spent) by the `takerAccount`
   makerToken: Token! # the token sold (spent) by the `makerAccount`

@@ -316,7 +316,6 @@ export function handleDeposit(event: DepositEvent): void {
   let marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
   let dydxProtocol = DyDx.bind(event.address)
   let token = Token.load(dydxProtocol.getMarketTokenAddress(event.params.market).toHexString()) as Token
-  let interestIndex = InterestIndex.load(token.id) as InterestIndex
   updateMarginAccountForEventAndSaveTokenValue(
     marginAccount,
     event,
@@ -325,10 +324,13 @@ export function handleDeposit(event: DepositEvent): void {
     token
   )
 
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+
   let depositID = getIDForEvent(event)
   let deposit = Deposit.load(depositID)
   if (deposit === null) {
     deposit = new Deposit(depositID)
+    deposit.serialId = soloMargin.actionCount
   }
 
   let deltaWeiStruct = new ValueStruct(event.params.update.deltaWei)
@@ -347,7 +349,6 @@ export function handleDeposit(event: DepositEvent): void {
   )
   deposit.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
   soloMargin.totalSupplyVolumeUSD  = soloMargin.totalSupplyVolumeUSD.plus(deposit.amountUSDDeltaWei)
 
   let marketIndex = InterestIndex.load(event.params.market.toString()) as InterestIndex
@@ -385,10 +386,13 @@ export function handleWithdraw(event: WithdrawEvent): void {
     token
   )
 
-  let depositID = getIDForEvent(event)
-  let withdrawal = Withdrawal.load(depositID)
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+
+  let withdrawalID = getIDForEvent(event)
+  let withdrawal = Withdrawal.load(withdrawalID)
   if (withdrawal === null) {
-    withdrawal = new Withdrawal(depositID)
+    withdrawal = new Withdrawal(withdrawalID)
+    withdrawal.serialId = soloMargin.actionCount
   }
 
   let deltaWeiStruct = new ValueStruct(event.params.update.deltaWei)
@@ -414,7 +418,6 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
   updateDolomiteDayData(event)
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
   let marketIndex = InterestIndex.load(event.params.market.toString()) as InterestIndex
   let isVirtualTransfer = false
   changeProtocolBalance(token, newParStruct, deltaWeiStructAbs.neg(), marketIndex, isVirtualTransfer, soloMargin)
@@ -465,10 +468,13 @@ export function handleTransfer(event: TransferEvent): void {
     token
   )
 
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+
   let transferID = getIDForEvent(event)
   let transfer = Transfer.load(transferID)
   if (transfer === null) {
     transfer = new Transfer(transferID)
+    transfer.serialId = soloMargin.actionCount
   }
 
   transfer.transaction = transaction.id
@@ -476,6 +482,8 @@ export function handleTransfer(event: TransferEvent): void {
 
   transfer.fromMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount2.id : marginAccount1.id
   transfer.toMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount1.id : marginAccount2.id
+  transfer.isSelfTransfer = transfer.fromMarginAccount === transfer.toMarginAccount
+  transfer.walletsConcatenated = `${marginAccount1.user}_${marginAccount2.user}`
 
   transfer.token = token.id
 
@@ -497,7 +505,6 @@ export function handleTransfer(event: TransferEvent): void {
 
   let marketIndex = InterestIndex.load(token.marketId.toString()) as InterestIndex
   let isVirtualTransfer = true
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
   changeProtocolBalance(
     token,
     new ValueStruct(event.params.updateOne.newPar),
@@ -610,10 +617,13 @@ export function handleBuy(event: BuyEvent): void {
     takerToken
   )
 
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+
   let tradeID = getIDForEvent(event)
   let trade = Trade.load(tradeID)
   if (trade === null) {
     trade = new Trade(tradeID)
+    trade.serialId = soloMargin.actionCount
   }
 
   trade.transaction = transaction.id
@@ -621,6 +631,7 @@ export function handleBuy(event: BuyEvent): void {
 
   trade.takerMarginAccount = marginAccount.id
   trade.makerMarginAccount = null
+  trade.walletsConcatenated = `${marginAccount.user}`
 
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
@@ -649,7 +660,6 @@ export function handleBuy(event: BuyEvent): void {
   let makerIndex = InterestIndex.load(event.params.makerMarket.toString()) as InterestIndex
   let takerIndex = InterestIndex.load(event.params.takerMarket.toString()) as InterestIndex
   let isVirtualTransfer = false
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event);
   changeProtocolBalance(makerToken, takerNewParStruct, takerDeltaWeiStruct, makerIndex, isVirtualTransfer, soloMargin)
   changeProtocolBalance(takerToken, makerNewParStruct, makerDeltaWeiStruct, takerIndex, isVirtualTransfer, soloMargin)
 
@@ -711,10 +721,13 @@ export function handleSell(event: SellEvent): void {
     takerToken
   )
 
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+
   let tradeID = getIDForEvent(event)
   let trade = Trade.load(tradeID)
   if (trade === null) {
     trade = new Trade(tradeID)
+    trade.serialId = soloMargin.actionCount
   }
 
   trade.transaction = transaction.id
@@ -722,6 +735,7 @@ export function handleSell(event: SellEvent): void {
 
   trade.takerMarginAccount = marginAccount.id
   trade.makerMarginAccount = null
+  trade.walletsConcatenated = `${marginAccount.user}`
 
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
@@ -750,7 +764,6 @@ export function handleSell(event: SellEvent): void {
   let makerIndex = InterestIndex.load(event.params.makerMarket.toString()) as InterestIndex
   let takerIndex = InterestIndex.load(event.params.takerMarket.toString()) as InterestIndex
   let isVirtualTransfer = false
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
   changeProtocolBalance(makerToken, takerNewParStruct, takerDeltaWeiStruct, makerIndex, isVirtualTransfer, soloMargin)
   changeProtocolBalance(takerToken, makerNewParStruct, makerDeltaWeiStruct, takerIndex, isVirtualTransfer, soloMargin)
 
@@ -846,10 +859,15 @@ export function handleTrade(event: TradeEvent): void {
     outputToken
   )
 
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+  soloMargin.tradeCount = soloMargin.tradeCount.plus(ONE_BI)
+  soloMargin.save()
+
   let tradeID = getIDForEvent(event)
   let trade = Trade.load(tradeID)
   if (trade === null) {
     trade = new Trade(tradeID)
+    trade.serialId = soloMargin.actionCount
   }
 
   trade.transaction = transaction.id
@@ -857,6 +875,7 @@ export function handleTrade(event: TradeEvent): void {
 
   trade.takerMarginAccount = takerMarginAccount.id
   trade.makerMarginAccount = makerMarginAccount.id
+  trade.walletsConcatenated = `${takerMarginAccount.user}_${makerMarginAccount.user}`
 
   trade.takerToken = outputToken.id
   trade.makerToken = inputToken.id
@@ -881,10 +900,6 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerOutputUpdate.deltaWei.value.abs().times(priceUSD.value)
   )
   trade.amountUSD = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
-
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
-  soloMargin.tradeCount = soloMargin.tradeCount.plus(ONE_BI)
-  soloMargin.save()
 
   let dolomiteDayData = updateDolomiteDayData(event)
 
@@ -1000,10 +1015,13 @@ export function handleLiquidate(event: LiquidationEvent): void {
     owedToken
   )
 
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+
   let liquidationID = getIDForEvent(event)
   let liquidation = Liquidation.load(liquidationID)
   if (liquidation === null) {
     liquidation = new Liquidation(liquidationID)
+    liquidation.serialId = soloMargin.actionCount
   }
 
   liquidation.transaction = transaction.id
@@ -1055,7 +1073,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
   )
   liquidation.collateralUSDLiquidationReward = convertStructToDecimal(liquidationRewardUSD, BigInt.fromI32(36))
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
   soloMargin.liquidationCount = soloMargin.liquidationCount.plus(ONE_BI)
   soloMargin.totalLiquidationVolumeUSD = soloMargin.totalLiquidationVolumeUSD.plus(liquidation.debtUSDLiquidated)
   soloMargin.save()
@@ -1177,10 +1194,13 @@ export function handleVaporize(event: VaporizationEvent): void {
     owedToken
   )
 
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+
   let vaporizationID = getIDForEvent(event)
   let vaporization = Vaporization.load(vaporizationID)
   if (vaporization === null) {
     vaporization = new Vaporization(vaporizationID)
+    vaporization.serialId = soloMargin.actionCount
   }
 
   vaporization.transaction = transaction.id
@@ -1202,7 +1222,6 @@ export function handleVaporize(event: VaporizationEvent): void {
 
   vaporization.amountUSDVaporized = convertTokenToDecimal(owedPriceUSD.times(event.params.vaporOwedUpdate.deltaWei.value), BigInt.fromI32(36))
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
   soloMargin.vaporizationCount = soloMargin.vaporizationCount.plus(ONE_BI)
   soloMargin.totalVaporizationVolumeUSD = soloMargin.totalVaporizationVolumeUSD.plus(vaporization.amountUSDVaporized)
   soloMargin.save()

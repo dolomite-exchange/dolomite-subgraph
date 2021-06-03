@@ -207,7 +207,7 @@ export function createUser(address: Address): void {
 
 export function absBD(bd: BigDecimal): BigDecimal {
   if (bd.lt(ZERO_BD)) {
-    ZERO_BD.minus(bd)
+    return ZERO_BD.minus(bd)
   } else {
     return bd
   }
@@ -215,7 +215,7 @@ export function absBD(bd: BigDecimal): BigDecimal {
 
 export function absBI(bi: BigInt): BigInt {
   if (bi.lt(ZERO_BI)) {
-    ZERO_BI.minus(bi)
+    return ZERO_BI.minus(bi)
   } else {
     return bi
   }
@@ -269,8 +269,8 @@ function isRepaymentOfBorrowAmount(
   index: InterestIndex
 ): boolean {
   let newWei = parToWei(newPar, index)
-  let oldPar = newWei.minus(deltaWei)
-  return deltaWei.gt(ZERO_BD) && oldPar.lt(ZERO_BD) // the user added to the negative balance (decreasing it)
+  let oldWei = newWei.minus(deltaWei)
+  return deltaWei.gt(ZERO_BD) && oldWei.lt(ZERO_BD) // the user added to the negative balance (decreasing it)
 }
 
 export function changeProtocolBalance(
@@ -284,17 +284,19 @@ export function changeProtocolBalance(
   let bundle = Bundle.load('1')
 
   let newPar = convertStructToDecimal(newParStruct, token.decimals)
+  let newWei = parToWei(newPar, index)
   let deltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
 
   if (newPar.lt(ZERO_BD) && deltaWei.lt(ZERO_BD)) {
     // the user borrowed funds
 
-    let borrowVolumeToken = ZERO_BD.minus(deltaWei) // this will negate deltaWei
-    let borrowVolumeUSD = borrowVolumeToken.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
+    let borrowVolumeToken = absBD(deltaWei)
+    if (absBD(newWei) < absBD(deltaWei)) {
+      // the user withdrew from a positive balance to a negative one. Range cap it by newWei for borrow volume
+      borrowVolumeToken = absBD(newWei)
+    }
 
-    // tokenDayData.dailyBorrowVolumeETH = tokenDayData.dailyBorrowVolumeETH.plus(deltaWeiETH)
-    // tokenDayData.dailyBorrowVolumeToken = tokenDayData.dailyBorrowVolumeToken.plus(borrowVolumeToken)
-    // tokenDayData.dailyBorrowVolumeUSD = tokenDayData.dailyBorrowVolumeUSD.plus(deltaWeiUSD)
+    let borrowVolumeUSD = borrowVolumeToken.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
 
     // temporarily get rid of the old USD liquidity
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
@@ -306,9 +308,14 @@ export function changeProtocolBalance(
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
     soloMargin.totalBorrowVolumeUSD = soloMargin.totalBorrowVolumeUSD.plus(borrowVolumeUSD)
   } else if (isRepaymentOfBorrowAmount(newPar, deltaWei, index)) {
-    // the user is repaying funds
-
-    let borrowVolumeToken = deltaWei
+    let borrowVolumeToken = absBD(deltaWei)
+    if (absBD(newWei) > ZERO_BD) {
+      // the user supplied from a negative balance to a positive one. Range cap it by oldWei for repayment volume.
+      // why? Because oldWei was negative and indicative of the max repayment amount.
+      // for example, -100 can only be repaid up to 100 units. Beyond that, the user is supplying liquidity
+      let oldWei = newWei.minus(deltaWei)
+      borrowVolumeToken = absBD(oldWei)
+    }
 
     // temporarily get rid of the old USD liquidity
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
