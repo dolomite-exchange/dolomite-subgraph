@@ -118,8 +118,8 @@ type AmmPair @entity {
 
   # Fields used to help derived relationship
   liquidityProviderCount: BigInt! # used to detect new exchanges
+
   # derived fields
-  pairHourData: [AmmPairHourData!]! @derivedFrom(field: "pair")
   liquidityPositions: [AmmLiquidityPosition!]! @derivedFrom(field: "pair")
   liquidityPositionSnapshots: [AmmLiquidityPositionSnapshot!]! @derivedFrom(field: "pair")
   mints: [AmmMint!]! @derivedFrom(field: "pair")
@@ -383,7 +383,9 @@ type DolomiteDayData @entity {
 type AmmPairHourData @entity {
   id: ID!
   hourStartUnix: Int! # unix timestamp for start of hour
-  pair: AmmPair!
+  pairAddress: Bytes!
+  token0: Token!
+  token1: Token!
 
   # reserves
   reserve0: BigDecimal!
@@ -396,7 +398,7 @@ type AmmPairHourData @entity {
   hourlyVolumeToken0: BigDecimal!
   hourlyVolumeToken1: BigDecimal!
   hourlyVolumeUSD: BigDecimal!
-  hourlyTxns: BigInt!
+  hourlyTransactionCount: BigInt!
 }
 
 # Data accumulated and condensed into day stats for each exchange
@@ -421,7 +423,7 @@ type AmmPairDayData @entity {
   dailyVolumeToken0: BigDecimal!
   dailyVolumeToken1: BigDecimal!
   dailyVolumeUSD: BigDecimal!
-  dailyTransactions: BigInt!
+  dailyTransactionCount: BigInt!
 }
 
 type InterestIndex @entity {
@@ -470,7 +472,6 @@ type Deposit @entity {
   logIndex: BigInt!
 
   marginAccount: MarginAccount!
-  user: User!
   token: Token!
   from: Bytes!
 
@@ -486,7 +487,6 @@ type Withdrawal @entity {
   logIndex: BigInt!
 
   marginAccount: MarginAccount!
-  user: User!
   token: Token!
   to: Bytes!
 
@@ -502,9 +502,7 @@ type Transfer @entity {
   logIndex: BigInt!
 
   fromMarginAccount: MarginAccount!
-  fromUser: User!
   toMarginAccount: MarginAccount!
-  toUser: User!
 
   token: Token!
 
@@ -521,9 +519,7 @@ type Liquidation @entity {
 
   # populated from the Swap event
   solidMarginAccount: MarginAccount!
-  solidUser: User!
   liquidMarginAccount: MarginAccount!
-  liquidUser: User!
   heldToken: Token!
   borrowedToken: Token!
 
@@ -543,9 +539,7 @@ type Vaporization @entity {
   transaction: Transaction!
 
   solidMarginAccount: MarginAccount!
-  solidUser: User!
   vaporMarginAccount: MarginAccount!
-  vaporUser: User!
 
   heldToken: Token!
   borrowedToken: Token!
@@ -566,9 +560,7 @@ type Trade @entity {
   logIndex: BigInt!
 
   takerMarginAccount: MarginAccount!
-  takerUser: User!
   makerMarginAccount: MarginAccount # NULLABLE
-  makerUser: User!
 
   takerToken: Token! # the token sold (spent) by the `takerAccount`
   makerToken: Token! # the token sold (spent) by the `makerAccount`
@@ -583,7 +575,6 @@ type Trade @entity {
 type MarginPosition @entity {
   id: ID! # Defined as "userAddress-accountNumber"
   marginAccount: MarginAccount!
-  user: User!
 
   openTimestamp: BigInt!
 

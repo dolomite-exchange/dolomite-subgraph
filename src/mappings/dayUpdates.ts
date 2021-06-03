@@ -94,14 +94,14 @@ export function updatePairDayData(event: EthereumEvent): AmmPairDayData {
     pairDayData.dailyVolumeToken0 = ZERO_BD
     pairDayData.dailyVolumeToken1 = ZERO_BD
     pairDayData.dailyVolumeUSD = ZERO_BD
-    pairDayData.dailyTransactions = ZERO_BI
+    pairDayData.dailyTransactionCount = ZERO_BI
   }
 
   pairDayData.totalSupply = pair.totalSupply
   pairDayData.reserve0 = pair.reserve0
   pairDayData.reserve1 = pair.reserve1
   pairDayData.reserveUSD = pair.reserveUSD
-  pairDayData.dailyTransactions = pairDayData.dailyTransactions.plus(ONE_BI)
+  pairDayData.dailyTransactionCount = pairDayData.dailyTransactionCount.plus(ONE_BI)
   pairDayData.save()
 
   return pairDayData as AmmPairDayData
@@ -118,17 +118,19 @@ export function updatePairHourData(event: EthereumEvent): AmmPairHourData {
   if (pairHourData === null) {
     pairHourData = new AmmPairHourData(hourPairID)
     pairHourData.hourStartUnix = hourStartUnix
-    pairHourData.pair = event.address.toHexString()
+    pairHourData.pairAddress = event.address
+    pairHourData.token0 = pair.token0
+    pairHourData.token1 = pair.token1
     pairHourData.hourlyVolumeToken0 = ZERO_BD
     pairHourData.hourlyVolumeToken1 = ZERO_BD
     pairHourData.hourlyVolumeUSD = ZERO_BD
-    pairHourData.hourlyTxns = ZERO_BI
+    pairHourData.hourlyTransactionCount = ZERO_BI
   }
 
   pairHourData.reserve0 = pair.reserve0
   pairHourData.reserve1 = pair.reserve1
   pairHourData.reserveUSD = pair.reserveUSD
-  pairHourData.hourlyTxns = pairHourData.hourlyTxns.plus(ONE_BI)
+  pairHourData.hourlyTransactionCount = pairHourData.hourlyTransactionCount.plus(ONE_BI)
   pairHourData.save()
 
   return pairHourData as AmmPairHourData

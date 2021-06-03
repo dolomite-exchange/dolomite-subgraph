@@ -191,8 +191,7 @@ function getOrCreateMarginPosition(event: EthereumEvent, account: MarginAccount)
   let marginPosition = MarginPosition.load(account.id)
   if (marginPosition === null) {
     marginPosition = new MarginPosition(account.id)
-    marginPosition.account = account.id
-    marginPosition.user = account.user
+    marginPosition.marginAccount = account.id
 
     marginPosition.openTimestamp = event.block.timestamp
 
@@ -337,8 +336,7 @@ export function handleDeposit(event: DepositEvent): void {
 
   deposit.transaction = transaction.id
   deposit.logIndex = event.logIndex
-  deposit.account = marginAccount.id
-  deposit.user = marginAccount.user
+  deposit.marginAccount = marginAccount.id
   deposit.token = token.id
   deposit.from = event.params.from
   deposit.amountDeltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
@@ -399,8 +397,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
   withdrawal.transaction = transaction.id
   withdrawal.logIndex = event.logIndex
-  withdrawal.account = marginAccount.id
-  withdrawal.user = marginAccount.user
+  withdrawal.marginAccount = marginAccount.id
   withdrawal.token = token.id
   withdrawal.to = event.params.to
   withdrawal.amountDeltaWei = convertStructToDecimal(deltaWeiStructAbs, token.decimals)
@@ -477,10 +474,8 @@ export function handleTransfer(event: TransferEvent): void {
   transfer.transaction = transaction.id
   transfer.logIndex = event.logIndex
 
-  transfer.fromAccount = event.params.updateOne.deltaWei.sign ? marginAccount2.id : marginAccount1.id
-  transfer.fromUser = event.params.updateOne.deltaWei.sign ? marginAccount2.user : marginAccount1.user
-  transfer.toAccount = event.params.updateOne.deltaWei.sign ? marginAccount1.id : marginAccount2.id
-  transfer.toUser = event.params.updateOne.deltaWei.sign ? marginAccount1.user : marginAccount2.user
+  transfer.fromMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount2.id : marginAccount1.id
+  transfer.toMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount1.id : marginAccount2.id
 
   transfer.token = token.id
 
@@ -624,9 +619,8 @@ export function handleBuy(event: BuyEvent): void {
   trade.transaction = transaction.id
   trade.logIndex = event.logIndex
 
-  trade.takerAccount = marginAccount.id
-  trade.takerUser = marginAccount.user
-  trade.makerAccount = null
+  trade.takerMarginAccount = marginAccount.id
+  trade.makerMarginAccount = null
 
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
@@ -726,9 +720,8 @@ export function handleSell(event: SellEvent): void {
   trade.transaction = transaction.id
   trade.logIndex = event.logIndex
 
-  trade.takerAccount = marginAccount.id
-  trade.takerUser = marginAccount.user
-  trade.makerAccount = null
+  trade.takerMarginAccount = marginAccount.id
+  trade.makerMarginAccount = null
 
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
@@ -862,10 +855,8 @@ export function handleTrade(event: TradeEvent): void {
   trade.transaction = transaction.id
   trade.logIndex = event.logIndex
 
-  trade.takerAccount = takerMarginAccount.id
-  trade.takerUser = takerMarginAccount.user
-  trade.makerAccount = makerMarginAccount.id
-  trade.makerUser = makerMarginAccount.user
+  trade.takerMarginAccount = takerMarginAccount.id
+  trade.makerMarginAccount = makerMarginAccount.id
 
   trade.takerToken = outputToken.id
   trade.makerToken = inputToken.id
@@ -1018,10 +1009,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
   liquidation.transaction = transaction.id
   liquidation.logIndex = event.logIndex
 
-  liquidation.liquidAccount = liquidMarginAccount.id
-  liquidation.liquidUser = liquidMarginAccount.user
-  liquidation.solidAccount = solidMarginAccount.id
-  liquidation.solidUser = solidMarginAccount.user
+  liquidation.liquidMarginAccount = liquidMarginAccount.id
+  liquidation.solidMarginAccount = solidMarginAccount.id
 
   liquidation.heldToken = heldToken.id
   liquidation.borrowedToken = owedToken.id
@@ -1197,10 +1186,8 @@ export function handleVaporize(event: VaporizationEvent): void {
   vaporization.transaction = transaction.id
   vaporization.logIndex = event.logIndex
 
-  vaporization.vaporAccount = vaporMarginAccount.id
-  vaporization.vaporUser = vaporMarginAccount.user
-  vaporization.solidAccount = solidMarginAccount.id
-  vaporization.solidUser = solidMarginAccount.user
+  vaporization.vaporMarginAccount = vaporMarginAccount.id
+  vaporization.solidMarginAccount = solidMarginAccount.id
 
   vaporization.heldToken = heldToken.id
   vaporization.borrowedToken = owedToken.id
