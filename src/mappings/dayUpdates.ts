@@ -18,7 +18,7 @@ import { FACTORY_ADDRESS, ONE_BI, SOLO_MARGIN_ADDRESS, ZERO_BD, ZERO_BI } from '
 import { findETHPerTokenForTrade } from './pricing'
 
 function setupDolomiteDayData(dolomiteDayData: DolomiteDayData, dayTimestamp: number): DolomiteDayData {
-  dolomiteDayData.date = BigInt.fromI32(dayTimestamp as i32).toI32()
+  dolomiteDayData.dayStartUnix = BigInt.fromI32(dayTimestamp as i32).toI32()
 
   // # Daily Figures
   // ## Daily Volume Figures USD
@@ -87,7 +87,7 @@ export function updatePairDayData(event: EthereumEvent): AmmPairDayData {
   let pairDayData = AmmPairDayData.load(dayPairID)
   if (pairDayData === null) {
     pairDayData = new AmmPairDayData(dayPairID)
-    pairDayData.date = dayStartTimestamp
+    pairDayData.dayStartUnix = dayStartTimestamp
     pairDayData.token0 = pair.token0
     pairDayData.token1 = pair.token1
     pairDayData.pairAddress = event.address
@@ -137,7 +137,7 @@ export function updatePairHourData(event: EthereumEvent): AmmPairHourData {
 }
 
 function setupTokenHourData(tokenHourData: TokenHourData, hourStartTimestamp: number, token: Token): TokenHourData {
-  tokenHourData.date = hourStartTimestamp as i32
+  tokenHourData.hourStartUnix = hourStartTimestamp as i32
   tokenHourData.token = token.id
 
   // # Hourly Figures
@@ -211,7 +211,7 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: EthereumEven
 }
 
 function setupTokenDayData(tokenDayData: TokenDayData, dayStartTimestamp: number, token: Token): TokenDayData {
-  tokenDayData.date = dayStartTimestamp as i32
+  tokenDayData.dayStartUnix = dayStartTimestamp as i32
   tokenDayData.token = token.id
 
   // # Daily Figures
@@ -279,15 +279,14 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: EthereumEvent
 }
 
 export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: EthereumEvent): TokenHourData {
-  let timestamp = event.block.timestamp.toI32()
-  let dayID = timestamp / 3600
-  let dayStartTimestamp = dayID * 3600
-  let tokenHourID = `${token.id}-${BigInt.fromI32(dayID).toString()}`
+  let timestamp = event.block.timestamp
+  let hourID = timestamp.div(BigInt.fromI32(3600)).times(BigInt.fromI32(3600))
+  let tokenHourID = `${token.id}-${hourID.toString()}`
 
   let tokenHourData = TokenHourData.load(tokenHourID)
   if (tokenHourData === null) {
     tokenHourData = new TokenHourData(tokenHourID)
-    setupTokenHourData(tokenHourData as TokenHourData, dayStartTimestamp, token)
+    setupTokenHourData(tokenHourData as TokenHourData, hourID.toI32(), token)
   }
 
   tokenHourData.borrowLiquidityToken = token.borrowLiquidity
@@ -304,15 +303,14 @@ export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: Et
 }
 
 export function updateAndReturnTokenDayDataForDyDxEvent(token: Token, event: EthereumEvent): TokenDayData {
-  let timestamp = event.block.timestamp.toI32()
-  let dayID = timestamp / 86400
-  let dayStartTimestamp = dayID * 86400
-  let tokenDayID = `${token.id}-${BigInt.fromI32(dayID).toString()}`
+  let timestamp = event.block.timestamp
+  let dayID = timestamp.div(BigInt.fromI32(86400)).times(BigInt.fromI32(86400))
+  let tokenDayID = `${token.id}-${dayID.toString()}`
 
   let tokenDayData = TokenDayData.load(tokenDayID)
   if (tokenDayData === null) {
     tokenDayData = new TokenDayData(tokenDayID)
-    setupTokenDayData(tokenDayData as TokenDayData, dayStartTimestamp, token)
+    setupTokenDayData(tokenDayData as TokenDayData, dayID.toI32(), token)
   }
 
   tokenDayData.borrowLiquidityToken = token.borrowLiquidity
@@ -336,8 +334,8 @@ export function updateTimeDataForTrade(
   trade: Trade
 ): void {
   let bundle = Bundle.load('1')
-  let dayID = tokenDayData.date / 86400
-  let hourID = tokenHourData.date / 3600
+  let dayID = tokenDayData.dayStartUnix / 86400
+  let hourID = tokenHourData.hourStartUnix / 3600
 
   // Using the below examples of buying / selling, token == USD || token == ETH
   let closePriceETH = findETHPerTokenForTrade(trade, token)

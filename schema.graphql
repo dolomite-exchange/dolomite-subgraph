@@ -262,7 +262,7 @@ type Bundle @entity {
 
 type TokenHourData @entity {
   id: ID! # contractAddress-hourID ; dayID hourID timestamp rounded to current day by dividing by 3600
-  date: Int!
+  hourStartUnix: Int!
   token: Token!
 
   # Hourly Figures
@@ -306,8 +306,8 @@ type TokenHourData @entity {
 }
 
 type TokenDayData @entity {
-  id: ID! # contractAddress-dayID ; dayID is timestamp rounded to current day by dividing by 86400
-  date: Int!
+  id: ID! # contractAddress-dayID; dayID is timestamp rounded to current day by dividing by 86400
+  dayStartUnix: Int!
   token: Token!
 
   # Daily Figures
@@ -353,7 +353,7 @@ type TokenDayData @entity {
 # Data accumulated and condensed into day stats for all of Dolomite (includes AMM)
 type DolomiteDayData @entity {
   id: ID! # timestamp rounded to current day by dividing by 86400
-  date: Int!
+  dayStartUnix: Int!
 
   # Daily Figures
   ## Daily Volume Figures USD
@@ -404,7 +404,7 @@ type AmmPairHourData @entity {
 # Data accumulated and condensed into day stats for each exchange
 type AmmPairDayData @entity {
   id: ID!
-  date: Int!
+  dayStartUnix: Int!
   pairAddress: Bytes!
   token0: Token!
   token1: Token!
