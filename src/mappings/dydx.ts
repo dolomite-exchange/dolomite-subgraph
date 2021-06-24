@@ -8,6 +8,7 @@ import {
   LogIndexUpdate as IndexUpdateEvent,
   LogLiquidate as LiquidationEvent,
   LogSell as SellEvent,
+  LogSetEarningsRate as EarningsRateUpdateEvent,
   LogTrade as TradeEvent,
   LogTransfer as TransferEvent,
   LogVaporize as VaporizationEvent,
@@ -16,7 +17,7 @@ import {
 import {
   Deposit,
   DyDxSoloMargin,
-  InterestIndex,
+  InterestIndex, InterestRate,
   Liquidation,
   MarginAccount,
   MarginAccountTokenValue,
@@ -29,11 +30,11 @@ import {
 } from '../types/schema'
 import {
   BI_18,
-  BI_ONE_ETH,
+  BI_ONE_ETH, bigDecimalExp18,
   changeProtocolBalance,
   convertStructToDecimal,
-  convertTokenToDecimal,
-  ONE_BI,
+  convertTokenToDecimal, ONE_BD,
+  ONE_BI, SECONDS_IN_YEAR,
   SOLO_MARGIN_ADDRESS,
   ZERO_BD,
   ZERO_BI,
@@ -96,6 +97,25 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   index.supplyIndex = BigDecimal.fromString('1.0')
   index.lastUpdate = event.block.timestamp
   index.save()
+
+  let interestRate = new InterestRate(id)
+  interestRate.borrowInterestRate = BigDecimal.fromString('0')
+  interestRate.supplyInterestRate = BigDecimal.fromString('0')
+  interestRate.save()
+}
+
+export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
+  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let riskLimits = dydx.getRiskLimits()
+  let numMarkets = dydx.getNumMarkets()
+
+  for (let i = 0; i < numMarkets.toI32(); i++) {
+    let interestRate = InterestRate.load(i.toString())
+    let earningsRate = new BigDecimal(event.params.earningsRate.value)
+    let maxEarningsRate = new BigDecimal(riskLimits.earningsRateMax)
+    interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(maxEarningsRate)
+    interestRate.save()
+  }
 }
 
 export function handleIndexUpdate(event: IndexUpdateEvent): void {
@@ -108,6 +128,16 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
   index.supplyIndex = convertTokenToDecimal(event.params.index.supply, BI_18)
   index.lastUpdate = event.params.index.lastUpdate
   index.save()
+
+  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let interestRatePerSecond = dydx.getMarketInterestRate(event.params.market).value
+  let interestPerYearBD = new BigDecimal(interestRatePerSecond.times(SECONDS_IN_YEAR))
+  let earningsRateMax = new BigDecimal(dydx.getRiskLimits().earningsRateMax)
+  let earningsRate = new BigDecimal(dydx.getEarningsRate().value)
+
+  let interestRate = InterestRate.load(id)
+  interestRate.borrowInterestRate = interestPerYearBD.div(bigDecimalExp18())
+  interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(earningsRateMax)
 }
 
 function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: EthereumBlock): MarginAccount {

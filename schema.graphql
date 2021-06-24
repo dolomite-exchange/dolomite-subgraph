@@ -433,6 +433,12 @@ type InterestIndex @entity {
   lastUpdate: BigInt!
 }
 
+type InterestRate @entity {
+  id: ID! # Defined as marketId
+  borrowInterestRate: BigDecimal!
+  supplyInterestRate: BigDecimal!
+}
+
 type MarginAccount @entity {
   id: ID! # Defined as "userAddress-accountNumber"
   user: User!
