@@ -18,7 +18,7 @@ import { ValueStruct } from './dydx_types'
 
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
 export const FACTORY_ADDRESS = '0xef2722fb0f82f0234d2de7cc3afc8379cbf1dfac'
-export const SOLO_MARGIN_ADDRESS = '0x89db90d955b359699ab99f1f05c431b4dd3175d5'
+export const SOLO_MARGIN_ADDRESS = '0xa7a88079c4f405af5151569532f1b09e5c7ff90d'
 export const WETH_ADDRESS = '0xa38eF095D071ebBAFeA5E7D1Ce02BE79fc376793'
 export const USDC_WETH_PAIR = ''
 export const DAI_WETH_PAIR = '' // not on testnet

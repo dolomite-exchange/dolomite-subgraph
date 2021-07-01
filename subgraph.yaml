@@ -39,7 +39,7 @@ dataSources:
     network: mumbai
     source:
 #      address: '' # Mainnet
-      address: '0x89dB90D955b359699Ab99F1f05C431B4dd3175D5' # Matic Testnet
+      address: '0xa7a88079c4f405af5151569532f1b09e5c7ff90d' # Matic Testnet
       abi: DyDx
       startBlock: 15100000
     mapping:
