@@ -64,6 +64,12 @@ dataSources:
           handler: handleMarketAdded
         - event: LogSetEarningsRate((uint256))
           handler: handleEarningsRateUpdate
+        - event: LogSetMarginPremium(uint256,(uint256))
+          handler: handleSetMarginPremium
+        - event: LogSetSpreadPremium(uint256,(uint256))
+          handler: handleSetLiquidationSpreadPremium
+        - event: LogSetIsClosing(uint256,bool)
+          handler: handleSetIsMarketClosing
         - event: LogIndexUpdate(indexed uint256,(uint96,uint96,uint32))
           handler: handleIndexUpdate
         - event: LogDeposit(indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),address)

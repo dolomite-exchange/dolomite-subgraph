@@ -31,6 +31,7 @@ export let ZERO_BD = BigDecimal.fromString('0')
 export let ONE_BD = BigDecimal.fromString('1')
 export let BI_18 = BigInt.fromI32(18)
 export let BI_ONE_ETH = BigInt.fromI32(10).pow(18)
+export let BD_ONE_ETH = new BigDecimal(BI_ONE_ETH)
 export let SECONDS_IN_YEAR = BigInt.fromI32(31536000)
 
 export let factoryContract = FactoryContract.bind(Address.fromString(FACTORY_ADDRESS))
