@@ -11,7 +11,7 @@
     "deploy-mainnet": "graph deploy coreycaplan3/dolomite-v2 --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/ --debug",
     "deploy-staging": "graph deploy coreycaplan3/dolomite-v2 --ipfs https://api.staging.thegraph.com/ipfs/ --node https://api.staging.thegraph.com/deploy/",
     "deploy-matic": "graph deploy coreycaplan3/dolomite-v2-matic --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
-    "deploy-mumbai": "graph deploy coreycaplan3/dolomite-v2-mumbai --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
+    "deploy-mumbai": "graph deploy coreycaplan3/dolomite-v2-mumbai --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/ --access-token $ACCESS_TOKEN",
     "watch-local": "graph deploy coreycaplan3/dolomite-v2 --watch --debug --node http://127.0.0.1:8020/ --ipfs http://localhost:5001"
   },
   "devDependencies": {

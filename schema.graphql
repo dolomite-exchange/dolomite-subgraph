@@ -600,7 +600,7 @@ type MarginPosition @entity {
   closeHeldAmountWei: BigDecimal
   closeHeldAmountUSD: BigDecimal
 
-  heldAmount: BigDecimal!
+  heldAmountPar: BigDecimal!
 
   owedToken: Token
 
@@ -613,7 +613,7 @@ type MarginPosition @entity {
   closeOwedAmountWei: BigDecimal
   closeOwedAmountUSD: BigDecimal
 
-  owedAmount: BigDecimal!
+  owedAmountPar: BigDecimal!
 
   status: String! # one of OPEN, CLOSED, EXPIRED, LIQUIDATED
   closeTimestamp: BigInt
