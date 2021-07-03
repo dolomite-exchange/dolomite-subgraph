@@ -428,9 +428,25 @@ type AmmPairDayData @entity {
 
 type InterestIndex @entity {
   id: ID! # Defined as marketId
+  token: Token!
   borrowIndex: BigDecimal!
   supplyIndex: BigDecimal!
   lastUpdate: BigInt!
+}
+
+type InterestRate @entity {
+  id: ID! # Defined as marketId
+  token: Token!
+  borrowInterestRate: BigDecimal!
+  supplyInterestRate: BigDecimal!
+}
+
+type MarketRiskInfo @entity {
+  id: ID! # Defined as marketId
+  token: Token!
+  marginPremium: BigDecimal!
+  liquidationRewardPremium: BigDecimal!
+  isBorrowingDisabled: Boolean!
 }
 
 type MarginAccount @entity {

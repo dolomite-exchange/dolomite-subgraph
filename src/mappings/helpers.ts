@@ -17,8 +17,8 @@ import { Factory as FactoryContract } from '../types/templates/Pair/Factory'
 import { ValueStruct } from './dydx_types'
 
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
-export const FACTORY_ADDRESS = '0xeD2e1f95Fe6978C30F6Ecf2B316458e8271CE67F'
-export const SOLO_MARGIN_ADDRESS = '0x9B319b032bB37194B12fe3257678c3a3Ad6Eb720'
+export const FACTORY_ADDRESS = '0xef2722fb0f82f0234d2de7cc3afc8379cbf1dfac'
+export const SOLO_MARGIN_ADDRESS = '0xa7a88079c4f405af5151569532f1b09e5c7ff90d'
 export const WETH_ADDRESS = '0xa38eF095D071ebBAFeA5E7D1Ce02BE79fc376793'
 export const USDC_WETH_PAIR = ''
 export const DAI_WETH_PAIR = '' // not on testnet
@@ -31,6 +31,8 @@ export let ZERO_BD = BigDecimal.fromString('0')
 export let ONE_BD = BigDecimal.fromString('1')
 export let BI_18 = BigInt.fromI32(18)
 export let BI_ONE_ETH = BigInt.fromI32(10).pow(18)
+export let BD_ONE_ETH = new BigDecimal(BI_ONE_ETH)
+export let SECONDS_IN_YEAR = BigInt.fromI32(31536000)
 
 export let factoryContract = FactoryContract.bind(Address.fromString(FACTORY_ADDRESS))
 

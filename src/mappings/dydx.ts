@@ -8,19 +8,24 @@ import {
   LogIndexUpdate as IndexUpdateEvent,
   LogLiquidate as LiquidationEvent,
   LogSell as SellEvent,
+  LogSetEarningsRate as EarningsRateUpdateEvent,
+  LogSetIsClosing as IsClosingUpdateEvent,
+  LogSetMarginPremium as MarginPremiumUpdateEvent,
+  LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent,
   LogTrade as TradeEvent,
   LogTransfer as TransferEvent,
   LogVaporize as VaporizationEvent,
-  LogWithdraw as WithdrawEvent
+  LogWithdraw as WithdrawEvent,
 } from '../types/MarginTrade/DyDx'
 import {
   Deposit,
   DyDxSoloMargin,
   InterestIndex,
+  InterestRate,
   Liquidation,
   MarginAccount,
   MarginAccountTokenValue,
-  MarginPosition,
+  MarginPosition, MarketRiskInfo,
   Token,
   Trade,
   Transfer,
@@ -28,12 +33,15 @@ import {
   Withdrawal
 } from '../types/schema'
 import {
+  BD_ONE_ETH,
   BI_18,
   BI_ONE_ETH,
+  bigDecimalExp18,
   changeProtocolBalance,
   convertStructToDecimal,
-  convertTokenToDecimal,
+  convertTokenToDecimal, ONE_BD,
   ONE_BI,
+  SECONDS_IN_YEAR,
   SOLO_MARGIN_ADDRESS,
   ZERO_BD,
   ZERO_BI,
@@ -50,6 +58,7 @@ import {
   updateTimeDataForTrade,
   updateTimeDataForVaporization
 } from './dayUpdates'
+import { initializeToken } from './factory'
 
 function isMarginPositionExpired(marginPosition: MarginPosition, event: EthereumEvent): boolean {
   return marginPosition.expirationTimestamp !== null && marginPosition.expirationTimestamp.lt(event.block.timestamp)
@@ -91,11 +100,83 @@ export function getOrCreateSoloMarginForDyDxCall(event: EthereumEvent): DyDxSolo
 
 export function handleMarketAdded(event: AddMarketEvent): void {
   let id = event.params.marketId.toString()
+
+  let tokenAddress = event.params.token.toHexString()
+  let token = Token.load(tokenAddress)
+  if (token === null) {
+    token = new Token(tokenAddress)
+    initializeToken(token as Token, event.params.marketId)
+    token.save()
+  }
+
   let index = new InterestIndex(id)
   index.borrowIndex = BigDecimal.fromString('1.0')
   index.supplyIndex = BigDecimal.fromString('1.0')
   index.lastUpdate = event.block.timestamp
+  index.token = token.id
   index.save()
+
+  let interestRate = new InterestRate(id)
+  interestRate.borrowInterestRate = BigDecimal.fromString('0')
+  interestRate.supplyInterestRate = BigDecimal.fromString('0')
+  interestRate.token = token.id
+  interestRate.save()
+}
+
+export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
+  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let riskLimits = dydx.getRiskLimits()
+  let numMarkets = dydx.getNumMarkets()
+
+  for (let i = 0; i < numMarkets.toI32(); i++) {
+    let interestRate = InterestRate.load(i.toString())
+    let earningsRate = new BigDecimal(event.params.earningsRate.value)
+    let maxEarningsRate = new BigDecimal(riskLimits.earningsRateMax)
+    interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(maxEarningsRate)
+    interestRate.save()
+  }
+}
+
+export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
+  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
+  if (marketInfo === null) {
+    marketInfo = new MarketRiskInfo(event.params.marketId.toString())
+    marketInfo.token = dydx.getMarketTokenAddress(event.params.marketId).toHexString()
+    marketInfo.liquidationRewardPremium = BigDecimal.fromString('0')
+    marketInfo.isBorrowingDisabled = false
+  }
+  let marginPremium = new BigDecimal(event.params.marginPremium.value)
+  marketInfo.marginPremium = marginPremium.div(BD_ONE_ETH)
+  marketInfo.save()
+}
+
+export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpdateEvent): void {
+  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
+  if (marketInfo === null) {
+    marketInfo = new MarketRiskInfo(event.params.marketId.toString())
+    marketInfo.token = dydx.getMarketTokenAddress(event.params.marketId).toHexString()
+    marketInfo.marginPremium = BigDecimal.fromString('0')
+    marketInfo.isBorrowingDisabled = false
+  }
+  let spreadPremium = new BigDecimal(event.params.spreadPremium.value)
+  marketInfo.liquidationRewardPremium = spreadPremium.div(BD_ONE_ETH)
+  marketInfo.save()
+}
+
+export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
+  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
+  if (marketInfo === null) {
+    marketInfo = new MarketRiskInfo(event.params.marketId.toString())
+    marketInfo.token = dydx.getMarketTokenAddress(event.params.marketId).toHexString()
+    marketInfo.marginPremium = BigDecimal.fromString('0')
+    marketInfo.liquidationRewardPremium = BigDecimal.fromString('0')
+    marketInfo.isBorrowingDisabled = false
+  }
+  marketInfo.isBorrowingDisabled = event.params.isClosing
+  marketInfo.save()
 }
 
 export function handleIndexUpdate(event: IndexUpdateEvent): void {
@@ -108,6 +189,16 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
   index.supplyIndex = convertTokenToDecimal(event.params.index.supply, BI_18)
   index.lastUpdate = event.params.index.lastUpdate
   index.save()
+
+  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let interestRatePerSecond = dydx.getMarketInterestRate(event.params.market).value
+  let interestPerYearBD = new BigDecimal(interestRatePerSecond.times(SECONDS_IN_YEAR))
+  let earningsRateMax = new BigDecimal(dydx.getRiskLimits().earningsRateMax)
+  let earningsRate = new BigDecimal(dydx.getEarningsRate().value)
+
+  let interestRate = InterestRate.load(id)
+  interestRate.borrowInterestRate = interestPerYearBD.div(bigDecimalExp18())
+  interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(earningsRateMax)
 }
 
 function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: EthereumBlock): MarginAccount {
@@ -355,7 +446,7 @@ export function handleDeposit(event: DepositEvent): void {
   )
   deposit.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
 
-  soloMargin.totalSupplyVolumeUSD  = soloMargin.totalSupplyVolumeUSD.plus(deposit.amountUSDDeltaWei)
+  soloMargin.totalSupplyVolumeUSD = soloMargin.totalSupplyVolumeUSD.plus(deposit.amountUSDDeltaWei)
 
   let marketIndex = InterestIndex.load(event.params.market.toString()) as InterestIndex
   let isVirtualTransfer = false
@@ -517,7 +608,7 @@ export function handleTransfer(event: TransferEvent): void {
     new ValueStruct(event.params.updateOne.deltaWei),
     marketIndex,
     isVirtualTransfer,
-    soloMargin,
+    soloMargin
   )
   changeProtocolBalance(
     token,
@@ -525,7 +616,7 @@ export function handleTransfer(event: TransferEvent): void {
     new ValueStruct(event.params.updateTwo.deltaWei),
     marketIndex,
     isVirtualTransfer,
-    soloMargin,
+    soloMargin
   )
 
   if (marginAccount1.user === marginAccount2.user) {

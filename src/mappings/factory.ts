@@ -1,5 +1,5 @@
 /* eslint-disable prefer-const */
-import { log, Address } from '@graphprotocol/graph-ts'
+import { log, Address, BigInt } from '@graphprotocol/graph-ts'
 import { AmmFactory, AmmPair, Token, Bundle } from '../types/schema'
 import { PairCreated } from '../types/UniswapV2Factory/Factory'
 import { AmmPair as PairTemplate } from '../types/templates'
@@ -14,7 +14,7 @@ import {
 } from './helpers'
 import { DyDx } from '../types/MarginTrade/DyDx'
 
-function initializeToken(token: Token, event: PairCreated, dydx: DyDx): void {
+export function initializeToken(token: Token, marketId: BigInt): void {
   let tokenAddress = Address.fromString(token.id)
   token.symbol = fetchTokenSymbol(tokenAddress)
   token.name = fetchTokenName(tokenAddress)
@@ -27,7 +27,8 @@ function initializeToken(token: Token, event: PairCreated, dydx: DyDx): void {
   }
 
   token.decimals = decimals
-  token.marketId = dydx.getMarketIdByTokenAddress(tokenAddress)
+  // token.marketId = dydx.getMarketIdByTokenAddress(tokenAddress)
+  token.marketId = marketId
   token.derivedETH = ZERO_BD
   token.tradeVolume = ZERO_BD
   token.tradeVolumeUSD = ZERO_BD
@@ -68,14 +69,16 @@ export function handleNewPair(event: PairCreated): void {
 
   // fetch info if null
   if (token0 === null) {
-    token0 = new Token(event.params.token0.toHexString())
-    initializeToken(token0 as Token, event, dydx)
+    let tokenAddress = event.params.token0.toHexString()
+    token0 = new Token(tokenAddress)
+    initializeToken(token0 as Token, dydx.getMarketIdByTokenAddress(Address.fromString(tokenAddress)))
   }
 
   // fetch info if null
   if (token1 === null) {
-    token1 = new Token(event.params.token1.toHexString())
-    initializeToken(token1 as Token, event, dydx)
+    let tokenAddress = event.params.token1.toHexString()
+    token1 = new Token(tokenAddress)
+    initializeToken(token1 as Token, dydx.getMarketIdByTokenAddress(Address.fromString(tokenAddress)))
   }
 
   let pair = new AmmPair(event.params.pair.toHexString())
