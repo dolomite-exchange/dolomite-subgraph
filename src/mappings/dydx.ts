@@ -39,7 +39,7 @@ import {
   bigDecimalExp18,
   changeProtocolBalance,
   convertStructToDecimal,
-  convertTokenToDecimal, ONE_BD,
+  convertTokenToDecimal,
   ONE_BI,
   SECONDS_IN_YEAR,
   SOLO_MARGIN_ADDRESS,
@@ -59,6 +59,7 @@ import {
   updateTimeDataForVaporization
 } from './dayUpdates'
 import { initializeToken } from './factory'
+import { log } from '@graphprotocol/graph-ts'
 
 function isMarginPositionExpired(marginPosition: MarginPosition, event: EthereumEvent): boolean {
   return marginPosition.expirationTimestamp !== null && marginPosition.expirationTimestamp.lt(event.block.timestamp)
@@ -99,11 +100,17 @@ export function getOrCreateSoloMarginForDyDxCall(event: EthereumEvent): DyDxSolo
 }
 
 export function handleMarketAdded(event: AddMarketEvent): void {
+  log.info(
+    'Adding market[{}] for token {} for hash and index: {}-{}',
+    [event.params.marketId.toString(), event.params.token.toHexString(), event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let id = event.params.marketId.toString()
 
   let tokenAddress = event.params.token.toHexString()
   let token = Token.load(tokenAddress)
   if (token === null) {
+    log.info('Adding new token to store {}', [event.params.token.toHexString()])
     token = new Token(tokenAddress)
     initializeToken(token as Token, event.params.marketId)
     token.save()
@@ -124,6 +131,11 @@ export function handleMarketAdded(event: AddMarketEvent): void {
 }
 
 export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
+  log.info(
+    'Handling earnings rate change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
   let riskLimits = dydx.getRiskLimits()
   let numMarkets = dydx.getNumMarkets()
@@ -138,6 +150,11 @@ export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
 }
 
 export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
+  log.info(
+    'Handling margin premium change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
   let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
   if (marketInfo === null) {
@@ -152,6 +169,11 @@ export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
 }
 
 export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpdateEvent): void {
+  log.info(
+    'Handling liquidation spread premium change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
   let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
   if (marketInfo === null) {
@@ -166,6 +188,11 @@ export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpda
 }
 
 export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
+  log.info(
+    'Handling set_market_closing for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
   let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
   if (marketInfo === null) {
@@ -180,6 +207,11 @@ export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
 }
 
 export function handleIndexUpdate(event: IndexUpdateEvent): void {
+  log.info(
+    'Handling index update for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let id = event.params.market.toString()
   let index = InterestIndex.load(id)
   if (index === null) {
@@ -202,13 +234,12 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
 }
 
 function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: EthereumBlock): MarginAccount {
-  let id = `${owner.toHexString()}-${accountNumber.toString()}`
+  let id = owner.toHexString() + '-' + accountNumber.toString()
   let marginAccount = MarginAccount.load(id)
   if (marginAccount === null) {
     marginAccount = new MarginAccount(id)
     marginAccount.user = owner.toHexString()
     marginAccount.accountNumber = accountNumber
-    marginAccount.tokenValues = []
   }
 
   marginAccount.lastUpdatedBlockNumber = block.number
@@ -221,7 +252,7 @@ function getOrCreateTokenValue(
   marginAccount: MarginAccount,
   token: Token
 ): MarginAccountTokenValue {
-  let id = `${marginAccount.user}-${marginAccount.accountNumber.toString()}-${token.marketId.toString()}`
+  let id = marginAccount.user + '-' + marginAccount.accountNumber.toString() + '-' + token.marketId.toString()
   let tokenValue = MarginAccountTokenValue.load(id)
   if (tokenValue === null) {
     tokenValue = new MarginAccountTokenValue(id)
@@ -243,17 +274,21 @@ function handleDyDxBalanceUpdate(balanceUpdate: BalanceUpdate, block: EthereumBl
   let tokenValue = getOrCreateTokenValue(marginAccount, token as Token)
 
   tokenValue.valuePar = balanceUpdate.valuePar
+  log.info(
+    'Balance changed for account {} to value {}',
+    [marginAccount.id, tokenValue.valuePar.toString()]
+  )
 
   tokenValue.save()
   marginAccount.save()
 }
 
 function getIDForEvent(event: EthereumEvent): string {
-  return `${event.transaction.hash.toHexString()}-${event.logIndex.toString()}`
+  return event.transaction.hash.toHexString()  + '-' + event.logIndex.toString()
 }
 
 function getIDForTokenValue(marginAccount: MarginAccount, marketId: BigInt): string {
-  return `${marginAccount.user}-${marginAccount.accountNumber.toString()}-${marketId.toString()}`
+  return marginAccount.user + '-' + marginAccount.accountNumber.toString() + '-' + marketId.toString()
 }
 
 function updateMarginAccountForEventAndSaveTokenValue(
@@ -269,7 +304,9 @@ function updateMarginAccountForEventAndSaveTokenValue(
   let tokenValueID = getIDForTokenValue(marginAccount, marketId)
   let tokenValue = MarginAccountTokenValue.load(tokenValueID)
   if (tokenValue === null) {
+    log.info('Creating new MarginAccountTokenValue with ID {}', [tokenValueID])
     tokenValue = new MarginAccountTokenValue(tokenValueID)
+    tokenValue.token = token.id
     tokenValue.marginAccount = marginAccount.id
     tokenValue.marketId = marketId
   }
@@ -399,6 +436,10 @@ function getOwedPriceUSD(dydxProtocol: DyDx, marginPosition: MarginPosition): Bi
 }
 
 export function handleDeposit(event: DepositEvent): void {
+  log.info(
+    'Handling deposit for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
   let balanceUpdate = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
@@ -461,6 +502,11 @@ export function handleDeposit(event: DepositEvent): void {
 }
 
 export function handleWithdraw(event: WithdrawEvent): void {
+  log.info(
+    'Handling withdrawal for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let balanceUpdate = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
@@ -524,6 +570,11 @@ export function handleWithdraw(event: WithdrawEvent): void {
 }
 
 export function handleTransfer(event: TransferEvent): void {
+  log.info(
+    'Handling transfer for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.accountOneOwner,
     event.params.accountOneNumber,
@@ -580,7 +631,7 @@ export function handleTransfer(event: TransferEvent): void {
   transfer.fromMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount2.id : marginAccount1.id
   transfer.toMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount1.id : marginAccount2.id
   transfer.isSelfTransfer = transfer.fromMarginAccount === transfer.toMarginAccount
-  transfer.walletsConcatenated = `${marginAccount1.user}_${marginAccount2.user}`
+  transfer.walletsConcatenated = marginAccount1.user + '_' + marginAccount2.user
 
   transfer.token = token.id
 
@@ -683,6 +734,11 @@ export function handleTransfer(event: TransferEvent): void {
 }
 
 export function handleBuy(event: BuyEvent): void {
+  log.info(
+    'Handling BUY for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
@@ -737,7 +793,7 @@ export function handleBuy(event: BuyEvent): void {
 
   trade.takerMarginAccount = marginAccount.id
   trade.makerMarginAccount = null
-  trade.walletsConcatenated = `${marginAccount.user}`
+  trade.walletsConcatenated = marginAccount.user
 
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
@@ -787,6 +843,11 @@ export function handleBuy(event: BuyEvent): void {
 }
 
 export function handleSell(event: SellEvent): void {
+  log.info(
+    'Handling SELL for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
@@ -841,7 +902,7 @@ export function handleSell(event: SellEvent): void {
 
   trade.takerMarginAccount = marginAccount.id
   trade.makerMarginAccount = null
-  trade.walletsConcatenated = `${marginAccount.user}`
+  trade.walletsConcatenated = marginAccount.user
 
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
@@ -891,6 +952,11 @@ export function handleSell(event: SellEvent): void {
 }
 
 export function handleTrade(event: TradeEvent): void {
+  log.info(
+    'Handling trade for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.makerAccountOwner,
     event.params.makerAccountNumber,
@@ -981,7 +1047,7 @@ export function handleTrade(event: TradeEvent): void {
 
   trade.takerMarginAccount = takerMarginAccount.id
   trade.makerMarginAccount = makerMarginAccount.id
-  trade.walletsConcatenated = `${takerMarginAccount.user}_${makerMarginAccount.user}`
+  trade.walletsConcatenated = takerMarginAccount.user + '_' + makerMarginAccount.user
 
   trade.takerToken = outputToken.id
   trade.makerToken = inputToken.id
@@ -1047,6 +1113,11 @@ export function handleTrade(event: TradeEvent): void {
 }
 
 export function handleLiquidate(event: LiquidationEvent): void {
+  log.info(
+    'Handling liquidate for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.liquidAccountOwner,
     event.params.liquidAccountNumber,
@@ -1242,6 +1313,11 @@ export function handleLiquidate(event: LiquidationEvent): void {
 }
 
 export function handleVaporize(event: VaporizationEvent): void {
+  log.info(
+    'Handling vaporize for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.vaporAccountOwner,
     event.params.vaporAccountNumber,
@@ -1364,6 +1440,11 @@ export function handleVaporize(event: VaporizationEvent): void {
 }
 
 export function handleSetExpiry(event: ExpirySetEvent): void {
+  log.info(
+    'Handling expiration set for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let params = event.params
   let marginAccount = getOrCreateMarginAccount(event.params.owner, event.params.number, event.block)
   marginAccount.save()

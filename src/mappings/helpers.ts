@@ -19,8 +19,8 @@ import { ValueStruct } from './dydx_types'
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
 export const FACTORY_ADDRESS = '0xef2722fb0f82f0234d2de7cc3afc8379cbf1dfac'
 export const SOLO_MARGIN_ADDRESS = '0xa7a88079c4f405af5151569532f1b09e5c7ff90d'
-export const WETH_ADDRESS = '0xa38eF095D071ebBAFeA5E7D1Ce02BE79fc376793'
-export const USDC_WETH_PAIR = ''
+export const WETH_ADDRESS = '0xa38ef095d071ebbafea5e7d1ce02be79fc376793'
+export const USDC_WETH_PAIR = '0x15efb5b6da7a9f2be4cec7674d0d4e39ef60a8f5'
 export const DAI_WETH_PAIR = '' // not on testnet
 export const USDT_WETH_PAIR = '' // not on testnet
 
@@ -176,7 +176,7 @@ export function fetchTokenDecimals(tokenAddress: Address): BigInt {
 }
 
 export function createLiquidityPosition(exchange: Address, user: Address): AmmLiquidityPosition {
-  const positionID = `${exchange.toHexString()}-${user.toHex()}`
+  let positionID = exchange.toHexString() + '-' + user.toHex()
 
   let liquidityTokenBalance = AmmLiquidityPosition.load(positionID)
   if (liquidityTokenBalance === null) {

@@ -81,7 +81,7 @@ export function updatePairDayData(event: EthereumEvent): AmmPairDayData {
   let timestamp = event.block.timestamp.toI32()
   let dayID = timestamp / 86400
   let dayStartTimestamp = dayID * 86400
-  let dayPairID = `${event.address.toHexString()}-${BigInt.fromI32(dayID).toString()}`
+  let dayPairID = event.address.toHexString() + '-' + BigInt.fromI32(dayID).toString()
   let pair = AmmPair.load(event.address.toHexString())
 
   let pairDayData = AmmPairDayData.load(dayPairID)
@@ -111,7 +111,7 @@ export function updatePairHourData(event: EthereumEvent): AmmPairHourData {
   let timestamp = event.block.timestamp.toI32()
   let hourIndex = timestamp / 3600 // get unique hour within unix history
   let hourStartUnix = hourIndex * 3600 // want the rounded effect
-  let hourPairID = `${event.address.toHexString()}-${BigInt.fromI32(hourIndex).toString()}`
+  let hourPairID = event.address.toHexString() + '-' + BigInt.fromI32(hourIndex).toString()
   let pair = AmmPair.load(event.address.toHexString())
 
   let pairHourData = AmmPairHourData.load(hourPairID)
@@ -187,7 +187,7 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: EthereumEven
   let timestamp = event.block.timestamp.toI32()
   let hourID = timestamp / 3600
   let hourStartTimestamp = hourID * 3600
-  let tokenHourID = `${token.id}-${BigInt.fromI32(hourID).toString()}`
+  let tokenHourID = token.id + '-' + BigInt.fromI32(hourID).toString()
 
   let tokenHourData = TokenHourData.load(tokenHourID)
   if (tokenHourData === null) {
@@ -261,7 +261,7 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: EthereumEvent
   let timestamp = event.block.timestamp.toI32()
   let dayID = timestamp / 86400
   let dayStartTimestamp = dayID * 86400
-  let tokenDayID = `${token.id}-${BigInt.fromI32(dayID).toString()}`
+  let tokenDayID = token.id + '-' + BigInt.fromI32(dayID).toString()
 
   let tokenDayData = TokenDayData.load(tokenDayID)
   if (tokenDayData === null) {
@@ -281,7 +281,7 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: EthereumEvent
 export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: EthereumEvent): TokenHourData {
   let timestamp = event.block.timestamp
   let hourID = timestamp.div(BigInt.fromI32(3600)).times(BigInt.fromI32(3600))
-  let tokenHourID = `${token.id}-${hourID.toString()}`
+  let tokenHourID = token.id + '-' + hourID.toString()
 
   let tokenHourData = TokenHourData.load(tokenHourID)
   if (tokenHourData === null) {
@@ -305,7 +305,7 @@ export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: Et
 export function updateAndReturnTokenDayDataForDyDxEvent(token: Token, event: EthereumEvent): TokenDayData {
   let timestamp = event.block.timestamp
   let dayID = timestamp.div(BigInt.fromI32(86400)).times(BigInt.fromI32(86400))
-  let tokenDayID = `${token.id}-${dayID.toString()}`
+  let tokenDayID = token.id + '-' + dayID.toString()
 
   let tokenDayData = TokenDayData.load(tokenDayID)
   if (tokenDayData === null) {
@@ -371,7 +371,7 @@ export function updateTimeDataForTrade(
 
   // Price stats
   if (tokenDayData.openPriceUSD.equals(ZERO_BD)) {
-    let previousDayTokenId = `${token.id}-${BigInt.fromI32(dayID - 1).toString()}`
+    let previousDayTokenId = token.id + '-' + BigInt.fromI32(dayID - 1).toString()
     let previousDayToken = TokenDayData.load(previousDayTokenId)
     if (previousDayToken === null) {
       tokenDayData.openPriceUSD = closePriceUSD
@@ -382,7 +382,7 @@ export function updateTimeDataForTrade(
     tokenDayData.lowPriceUSD = tokenDayData.openPriceUSD
   }
   if (tokenHourData.openPriceUSD.equals(ZERO_BD)) {
-    let previousHourTokenId = `${token.id}-${BigInt.fromI32(hourID - 1).toString()}`
+    let previousHourTokenId = token.id + '-' + BigInt.fromI32(hourID - 1).toString()
     let previousHourToken = TokenHourData.load(previousHourTokenId)
     if (previousHourToken === null) {
       tokenHourData.openPriceUSD = closePriceUSD
