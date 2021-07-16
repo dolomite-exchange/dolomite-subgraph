@@ -8,7 +8,8 @@ import {
   USDC_WETH_PAIR,
   USDT_WETH_PAIR,
   WETH_ADDRESS,
-  ZERO_BD
+  ZERO_BD,
+  WHITELIST,
 } from './helpers'
 
 export function getEthPriceInUSD(): BigDecimal {
@@ -19,53 +20,52 @@ export function getEthPriceInUSD(): BigDecimal {
 
   // all 3 have been created
   if (daiPair !== null && usdcPair !== null && usdtPair !== null) {
-    let totalLiquidityETH = daiPair.reserve1.plus(usdcPair.reserve1).plus(usdtPair.reserve0)
-    let daiWeight = daiPair.reserve1.div(totalLiquidityETH)
-    let usdcWeight = usdcPair.reserve1.div(totalLiquidityETH)
-    let usdtWeight = usdtPair.reserve0.div(totalLiquidityETH)
-    return daiPair.token0Price
+    let daiReserveETH = daiPair.token0 == WETH_ADDRESS ? daiPair.reserve0 : daiPair.reserve1
+    let usdcReserveETH = usdcPair.token0 == WETH_ADDRESS ? usdcPair.reserve0 : usdcPair.reserve1
+    let usdtReserveETH = usdtPair.token0 == WETH_ADDRESS ? usdtPair.reserve0 : usdtPair.reserve1
+    let totalLiquidityETH = daiReserveETH.plus(usdcReserveETH).plus(usdtReserveETH)
+
+    let daiReserveStable = daiPair.token0 == WETH_ADDRESS ? daiPair.reserve1 : daiPair.reserve0
+    let usdcReserveStable = usdcPair.token0 == WETH_ADDRESS ? usdcPair.reserve1 : usdcPair.reserve0
+    let usdtReserveStable = usdtPair.token0 == WETH_ADDRESS ? usdtPair.reserve1 : usdtPair.reserve0
+
+    let daiWeight = daiReserveStable.div(totalLiquidityETH)
+    let usdcWeight = usdcReserveStable.div(totalLiquidityETH)
+    let usdtWeight = usdtReserveStable.div(totalLiquidityETH)
+
+    let daiPrice = daiPair.token0 == WETH_ADDRESS ? daiPair.token1Price : daiPair.token0Price
+    let usdcPrice = usdcPair.token0 == WETH_ADDRESS ? usdcPair.token1Price : usdcPair.token0Price
+    let usdtPrice = usdtPair.token0 == WETH_ADDRESS ? usdtPair.token1Price : usdtPair.token0Price
+
+    return daiPrice
       .times(daiWeight)
-      .plus(usdcPair.token0Price.times(usdcWeight))
-      .plus(usdtPair.token1Price.times(usdtWeight))
+      .plus(usdcPrice.times(usdcWeight))
+      .plus(usdtPrice.times(usdtWeight))
     // dai and USDC have been created
   } else if (daiPair !== null && usdcPair !== null) {
-    let totalLiquidityETH = daiPair.reserve1.plus(usdcPair.reserve1)
-    let daiWeight = daiPair.reserve1.div(totalLiquidityETH)
-    let usdcWeight = usdcPair.reserve1.div(totalLiquidityETH)
-    return daiPair.token0Price.times(daiWeight).plus(usdcPair.token0Price.times(usdcWeight))
+    let daiReserveETH = daiPair.token0 == WETH_ADDRESS ? daiPair.reserve0 : daiPair.reserve1
+    let usdcReserveETH = usdcPair.token0 == WETH_ADDRESS ? usdcPair.reserve0 : usdcPair.reserve1
+    let totalLiquidityETH = daiReserveETH.plus(usdcReserveETH)
+
+    let daiReserveStable = daiPair.token0 == WETH_ADDRESS ? daiPair.reserve1 : daiPair.reserve0
+    let usdcReserveStable = usdcPair.token0 == WETH_ADDRESS ? usdcPair.reserve1 : usdcPair.reserve0
+
+    let daiWeight = daiReserveStable.div(totalLiquidityETH)
+    let usdcWeight = usdcReserveStable.div(totalLiquidityETH)
+
+    let daiPrice = daiPair.token0 == WETH_ADDRESS ? daiPair.token1Price : daiPair.token0Price
+    let usdcPrice = usdcPair.token0 == WETH_ADDRESS ? usdcPair.token1Price : usdcPair.token0Price
+
+    return daiPrice
+      .times(daiWeight)
+      .plus(usdcPrice.times(usdcWeight))
     // USDC is the only pair so far
   } else if (usdcPair !== null) {
-    return usdcPair.token0Price
+    return usdcPair.token0 == WETH_ADDRESS ? usdcPair.token1Price : usdcPair.token0Price
   } else {
     return ZERO_BD
   }
 }
-
-// token where amounts should contribute to tracked volume and liquidity
-// const WHITELIST: string[] = [
-//   '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
-//   '0x6b175474e89094c44da98b954eedeac495271d0f', // DAI
-//   '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
-//   '0xdac17f958d2ee523a2206206994597c13d831ec7', // USDT
-//   '0x0000000000085d4780b73119b644ae5ecd22b376', // TUSD
-//   '0x5d3a536e4d6dbd6114cc1ead35777bab948e3643', // cDAI
-//   '0x39aa39c021dfbae8fac545936693ac917d5e7563', // cUSDC
-//   '0x86fadb80d8d2cff3c3680819e4da99c10232ba0f', // EBASE
-//   '0x57ab1ec28d129707052df4df418d58a2d46d5f51', // sUSD
-//   '0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2', // MKR
-//   '0xc00e94cb662c3520282e6f5717214004a7f26888', // COMP
-//   '0x514910771af9ca656af840dff83e8264ecf986ca', //LINK
-//   '0x960b236a07cf122663c4303350609a66a7b288c0', //ANT
-//   '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f', //SNX
-//   '0x0bc529c00c6401aef6d220be8c6ea1667f6ad93e', //YFI
-//   '0xdf5e0e81dff6faf3a7e52ba697820c5e32d806a8' // yCurv
-// ]
-const WHITELIST: string[] = [
-  '0xa38ef095d071ebbafea5e7d1ce02be79fc376793', // WETH
-  '0xade692c9b8c36e6b04bcfd01f0e91c7ebee0a160', // USDC
-  '0x8ac8ae0a208bef466512cd26142ac5a3ddb5b99e', // DAI
-  '0xbee8c17b7449fa0cc54d857d774ce523a7a35d00', // WMATIC
-]
 
 // minimum liquidity required to count towards tracked volume for pairs with small # of Lps
 let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('400000')

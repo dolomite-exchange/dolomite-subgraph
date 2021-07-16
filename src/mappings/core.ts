@@ -83,7 +83,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
     pair.save()
 
     // create new mint if no mints so far or if last one is done already
-    if (mints.length === 0 || isCompleteMint(mints[mints.length - 1])) {
+    if (mints.length == 0 || isCompleteMint(mints[mints.length - 1])) {
       let mint = new AmmMint(getAmmEventID(event, mints))
       mint.transaction = transaction.id
       mint.pair = pair.id
@@ -152,7 +152,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
     }
 
     // if this logical burn included a fee mint, account for this
-    if (mints.length !== 0 && !isCompleteMint(mints[mints.length - 1])) {
+    if (mints.length != 0 && !isCompleteMint(mints[mints.length - 1])) {
       let mint = AmmMint.load(mints[mints.length - 1])
       burn.feeTo = mint.to
       burn.feeLiquidity = mint.liquidity
@@ -457,7 +457,7 @@ export function handleSwap(event: SwapEvent): void {
   swap.from = event.transaction.from
   swap.logIndex = event.logIndex
   // use the tracked amount if we have it
-  swap.amountUSD = trackedAmountUSD === ZERO_BD ? derivedAmountUSD : trackedAmountUSD
+  swap.amountUSD = trackedAmountUSD == ZERO_BD ? derivedAmountUSD : trackedAmountUSD
   swap.save()
 
   // update the transaction

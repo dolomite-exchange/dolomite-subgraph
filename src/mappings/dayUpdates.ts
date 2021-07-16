@@ -422,7 +422,7 @@ export function updateTimeDataForLiquidation(
   token: Token,
   liquidation: Liquidation
 ): void {
-  if (liquidation.borrowedToken === token.id) {
+  if (liquidation.borrowedToken == token.id) {
     let bundle = Bundle.load('1')
 
     let liquidationVolumeToken = liquidation.borrowedTokenAmountDeltaWei
@@ -456,7 +456,7 @@ export function updateTimeDataForVaporization(
   token: Token,
   vaporization: Vaporization
 ): void {
-  if (vaporization.borrowedToken === token.id) {
+  if (vaporization.borrowedToken == token.id) {
     let bundle = Bundle.load('1')
 
     let vaporizationVolumeToken = vaporization.borrowedTokenAmountDeltaWei
