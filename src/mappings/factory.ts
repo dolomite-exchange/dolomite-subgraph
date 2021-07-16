@@ -1,7 +1,7 @@
 /* eslint-disable prefer-const */
 import { log, Address, BigInt } from '@graphprotocol/graph-ts'
 import { AmmFactory, AmmPair, Token, Bundle } from '../types/schema'
-import { PairCreated } from '../types/UniswapV2Factory/Factory'
+import { PairCreated } from '../types/UniswapV2Factory/UniswapV2Factory'
 import { AmmPair as PairTemplate } from '../types/templates'
 import {
   FACTORY_ADDRESS,

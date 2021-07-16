@@ -49,7 +49,7 @@ import {
 } from './helpers'
 import { getOrCreateTransaction } from './core'
 import { BalanceUpdate, MarginPositionStatus, ValueStruct } from './dydx_types'
-import { Address, BigDecimal, BigInt, EthereumBlock, EthereumEvent } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
 import {
   updateAndReturnTokenDayDataForDyDxEvent,
   updateAndReturnTokenHourDataForDyDxEvent,
@@ -61,11 +61,11 @@ import {
 import { initializeToken } from './factory'
 import { log } from '@graphprotocol/graph-ts'
 
-function isMarginPositionExpired(marginPosition: MarginPosition, event: EthereumEvent): boolean {
+function isMarginPositionExpired(marginPosition: MarginPosition, event: ethereum.Event): boolean {
   return marginPosition.expirationTimestamp !== null && marginPosition.expirationTimestamp.lt(event.block.timestamp)
 }
 
-export function getOrCreateSoloMarginForDyDxCall(event: EthereumEvent): DyDxSoloMargin {
+export function getOrCreateSoloMarginForDyDxCall(event: ethereum.Event): DyDxSoloMargin {
   let soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS)
   if (soloMargin === null) {
     soloMargin = new DyDxSoloMargin(SOLO_MARGIN_ADDRESS)
@@ -233,7 +233,7 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
   interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(earningsRateMax)
 }
 
-function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: EthereumBlock): MarginAccount {
+function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: ethereum.Block): MarginAccount {
   let id = owner.toHexString() + '-' + accountNumber.toString()
   let marginAccount = MarginAccount.load(id)
   if (marginAccount === null) {
@@ -265,7 +265,7 @@ function getOrCreateTokenValue(
   return tokenValue as MarginAccountTokenValue
 }
 
-function handleDyDxBalanceUpdate(balanceUpdate: BalanceUpdate, block: EthereumBlock): void {
+function handleDyDxBalanceUpdate(balanceUpdate: BalanceUpdate, block: ethereum.Block): void {
   let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, block)
 
   let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
@@ -283,7 +283,7 @@ function handleDyDxBalanceUpdate(balanceUpdate: BalanceUpdate, block: EthereumBl
   marginAccount.save()
 }
 
-function getIDForEvent(event: EthereumEvent): string {
+function getIDForEvent(event: ethereum.Event): string {
   return event.transaction.hash.toHexString()  + '-' + event.logIndex.toString()
 }
 
@@ -293,7 +293,7 @@ function getIDForTokenValue(marginAccount: MarginAccount, marketId: BigInt): str
 
 function updateMarginAccountForEventAndSaveTokenValue(
   marginAccount: MarginAccount,
-  event: EthereumEvent,
+  event: ethereum.Event,
   marketId: BigInt,
   newPar: ValueStruct,
   token: Token
@@ -315,7 +315,7 @@ function updateMarginAccountForEventAndSaveTokenValue(
   tokenValue.save()
 }
 
-function getOrCreateMarginPosition(event: EthereumEvent, account: MarginAccount): MarginPosition {
+function getOrCreateMarginPosition(event: ethereum.Event, account: MarginAccount): MarginPosition {
   let marginPosition = MarginPosition.load(account.id)
   if (marginPosition === null) {
     marginPosition = new MarginPosition(account.id)
@@ -350,7 +350,7 @@ function getTokenPriceUSD(token: Token, dydx: DyDx): BigDecimal {
 function updateMarginPositionForTrade(
   marginPosition: MarginPosition,
   trade: Trade,
-  event: EthereumEvent,
+  event: ethereum.Event,
   dydx: DyDx,
   isTaker: boolean,
   makerTokenIndex: InterestIndex,

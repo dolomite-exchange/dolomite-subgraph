@@ -1,4 +1,3 @@
-/* eslint-disable prefer-let */
 import { AmmPair, Bundle, Token, Trade } from '../types/schema'
 import { Address, BigDecimal, BigInt } from '@graphprotocol/graph-ts'
 import {
@@ -62,10 +61,10 @@ export function getEthPriceInUSD(): BigDecimal {
 //   '0xdf5e0e81dff6faf3a7e52ba697820c5e32d806a8' // yCurv
 // ]
 const WHITELIST: string[] = [
-  '0xf5ba7ca17af300f52112c4cc8a7ab1a0482e84d5', // WETH
-  '0x362ed516f2e8eeab895043af976864126bdd9c7b', // USDC
-  '0x267dc5f342e139b5e407684e3a731aeae8a71e3e', // DAI
-  '0x48c40e8b9f45e199238e3131b232adf12d88ea2c', // WMATIC
+  '0xa38ef095d071ebbafea5e7d1ce02be79fc376793', // WETH
+  '0xade692c9b8c36e6b04bcfd01f0e91c7ebee0a160', // USDC
+  '0x8ac8ae0a208bef466512cd26142ac5a3ddb5b99e', // DAI
+  '0xbee8c17b7449fa0cc54d857d774ce523a7a35d00', // WMATIC
 ]
 
 // minimum liquidity required to count towards tracked volume for pairs with small # of Lps

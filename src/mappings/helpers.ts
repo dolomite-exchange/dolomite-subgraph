@@ -1,5 +1,5 @@
 /* eslint-disable prefer-const */
-import { Address, BigDecimal, BigInt, Bytes, EthereumEvent } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, Bytes, ethereum } from '@graphprotocol/graph-ts'
 import { ERC20 } from '../types/UniswapV2Factory/ERC20'
 import { ERC20SymbolBytes } from '../types/UniswapV2Factory/ERC20SymbolBytes'
 import { ERC20NameBytes } from '../types/UniswapV2Factory/ERC20NameBytes'
@@ -13,7 +13,7 @@ import {
   Token,
   User
 } from '../types/schema'
-import { Factory as FactoryContract } from '../types/templates/Pair/Factory'
+import { UniswapV2Factory as UniswapV2FactoryContract } from '../types/templates/AmmPair/UniswapV2Factory'
 import { ValueStruct } from './dydx_types'
 
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
@@ -34,7 +34,7 @@ export let BI_ONE_ETH = BigInt.fromI32(10).pow(18)
 export let BD_ONE_ETH = new BigDecimal(BI_ONE_ETH)
 export let SECONDS_IN_YEAR = BigInt.fromI32(31536000)
 
-export let factoryContract = FactoryContract.bind(Address.fromString(FACTORY_ADDRESS))
+export let factoryContract = UniswapV2FactoryContract.bind(Address.fromString(FACTORY_ADDRESS))
 
 export function bigDecimalAbs(bd: BigDecimal): BigDecimal {
   if (bd.lt(ZERO_BD)) {
@@ -223,7 +223,7 @@ export function absBI(bi: BigInt): BigInt {
   }
 }
 
-export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: EthereumEvent): void {
+export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: ethereum.Event): void {
   let timestamp = event.block.timestamp.toI32()
   let bundle = Bundle.load('1')
   let pair = AmmPair.load(position.pair)

@@ -1,13 +1,13 @@
-import { BigDecimal, BigInt, EthereumEvent, store, Address } from '@graphprotocol/graph-ts'
+import { BigDecimal, BigInt, ethereum, store, Address } from '@graphprotocol/graph-ts'
 import { AmmBurn, AmmFactory, AmmMint, AmmPair, AmmSwap, Bundle, Token, Transaction } from '../types/schema'
 import {
   Burn as BurnEvent,
   Mint as MintEvent,
-  Pair as PairContract,
+  AmmPair as AmmPairContract,
   Swap as SwapEvent,
   Sync as SyncEvent,
   Transfer as TransferEvent
-} from '../types/templates/Pair/Pair'
+} from '../types/templates/AmmPair/AmmPair'
 import {
   updateDolomiteDayData,
   updatePairDayData,
@@ -32,7 +32,7 @@ function isCompleteMint(mintId: string): boolean {
   return AmmMint.load(mintId).sender !== null // sufficient checks
 }
 
-export function getOrCreateTransaction(event: EthereumEvent): Transaction {
+export function getOrCreateTransaction(event: ethereum.Event): Transaction {
   let transactionID = event.transaction.hash.toHexString()
   let transaction = Transaction.load(transactionID)
   if (transaction === null) {
@@ -47,7 +47,7 @@ export function getOrCreateTransaction(event: EthereumEvent): Transaction {
   return transaction as Transaction
 }
 
-function getAmmEventID(event: EthereumEvent, allEvents: Array<string>): string {
+function getAmmEventID(event: ethereum.Event, allEvents: Array<string>): string {
   return event.transaction.hash.toHexString().concat('-').concat(BigInt.fromI32(allEvents.length).toString())
 }
 
@@ -67,7 +67,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
 
   // get pair and load contract
   let pair = AmmPair.load(event.address.toHexString())
-  let pairContract = PairContract.bind(event.address)
+  let pairContract = AmmPairContract.bind(event.address)
 
   // liquidity token amount being transferred
   let value = convertTokenToDecimal(event.params.value, BI_18)

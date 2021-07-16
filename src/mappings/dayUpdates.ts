@@ -13,7 +13,7 @@ import {
   Trade,
   Vaporization
 } from '../types/schema'
-import { BigInt, EthereumEvent, BigDecimal } from '@graphprotocol/graph-ts'
+import { BigInt, ethereum, BigDecimal } from '@graphprotocol/graph-ts'
 import { FACTORY_ADDRESS, ONE_BI, SOLO_MARGIN_ADDRESS, ZERO_BD, ZERO_BI } from './helpers'
 import { findETHPerTokenForTrade } from './pricing'
 
@@ -47,7 +47,7 @@ function setupDolomiteDayData(dolomiteDayData: DolomiteDayData, dayTimestamp: nu
   return dolomiteDayData
 }
 
-export function updateDolomiteDayData(event: EthereumEvent): DolomiteDayData {
+export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
   let factory = AmmFactory.load(FACTORY_ADDRESS)
   let soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS)
   let timestamp = event.block.timestamp.toI32()
@@ -77,7 +77,7 @@ export function updateDolomiteDayData(event: EthereumEvent): DolomiteDayData {
   return dolomiteDayData as DolomiteDayData
 }
 
-export function updatePairDayData(event: EthereumEvent): AmmPairDayData {
+export function updatePairDayData(event: ethereum.Event): AmmPairDayData {
   let timestamp = event.block.timestamp.toI32()
   let dayID = timestamp / 86400
   let dayStartTimestamp = dayID * 86400
@@ -107,7 +107,7 @@ export function updatePairDayData(event: EthereumEvent): AmmPairDayData {
   return pairDayData as AmmPairDayData
 }
 
-export function updatePairHourData(event: EthereumEvent): AmmPairHourData {
+export function updatePairHourData(event: ethereum.Event): AmmPairHourData {
   let timestamp = event.block.timestamp.toI32()
   let hourIndex = timestamp / 3600 // get unique hour within unix history
   let hourStartUnix = hourIndex * 3600 // want the rounded effect
@@ -182,7 +182,7 @@ function setupTokenHourData(tokenHourData: TokenHourData, hourStartTimestamp: nu
   return tokenHourData
 }
 
-export function updateTokenHourDataForAmmEvent(token: Token, event: EthereumEvent): TokenHourData {
+export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Event): TokenHourData {
   let bundle = Bundle.load('1')
   let timestamp = event.block.timestamp.toI32()
   let hourID = timestamp / 3600
@@ -256,7 +256,7 @@ function setupTokenDayData(tokenDayData: TokenDayData, dayStartTimestamp: number
   return tokenDayData
 }
 
-export function updateTokenDayDataForAmmEvent(token: Token, event: EthereumEvent): TokenDayData {
+export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Event): TokenDayData {
   let bundle = Bundle.load('1')
   let timestamp = event.block.timestamp.toI32()
   let dayID = timestamp / 86400
@@ -278,7 +278,7 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: EthereumEvent
   return tokenDayData as TokenDayData
 }
 
-export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: EthereumEvent): TokenHourData {
+export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: ethereum.Event): TokenHourData {
   let timestamp = event.block.timestamp
   let hourID = timestamp.div(BigInt.fromI32(3600)).times(BigInt.fromI32(3600))
   let tokenHourID = token.id + '-' + hourID.toString()
@@ -302,7 +302,7 @@ export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: Et
   return tokenHourData as TokenHourData
 }
 
-export function updateAndReturnTokenDayDataForDyDxEvent(token: Token, event: EthereumEvent): TokenDayData {
+export function updateAndReturnTokenDayDataForDyDxEvent(token: Token, event: ethereum.Event): TokenDayData {
   let timestamp = event.block.timestamp
   let dayID = timestamp.div(BigInt.fromI32(86400)).times(BigInt.fromI32(86400))
   let tokenDayID = token.id + '-' + dayID.toString()

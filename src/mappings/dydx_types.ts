@@ -1,4 +1,4 @@
-import { Address, BigDecimal, BigInt, EthereumTuple, EthereumValue } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
 import { BI_18, convertTokenToDecimal, ZERO_BI } from './helpers'
 
 export class BalanceUpdate {
@@ -30,16 +30,16 @@ export class BalanceUpdate {
 export class ValueStruct {
 
   static fromFields(sign: boolean, value: BigInt): ValueStruct {
-    let values: EthereumValue[] = [
-      EthereumValue.fromBoolean(sign),
-      EthereumValue.fromUnsignedBigInt(value)
+    let values: ethereum.Value[] = [
+      ethereum.Value.fromBoolean(sign),
+      ethereum.Value.fromUnsignedBigInt(value)
     ]
     return new ValueStruct(values)
   }
 
-  private tuple: Array<EthereumValue>
+  private tuple: Array<ethereum.Value>
 
-  constructor(tuple: Array<EthereumValue>) {
+  constructor(tuple: Array<ethereum.Value>) {
     this.tuple = tuple
   }
 
