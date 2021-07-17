@@ -228,8 +228,8 @@ export function handleSync(event: SyncEvent): void {
   bundle.save()
 
   token0.derivedETH = findEthPerToken(token0)
-  token1.derivedETH = findEthPerToken(token1)
   token0.save()
+  token1.derivedETH = findEthPerToken(token1)
   token1.save()
 
   // get tracked liquidity - if neither token is in whitelist, this will be 0

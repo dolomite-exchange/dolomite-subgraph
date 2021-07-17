@@ -27,7 +27,6 @@ export function initializeToken(token: Token, marketId: BigInt): void {
   }
 
   token.decimals = decimals
-  // token.marketId = dydx.getMarketIdByTokenAddress(tokenAddress)
   token.marketId = marketId
   token.derivedETH = ZERO_BD
   token.tradeVolume = ZERO_BD

@@ -13,15 +13,16 @@ export class BalanceUpdate {
     accountNumber: BigInt,
     market: BigInt,
     valuePar: BigInt,
-    sign: boolean
+    sign: boolean,
+    decimals: BigInt
   ) {
     this.accountOwner = accountOwner
     this.accountNumber = accountNumber
     this.market = market
     if (sign) {
-      this.valuePar = convertTokenToDecimal(valuePar, BI_18)
+      this.valuePar = convertTokenToDecimal(valuePar, decimals)
     } else {
-      this.valuePar = convertTokenToDecimal(ZERO_BI.minus(valuePar), BI_18)
+      this.valuePar = convertTokenToDecimal(ZERO_BI.minus(valuePar), decimals)
     }
   }
 

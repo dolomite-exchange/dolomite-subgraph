@@ -19,16 +19,18 @@ import { ValueStruct } from './dydx_types'
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
 export const FACTORY_ADDRESS = '0xef2722fb0f82f0234d2de7cc3afc8379cbf1dfac'
 export const SOLO_MARGIN_ADDRESS = '0xa7a88079c4f405af5151569532f1b09e5c7ff90d'
+export const DAI_ADDRESS = '0x8ac8ae0a208bef466512cd26142ac5a3ddb5b99e'
+export const USDC_ADDRESS = '0xade692c9b8c36e6b04bcfd01f0e91c7ebee0a160'
 export const WETH_ADDRESS = '0xa38ef095d071ebbafea5e7d1ce02be79fc376793'
 export const USDC_WETH_PAIR = '0x15efb5b6da7a9f2be4cec7674d0d4e39ef60a8f5'
-export const DAI_WETH_PAIR = '' // not on testnet
+export const DAI_WETH_PAIR = '0x24326f8c397730a5535ab76b0ddc77483c5bb5e7' // not on testnet
 export const USDT_WETH_PAIR = '' // not on testnet
 
 // token where amounts should contribute to tracked volume and liquidity
 // const WHITELIST: string[] = [
-//   '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
-//   '0x6b175474e89094c44da98b954eedeac495271d0f', // DAI
-//   '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+//   WETH_ADDRESS,
+//   USDC_ADDRESS,
+//   DAI_ADDRESS,
 //   '0xdac17f958d2ee523a2206206994597c13d831ec7', // USDT
 //   '0x0000000000085d4780b73119b644ae5ecd22b376', // TUSD
 //   '0x5d3a536e4d6dbd6114cc1ead35777bab948e3643', // cDAI
@@ -45,8 +47,8 @@ export const USDT_WETH_PAIR = '' // not on testnet
 // ]
 export const WHITELIST: string[] = [
   WETH_ADDRESS, // WETH
-  '0xade692c9b8c36e6b04bcfd01f0e91c7ebee0a160', // USDC
-  '0x8ac8ae0a208bef466512cd26142ac5a3ddb5b99e', // DAI
+  USDC_ADDRESS, // USDC
+  DAI_ADDRESS, // DAI
   '0xbee8c17b7449fa0cc54d857d774ce523a7a35d00', // WMATIC
 ]
 
