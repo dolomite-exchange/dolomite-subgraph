@@ -15,6 +15,7 @@ import {
 } from '../types/schema'
 import { UniswapV2Factory as UniswapV2FactoryContract } from '../types/templates/AmmPair/UniswapV2Factory'
 import { ValueStruct } from './dydx_types'
+import { getTokenOraclePriceUSD } from './pricing'
 
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
 export const FACTORY_ADDRESS = '0xef2722fb0f82f0234d2de7cc3afc8379cbf1dfac'
@@ -55,8 +56,9 @@ export let ZERO_BI = BigInt.fromI32(0)
 export let ONE_BI = BigInt.fromI32(1)
 export let ZERO_BD = BigDecimal.fromString('0')
 export let ONE_BD = BigDecimal.fromString('1')
+export let BI_10 = BigInt.fromI32(10)
 export let BI_18 = BigInt.fromI32(18)
-export let BI_ONE_ETH = BigInt.fromI32(10).pow(18)
+export let BI_ONE_ETH = BI_10.pow(18)
 export let BD_ONE_ETH = new BigDecimal(BI_ONE_ETH)
 export let SECONDS_IN_YEAR = BigInt.fromI32(31536000)
 
@@ -309,7 +311,7 @@ export function changeProtocolBalance(
   isVirtualTransfer: boolean,
   soloMargin: DyDxSoloMargin,
 ): void {
-  let bundle = Bundle.load('1')
+  let tokenPriceUSD = getTokenOraclePriceUSD(token)
 
   let newPar = convertStructToDecimal(newParStruct, token.decimals)
   let newWei = parToWei(newPar, index)
@@ -324,13 +326,13 @@ export function changeProtocolBalance(
       borrowVolumeToken = absBD(newWei)
     }
 
-    let borrowVolumeUSD = borrowVolumeToken.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
+    let borrowVolumeUSD = borrowVolumeToken.times(tokenPriceUSD)
 
     // temporarily get rid of the old USD liquidity
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
 
     token.borrowLiquidity = token.borrowLiquidity.plus(borrowVolumeToken)
-    token.borrowLiquidityUSD = token.borrowLiquidity.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
+    token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
 
     // add the new liquidity back in
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
@@ -349,7 +351,7 @@ export function changeProtocolBalance(
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
 
     token.borrowLiquidity = token.borrowLiquidity.minus(borrowVolumeToken)
-    token.borrowLiquidityUSD = token.borrowLiquidity.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
+    token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
 
     // add the new liquidity back in
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
@@ -361,37 +363,24 @@ export function changeProtocolBalance(
     soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
 
     token.supplyLiquidity = token.supplyLiquidity.plus(deltaWei)
-    token.supplyLiquidityUSD = token.supplyLiquidity.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
+    token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
 
     // add the new liquidity back in
     soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
 
     if (deltaWei.gt(ZERO_BD)) {
-      let deltaWeiUSD = deltaWei.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
+      let deltaWeiUSD = deltaWei.times(tokenPriceUSD)
       soloMargin.totalSupplyVolumeUSD = soloMargin.totalSupplyVolumeUSD.plus(deltaWeiUSD)
     }
+  } else {
+    // Adjust the liquidity of the protocol and token
+    soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
+
+    token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
+
+    // add the new liquidity back in
+    soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
   }
-
-  soloMargin.save()
-  token.save()
-}
-
-export function refreshProtocolUSDBalance(
-  token: Token,
-  soloMargin: DyDxSoloMargin,
-): void {
-  let bundle = Bundle.load('1')
-
-  // temporarily get rid of the old USD liquidity
-  soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
-  soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
-
-  token.borrowLiquidityUSD = token.borrowLiquidity.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
-  token.supplyLiquidityUSD = token.supplyLiquidity.times(token.derivedETH as BigDecimal).times(bundle.ethPrice)
-
-  // add the new liquidity back in
-  soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
-  soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
 
   soloMargin.save()
   token.save()

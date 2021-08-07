@@ -1,4 +1,4 @@
-import { AmmPair, Bundle, Token, Trade } from '../types/schema'
+import { AmmPair, Bundle, OraclePrice, Token, Trade } from '../types/schema'
 import { Address, BigDecimal, BigInt } from '@graphprotocol/graph-ts'
 import {
   ADDRESS_ZERO,
@@ -68,10 +68,14 @@ export function getEthPriceInUSD(): BigDecimal {
 }
 
 // minimum liquidity required to count towards tracked volume for pairs with small # of Lps
-let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('400000')
+let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('10000')
 
 // minimum liquidity for price to get tracked
 let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
+
+export function getTokenOraclePriceUSD(token: Token): BigDecimal {
+  return OraclePrice.load(token.marketId.toString()).price
+}
 
 /**
  * Search through graph to find derived Eth per token.

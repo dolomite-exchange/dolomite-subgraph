@@ -12,12 +12,14 @@ import {
   LogSetIsClosing as IsClosingUpdateEvent,
   LogSetMarginPremium as MarginPremiumUpdateEvent,
   LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent,
+  LogOperation as OperationEvent,
   LogTrade as TradeEvent,
   LogTransfer as TransferEvent,
   LogVaporize as VaporizationEvent,
   LogWithdraw as WithdrawEvent,
 } from '../types/MarginTrade/DyDx'
 import {
+  Bundle,
   Deposit,
   DyDxSoloMargin,
   InterestIndex,
@@ -25,7 +27,7 @@ import {
   Liquidation,
   MarginAccount,
   MarginAccountTokenValue,
-  MarginPosition, MarketRiskInfo,
+  MarginPosition, MarketRiskInfo, OraclePrice,
   Token,
   Trade,
   Transfer,
@@ -60,12 +62,13 @@ import {
 } from './dayUpdates'
 import { initializeToken } from './factory'
 import { log } from '@graphprotocol/graph-ts'
+import { getTokenOraclePriceUSD } from './pricing'
 
 function isMarginPositionExpired(marginPosition: MarginPosition, event: ethereum.Event): boolean {
   return marginPosition.expirationTimestamp !== null && marginPosition.expirationTimestamp.lt(event.block.timestamp)
 }
 
-export function getOrCreateSoloMarginForDyDxCall(event: ethereum.Event): DyDxSoloMargin {
+function getOrCreateSoloMarginForDyDxCall(event: ethereum.Event): DyDxSoloMargin {
   let soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS)
   if (soloMargin === null) {
     soloMargin = new DyDxSoloMargin(SOLO_MARGIN_ADDRESS)
@@ -128,6 +131,10 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   interestRate.supplyInterestRate = BigDecimal.fromString('0')
   interestRate.token = token.id
   interestRate.save()
+
+  let oraclePrice = new OraclePrice(id)
+  oraclePrice.price = ZERO_BD
+  oraclePrice.save()
 }
 
 export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
@@ -136,9 +143,9 @@ export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
-  let riskLimits = dydx.getRiskLimits()
-  let numMarkets = dydx.getNumMarkets()
+  let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let riskLimits = dydxProtocol.getRiskLimits()
+  let numMarkets = dydxProtocol.getNumMarkets()
 
   for (let i = 0; i < numMarkets.toI32(); i++) {
     let interestRate = InterestRate.load(i.toString())
@@ -155,11 +162,11 @@ export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
   let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
   if (marketInfo === null) {
     marketInfo = new MarketRiskInfo(event.params.marketId.toString())
-    marketInfo.token = dydx.getMarketTokenAddress(event.params.marketId).toHexString()
+    marketInfo.token = dydxProtocol.getMarketTokenAddress(event.params.marketId).toHexString()
     marketInfo.liquidationRewardPremium = BigDecimal.fromString('0')
     marketInfo.isBorrowingDisabled = false
   }
@@ -174,11 +181,11 @@ export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpda
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
   let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
   if (marketInfo === null) {
     marketInfo = new MarketRiskInfo(event.params.marketId.toString())
-    marketInfo.token = dydx.getMarketTokenAddress(event.params.marketId).toHexString()
+    marketInfo.token = dydxProtocol.getMarketTokenAddress(event.params.marketId).toHexString()
     marketInfo.marginPremium = BigDecimal.fromString('0')
     marketInfo.isBorrowingDisabled = false
   }
@@ -193,17 +200,34 @@ export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
   let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
   if (marketInfo === null) {
     marketInfo = new MarketRiskInfo(event.params.marketId.toString())
-    marketInfo.token = dydx.getMarketTokenAddress(event.params.marketId).toHexString()
+    marketInfo.token = dydxProtocol.getMarketTokenAddress(event.params.marketId).toHexString()
     marketInfo.marginPremium = BigDecimal.fromString('0')
     marketInfo.liquidationRewardPremium = BigDecimal.fromString('0')
     marketInfo.isBorrowingDisabled = false
   }
   marketInfo.isBorrowingDisabled = event.params.isClosing
   marketInfo.save()
+}
+
+export function handleOperation(event: OperationEvent): void {
+  let bundle = Bundle.load('1')
+  if (bundle.priceOracleLastUpdatedBlockHash !== event.block.hash.toHexString()) {
+    bundle.priceOracleLastUpdatedBlockHash = event.block.hash.toHexString()
+
+    let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+    let marketCount = dydxProtocol.getNumMarkets().toI32()
+    for (let marketId = 0; marketId < marketCount; marketId++) {
+      let oraclePrice = OraclePrice.load(marketId.toString())
+      let token = Token.load(dydxProtocol.getMarketTokenAddress(BigInt.fromI32(marketId)).toHexString())
+      let tokenAmountBI = dydxProtocol.getMarketPrice(BigInt.fromI32(marketId)).value
+      oraclePrice.price = convertTokenToDecimal(tokenAmountBI, BigInt.fromI32(36 - token.decimals.toI32()))
+      oraclePrice.save()
+    }
+  }
 }
 
 export function handleIndexUpdate(event: IndexUpdateEvent): void {
@@ -222,11 +246,11 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
   index.lastUpdate = event.params.index.lastUpdate
   index.save()
 
-  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
-  let interestRatePerSecond = dydx.getMarketInterestRate(event.params.market).value
+  let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let interestRatePerSecond = dydxProtocol.getMarketInterestRate(event.params.market).value
   let interestPerYearBD = new BigDecimal(interestRatePerSecond.times(SECONDS_IN_YEAR))
-  let earningsRateMax = new BigDecimal(dydx.getRiskLimits().earningsRateMax)
-  let earningsRate = new BigDecimal(dydx.getEarningsRate().value)
+  let earningsRateMax = new BigDecimal(dydxProtocol.getRiskLimits().earningsRateMax)
+  let earningsRate = new BigDecimal(dydxProtocol.getEarningsRate().value)
 
   let interestRate = InterestRate.load(id)
   interestRate.borrowInterestRate = interestPerYearBD.div(bigDecimalExp18())
@@ -265,11 +289,11 @@ function getOrCreateTokenValue(
   return tokenValue as MarginAccountTokenValue
 }
 
-function handleDyDxBalanceUpdate(balanceUpdate: BalanceUpdate, block: ethereum.Block): void {
+function handleDyDxBalanceUpdateForAccount(balanceUpdate: BalanceUpdate, block: ethereum.Block): MarginAccount {
   let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, block)
 
-  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
-  let tokenAddress = dydx.getMarketTokenAddress(balanceUpdate.market)
+  let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let tokenAddress = dydxProtocol.getMarketTokenAddress(balanceUpdate.market)
   let token = Token.load(tokenAddress.toHexString())
   let tokenValue = getOrCreateTokenValue(marginAccount, token as Token)
 
@@ -281,38 +305,12 @@ function handleDyDxBalanceUpdate(balanceUpdate: BalanceUpdate, block: ethereum.B
 
   tokenValue.save()
   marginAccount.save()
+
+  return marginAccount
 }
 
 function getIDForEvent(event: ethereum.Event): string {
   return event.transaction.hash.toHexString()  + '-' + event.logIndex.toString()
-}
-
-function getIDForTokenValue(marginAccount: MarginAccount, marketId: BigInt): string {
-  return marginAccount.user + '-' + marginAccount.accountNumber.toString() + '-' + marketId.toString()
-}
-
-function updateMarginAccountForEventAndSaveTokenValue(
-  marginAccount: MarginAccount,
-  event: ethereum.Event,
-  marketId: BigInt,
-  newPar: ValueStruct,
-  token: Token
-): void {
-  marginAccount.lastUpdatedBlockNumber = event.block.number
-  marginAccount.lastUpdatedTimestamp = event.block.timestamp
-
-  let tokenValueID = getIDForTokenValue(marginAccount, marketId)
-  let tokenValue = MarginAccountTokenValue.load(tokenValueID)
-  if (tokenValue === null) {
-    log.info('Creating new MarginAccountTokenValue with ID {}', [tokenValueID])
-    tokenValue = new MarginAccountTokenValue(tokenValueID)
-    tokenValue.token = token.id
-    tokenValue.marginAccount = marginAccount.id
-    tokenValue.marketId = marketId
-  }
-
-  tokenValue.valuePar = convertStructToDecimal(newPar, token.decimals)
-  tokenValue.save()
 }
 
 function getOrCreateMarginPosition(event: ethereum.Event, account: MarginAccount): MarginPosition {
@@ -342,16 +340,11 @@ function getOrCreateMarginPosition(event: ethereum.Event, account: MarginAccount
   return marginPosition as MarginPosition
 }
 
-function getTokenPriceUSD(token: Token, dydx: DyDx): BigDecimal {
-  let value = dydx.getMarketPrice(token.marketId).value
-  return convertTokenToDecimal(value.times(BigInt.fromI32(10).pow(token.decimals.toI32() as u8)), BigInt.fromI32(36))
-}
-
 function updateMarginPositionForTrade(
   marginPosition: MarginPosition,
   trade: Trade,
   event: ethereum.Event,
-  dydx: DyDx,
+  dydxProtocol: DyDx,
   isTaker: boolean,
   makerTokenIndex: InterestIndex,
   takerTokenIndex: InterestIndex
@@ -374,8 +367,8 @@ function updateMarginPositionForTrade(
   let makerAmountWei = isRepayingLoan ? trade.makerTokenDeltaWei.neg() : trade.makerTokenDeltaWei
 
   if (marginPosition.owedToken == trade.makerToken) {
-    let owedPriceUSD = getTokenPriceUSD(makerToken, dydx)
-    let heldPriceUSD = getTokenPriceUSD(takerToken, dydx)
+    let owedPriceUSD = getTokenOraclePriceUSD(makerToken)
+    let heldPriceUSD = getTokenOraclePriceUSD(takerToken)
 
     let makerAmountPar = makerAmountWei.div(makerTokenIndex.borrowIndex)
     let takerAmountPar = takerAmountWei.div(takerTokenIndex.supplyIndex)
@@ -396,8 +389,8 @@ function updateMarginPositionForTrade(
       marginPosition.initialHeldPriceUSD = heldPriceUSD
     }
   } else if (marginPosition.heldToken == trade.makerToken) {
-    let owedPriceUSD = getTokenPriceUSD(takerToken, dydx)
-    let heldPriceUSD = getTokenPriceUSD(makerToken, dydx)
+    let owedPriceUSD = getTokenOraclePriceUSD(takerToken)
+    let heldPriceUSD = getTokenOraclePriceUSD(makerToken)
 
     let takerAmountPar = takerAmountWei.div(takerTokenIndex.borrowIndex)
     let makerAmountPar = makerAmountWei.div(makerTokenIndex.supplyIndex)
@@ -429,7 +422,7 @@ function updateMarginPositionForTrade(
 function getOwedPriceUSD(dydxProtocol: DyDx, marginPosition: MarginPosition): BigDecimal {
   if (marginPosition.owedToken !== null) {
     let token = Token.load(marginPosition.owedToken) as Token
-    return getTokenPriceUSD(token, dydxProtocol)
+    return getTokenOraclePriceUSD(token)
   } else {
     return ZERO_BD
   }
@@ -440,27 +433,21 @@ export function handleDeposit(event: DepositEvent): void {
     'Handling deposit for hash and index: {}-{}',
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
+
+  let dydxProtocol = DyDx.bind(event.address)
+  let token = Token.load(dydxProtocol.getMarketTokenAddress(event.params.market).toHexString()) as Token
+
   let balanceUpdate = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
     event.params.market,
     event.params.update.newPar.value,
-    event.params.update.newPar.sign
-  )
-  handleDyDxBalanceUpdate(balanceUpdate, event.block)
-
-  let transaction = getOrCreateTransaction(event)
-
-  let marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
-  let dydxProtocol = DyDx.bind(event.address)
-  let token = Token.load(dydxProtocol.getMarketTokenAddress(event.params.market).toHexString()) as Token
-  updateMarginAccountForEventAndSaveTokenValue(
-    marginAccount,
-    event,
-    event.params.market,
-    new ValueStruct(event.params.update.newPar),
+    event.params.update.newPar.sign,
     token
   )
+  let marginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdate, event.block)
+
+  let transaction = getOrCreateTransaction(event)
 
   let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
 
@@ -480,12 +467,7 @@ export function handleDeposit(event: DepositEvent): void {
   deposit.token = token.id
   deposit.from = event.params.from
   deposit.amountDeltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
-  let priceUSD = dydxProtocol.getMarketPrice(event.params.market)
-  let deltaWeiUSD = ValueStruct.fromFields(
-    event.params.update.deltaWei.sign,
-    event.params.update.deltaWei.value.times(priceUSD.value)
-  )
-  deposit.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+  deposit.amountUSDDeltaWei = deposit.amountDeltaWei.times(getTokenOraclePriceUSD(token))
 
   soloMargin.totalSupplyVolumeUSD = soloMargin.totalSupplyVolumeUSD.plus(deposit.amountUSDDeltaWei)
 
@@ -507,27 +489,20 @@ export function handleWithdraw(event: WithdrawEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
+  let dydxProtocol = DyDx.bind(event.address)
+  let token = Token.load(dydxProtocol.getMarketTokenAddress(event.params.market).toHexString()) as Token
+
   let balanceUpdate = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
     event.params.market,
     event.params.update.newPar.value,
-    event.params.update.newPar.sign
-  )
-  handleDyDxBalanceUpdate(balanceUpdate, event.block)
-
-  let transaction = getOrCreateTransaction(event)
-
-  let marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
-  let dydxProtocol = DyDx.bind(event.address)
-  let token = Token.load(dydxProtocol.getMarketTokenAddress(event.params.market).toHexString()) as Token
-  updateMarginAccountForEventAndSaveTokenValue(
-    marginAccount,
-    event,
-    event.params.market,
-    new ValueStruct(event.params.update.newPar),
+    event.params.update.newPar.sign,
     token
   )
+  let marginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdate, event.block)
+
+  let transaction = getOrCreateTransaction(event)
 
   let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
 
@@ -548,12 +523,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   withdrawal.token = token.id
   withdrawal.to = event.params.to
   withdrawal.amountDeltaWei = convertStructToDecimal(deltaWeiStructAbs, token.decimals)
-  let priceUSD = dydxProtocol.getMarketPrice(event.params.market)
-  let deltaWeiUSD = ValueStruct.fromFields(
-    event.params.update.deltaWei.sign,
-    event.params.update.deltaWei.value.times(priceUSD.value)
-  )
-  withdrawal.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+  withdrawal.amountUSDDeltaWei = withdrawal.amountDeltaWei.times(getTokenOraclePriceUSD(token))
 
   marginAccount.save()
   withdrawal.save()
@@ -575,46 +545,30 @@ export function handleTransfer(event: TransferEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
+  let dydxProtocol = DyDx.bind(event.address)
+  let token = Token.load(dydxProtocol.getMarketTokenAddress(event.params.market).toHexString()) as Token
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.accountOneOwner,
     event.params.accountOneNumber,
     event.params.market,
     event.params.updateOne.newPar.value,
-    event.params.updateOne.newPar.sign
+    event.params.updateOne.newPar.sign,
+    token
   )
-  handleDyDxBalanceUpdate(balanceUpdateOne, event.block)
+  let marginAccount1 = handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountTwoOwner,
     event.params.accountTwoNumber,
     event.params.market,
     event.params.updateTwo.newPar.value,
-    event.params.updateTwo.newPar.sign
+    event.params.updateTwo.newPar.sign,
+    token
   )
-  handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
+  let marginAccount2 = handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let transaction = getOrCreateTransaction(event)
-
-  let dydxProtocol = DyDx.bind(event.address)
-  let token = Token.load(dydxProtocol.getMarketTokenAddress(event.params.market).toHexString()) as Token
-
-  let marginAccount1 = getOrCreateMarginAccount(event.params.accountOneOwner, event.params.accountOneNumber, event.block)
-  updateMarginAccountForEventAndSaveTokenValue(
-    marginAccount1,
-    event,
-    event.params.market,
-    new ValueStruct(event.params.updateOne.newPar),
-    token
-  )
-
-  let marginAccount2 = getOrCreateMarginAccount(event.params.accountTwoOwner, event.params.accountTwoNumber, event.block)
-  updateMarginAccountForEventAndSaveTokenValue(
-    marginAccount2,
-    event,
-    event.params.market,
-    new ValueStruct(event.params.updateTwo.newPar),
-    token
-  )
 
   let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
 
@@ -636,15 +590,9 @@ export function handleTransfer(event: TransferEvent): void {
   transfer.token = token.id
 
   let amountDeltaWei = new ValueStruct(event.params.updateOne.deltaWei)
-  let amountDeltaWeiAbs = amountDeltaWei.abs()
-  transfer.amountDeltaWei = convertStructToDecimal(amountDeltaWeiAbs, token.decimals)
-  let priceUSDStruct = dydxProtocol.getMarketPrice(event.params.market)
-  let priceUSD = convertTokenToDecimal(priceUSDStruct.value.times(BigInt.fromI32(10).pow(token.decimals.toI32() as u8)), BigInt.fromI32(36))
-  let deltaWeiUSD = ValueStruct.fromFields(
-    amountDeltaWeiAbs.sign,
-    amountDeltaWeiAbs.value.times(priceUSDStruct.value)
-  )
-  transfer.amountUSDDeltaWei = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+  let priceUSD = getTokenOraclePriceUSD(token)
+  transfer.amountDeltaWei = convertStructToDecimal(amountDeltaWei.abs(), token.decimals)
+  transfer.amountUSDDeltaWei = transfer.amountDeltaWei.times(priceUSD)
 
   marginAccount1.save()
   marginAccount2.save()
@@ -739,45 +687,32 @@ export function handleBuy(event: BuyEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
+  let dydxProtocol = DyDx.bind(event.address)
+  let makerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.makerMarket).toHexString()) as Token
+  let takerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.takerMarket).toHexString()) as Token
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
     event.params.makerMarket,
     event.params.makerUpdate.newPar.value,
-    event.params.makerUpdate.newPar.sign
+    event.params.makerUpdate.newPar.sign,
+    makerToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateOne, event.block)
+  // Don't do a variable assignment here since it's overwritten below
+  handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
     event.params.takerMarket,
     event.params.takerUpdate.newPar.value,
-    event.params.takerUpdate.newPar.sign
-  )
-  handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
-
-  let transaction = getOrCreateTransaction(event)
-
-  let dydxProtocol = DyDx.bind(event.address)
-  let makerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.makerMarket).toHexString()) as Token
-  let takerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.takerMarket).toHexString()) as Token
-
-  let marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
-  updateMarginAccountForEventAndSaveTokenValue(
-    marginAccount,
-    event,
-    event.params.makerMarket,
-    new ValueStruct(event.params.makerUpdate.newPar),
-    makerToken
-  )
-  updateMarginAccountForEventAndSaveTokenValue(
-    marginAccount,
-    event,
-    event.params.takerMarket,
-    new ValueStruct(event.params.takerUpdate.newPar),
+    event.params.takerUpdate.newPar.sign,
     takerToken
   )
+  let marginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+
+  let transaction = getOrCreateTransaction(event)
 
   let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
 
@@ -799,30 +734,31 @@ export function handleBuy(event: BuyEvent): void {
   trade.makerToken = makerToken.id
 
   let takerDeltaWeiStruct = new ValueStruct(event.params.takerUpdate.deltaWei)
-  let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
-  trade.takerTokenDeltaWei = convertStructToDecimal(takerNewParStruct.abs(), takerToken.decimals)
+  trade.takerTokenDeltaWei = convertStructToDecimal(takerDeltaWeiStruct.abs(), takerToken.decimals)
 
   let makerDeltaWeiStruct = new ValueStruct(event.params.makerUpdate.deltaWei)
-  let makerNewParStruct = new ValueStruct(event.params.makerUpdate.newPar)
   trade.makerTokenDeltaWei = convertStructToDecimal(makerDeltaWeiStruct.abs(), makerToken.decimals)
 
-  let priceUSD = dydxProtocol.getMarketPrice(event.params.takerMarket)
-  let deltaWeiUSD = ValueStruct.fromFields(
-    true,
-    event.params.takerUpdate.deltaWei.value.abs().times(priceUSD.value)
-  )
-  trade.amountUSD = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+  trade.amountUSD = trade.takerTokenDeltaWei.times(getTokenOraclePriceUSD(takerToken))
+
+  soloMargin.totalTradeVolumeUSD = soloMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
+  soloMargin.tradeCount = soloMargin.tradeCount.plus(ONE_BI)
 
   marginAccount.save()
   trade.save()
   transaction.save()
+  soloMargin.save()
 
   let dolomiteDayData = updateDolomiteDayData(event)
 
   let makerIndex = InterestIndex.load(event.params.makerMarket.toString()) as InterestIndex
   let takerIndex = InterestIndex.load(event.params.takerMarket.toString()) as InterestIndex
   let isVirtualTransfer = false
+
+  let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
   changeProtocolBalance(makerToken, takerNewParStruct, takerDeltaWeiStruct, makerIndex, isVirtualTransfer, soloMargin)
+
+  let makerNewParStruct = new ValueStruct(event.params.makerUpdate.newPar)
   changeProtocolBalance(takerToken, makerNewParStruct, makerDeltaWeiStruct, takerIndex, isVirtualTransfer, soloMargin)
 
   let inputTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(makerToken, event)
@@ -848,45 +784,34 @@ export function handleSell(event: SellEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
+  let dydxProtocol = DyDx.bind(event.address)
+  let makerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.makerMarket).toHexString()) as Token
+  let takerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.takerMarket).toHexString()) as Token
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
     event.params.makerMarket,
     event.params.makerUpdate.newPar.value,
-    event.params.makerUpdate.newPar.sign
+    event.params.makerUpdate.newPar.sign,
+    makerToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateOne, event.block)
+  // Don't do a variable assignment here since it's overwritten below
+  handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
     event.params.takerMarket,
     event.params.takerUpdate.newPar.value,
-    event.params.takerUpdate.newPar.sign
+    event.params.takerUpdate.newPar.sign,
+    takerToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
+  let marginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let transaction = getOrCreateTransaction(event)
 
-  let dydxProtocol = DyDx.bind(event.address)
-  let makerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.makerMarket).toHexString()) as Token
-  let takerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.takerMarket).toHexString()) as Token
-
-  let marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
-  updateMarginAccountForEventAndSaveTokenValue(
-    marginAccount,
-    event,
-    event.params.makerMarket,
-    new ValueStruct(event.params.makerUpdate.newPar),
-    makerToken
-  )
-  updateMarginAccountForEventAndSaveTokenValue(
-    marginAccount,
-    event,
-    event.params.takerMarket,
-    new ValueStruct(event.params.takerUpdate.newPar),
-    takerToken
-  )
+  getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
 
   let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
 
@@ -908,30 +833,31 @@ export function handleSell(event: SellEvent): void {
   trade.makerToken = makerToken.id
 
   let takerDeltaWeiStruct = new ValueStruct(event.params.takerUpdate.deltaWei)
-  let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
+  trade.takerTokenDeltaWei = convertStructToDecimal(takerDeltaWeiStruct.abs(), takerToken.decimals)
 
   let makerDeltaWeiStruct = new ValueStruct(event.params.makerUpdate.deltaWei)
-  let makerNewParStruct = new ValueStruct(event.params.makerUpdate.newPar)
-  trade.takerTokenDeltaWei = convertStructToDecimal(takerDeltaWeiStruct.abs(), takerToken.decimals)
   trade.makerTokenDeltaWei = convertStructToDecimal(makerDeltaWeiStruct.abs(), makerToken.decimals)
 
-  let priceUSD = dydxProtocol.getMarketPrice(event.params.takerMarket)
-  let deltaWeiUSD = ValueStruct.fromFields(
-    true,
-    event.params.takerUpdate.deltaWei.value.abs().times(priceUSD.value)
-  )
-  trade.amountUSD = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+  trade.amountUSD = trade.takerTokenDeltaWei.times(getTokenOraclePriceUSD(takerToken))
+
+  soloMargin.totalTradeVolumeUSD = soloMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
+  soloMargin.tradeCount = soloMargin.tradeCount.plus(ONE_BI)
 
   marginAccount.save()
   trade.save()
   transaction.save()
+  soloMargin.save()
 
   let dolomiteDayData = updateDolomiteDayData(event)
 
   let makerIndex = InterestIndex.load(event.params.makerMarket.toString()) as InterestIndex
   let takerIndex = InterestIndex.load(event.params.takerMarket.toString()) as InterestIndex
   let isVirtualTransfer = false
+
+  let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
   changeProtocolBalance(makerToken, takerNewParStruct, takerDeltaWeiStruct, makerIndex, isVirtualTransfer, soloMargin)
+
+  let makerNewParStruct = new ValueStruct(event.params.makerUpdate.newPar)
   changeProtocolBalance(takerToken, makerNewParStruct, makerDeltaWeiStruct, takerIndex, isVirtualTransfer, soloMargin)
 
   let inputTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(makerToken, event)
@@ -957,83 +883,54 @@ export function handleTrade(event: TradeEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
+  let dydxProtocol = DyDx.bind(event.address)
+  let takerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.inputMarket).toHexString()) as Token
+  let makerToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.outputMarket).toHexString()) as Token
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.makerAccountOwner,
     event.params.makerAccountNumber,
     event.params.inputMarket,
     event.params.makerInputUpdate.newPar.value,
-    event.params.makerInputUpdate.newPar.sign
+    event.params.makerInputUpdate.newPar.sign,
+    takerToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateOne, event.block)
+  handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.makerAccountOwner,
     event.params.makerAccountNumber,
     event.params.outputMarket,
     event.params.makerOutputUpdate.newPar.value,
-    event.params.makerOutputUpdate.newPar.sign
+    event.params.makerOutputUpdate.newPar.sign,
+    makerToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
+  let makerMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.takerAccountOwner,
     event.params.takerAccountNumber,
     event.params.inputMarket,
     event.params.takerInputUpdate.newPar.value,
-    event.params.takerInputUpdate.newPar.sign
+    event.params.takerInputUpdate.newPar.sign,
+    takerToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateThree, event.block)
+  handleDyDxBalanceUpdateForAccount(balanceUpdateThree, event.block)
 
   let balanceUpdateFour = new BalanceUpdate(
     event.params.takerAccountOwner,
     event.params.takerAccountNumber,
     event.params.outputMarket,
     event.params.takerOutputUpdate.newPar.value,
-    event.params.takerOutputUpdate.newPar.sign
+    event.params.takerOutputUpdate.newPar.sign,
+    makerToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateFour, event.block)
+  let takerMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateFour, event.block)
 
   let transaction = getOrCreateTransaction(event)
 
-  let dydxProtocol = DyDx.bind(event.address)
-  let inputToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.inputMarket).toHexString()) as Token
-  let outputToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.outputMarket).toHexString()) as Token
-
-  let takerMarginAccount = getOrCreateMarginAccount(event.params.takerAccountOwner, event.params.takerAccountNumber, event.block)
-  updateMarginAccountForEventAndSaveTokenValue(
-    takerMarginAccount,
-    event,
-    event.params.inputMarket,
-    new ValueStruct(event.params.takerInputUpdate.newPar),
-    outputToken
-  )
-  updateMarginAccountForEventAndSaveTokenValue(
-    takerMarginAccount,
-    event,
-    event.params.outputMarket,
-    new ValueStruct(event.params.takerOutputUpdate.newPar),
-    inputToken
-  )
-
-  let makerMarginAccount = getOrCreateMarginAccount(event.params.makerAccountOwner, event.params.makerAccountNumber, event.block)
-  updateMarginAccountForEventAndSaveTokenValue(
-    makerMarginAccount,
-    event,
-    event.params.inputMarket,
-    new ValueStruct(event.params.makerInputUpdate.newPar),
-    inputToken
-  )
-  updateMarginAccountForEventAndSaveTokenValue(
-    makerMarginAccount,
-    event,
-    event.params.outputMarket,
-    new ValueStruct(event.params.makerOutputUpdate.newPar),
-    outputToken
-  )
-
   let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
   soloMargin.tradeCount = soloMargin.tradeCount.plus(ONE_BI)
-  soloMargin.save()
 
   let tradeID = getIDForEvent(event)
   let trade = Trade.load(tradeID)
@@ -1049,64 +946,65 @@ export function handleTrade(event: TradeEvent): void {
   trade.makerMarginAccount = makerMarginAccount.id
   trade.walletsConcatenated = takerMarginAccount.user + '_' + makerMarginAccount.user
 
-  trade.takerToken = outputToken.id
-  trade.makerToken = inputToken.id
+  trade.takerToken = takerToken.id
+  trade.makerToken = makerToken.id
 
   let takerInputDeltaWeiStruct = new ValueStruct(event.params.takerInputUpdate.deltaWei)
-  let takerInputNewParStruct = new ValueStruct(event.params.takerInputUpdate.newPar)
-  trade.takerTokenDeltaWei = convertStructToDecimal(takerInputDeltaWeiStruct.abs(), outputToken.decimals)
+  trade.takerTokenDeltaWei = convertStructToDecimal(takerInputDeltaWeiStruct.abs(), takerToken.decimals)
 
   let takerOutputDeltaWeiStruct = new ValueStruct(event.params.takerOutputUpdate.deltaWei)
-  let takerOutputNewParStruct = new ValueStruct(event.params.takerOutputUpdate.newPar)
-  trade.makerTokenDeltaWei = convertStructToDecimal(takerOutputDeltaWeiStruct.abs(), inputToken.decimals)
+  trade.makerTokenDeltaWei = convertStructToDecimal(takerOutputDeltaWeiStruct.abs(), makerToken.decimals)
 
-  let makerInputDeltaWeiStruct = new ValueStruct(event.params.makerInputUpdate.deltaWei)
-  let makerInputNewParStruct = new ValueStruct(event.params.makerInputUpdate.newPar)
+  trade.amountUSD = trade.takerTokenDeltaWei.times(getTokenOraclePriceUSD(takerToken))
 
-  let makerOutputDeltaWeiStruct = new ValueStruct(event.params.makerOutputUpdate.deltaWei)
-  let makerOutputNewParStruct = new ValueStruct(event.params.makerOutputUpdate.newPar)
-
-  let priceUSD = dydxProtocol.getMarketPrice(event.params.outputMarket)
-  let deltaWeiUSD = ValueStruct.fromFields(
-    true,
-    event.params.takerOutputUpdate.deltaWei.value.abs().times(priceUSD.value)
-  )
-  trade.amountUSD = convertStructToDecimal(deltaWeiUSD, BigInt.fromI32(36))
+  soloMargin.totalTradeVolumeUSD = soloMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
+  soloMargin.tradeCount = soloMargin.tradeCount.plus(ONE_BI)
 
   let dolomiteDayData = updateDolomiteDayData(event)
 
-  let inputIndex = InterestIndex.load(event.params.inputMarket.toString()) as InterestIndex
-  let outputIndex = InterestIndex.load(event.params.outputMarket.toString()) as InterestIndex
+  let takerIndex = InterestIndex.load(event.params.inputMarket.toString()) as InterestIndex
+  let makerIndex = InterestIndex.load(event.params.outputMarket.toString()) as InterestIndex
   let isVirtualTransfer = true
-  changeProtocolBalance(inputToken, takerInputNewParStruct, takerInputDeltaWeiStruct, inputIndex, isVirtualTransfer, soloMargin)
-  changeProtocolBalance(outputToken, takerOutputNewParStruct, takerOutputDeltaWeiStruct, outputIndex, isVirtualTransfer, soloMargin)
-  changeProtocolBalance(inputToken, makerInputNewParStruct, makerInputDeltaWeiStruct, inputIndex, isVirtualTransfer, soloMargin)
-  changeProtocolBalance(outputToken, makerOutputNewParStruct, makerOutputDeltaWeiStruct, outputIndex, isVirtualTransfer, soloMargin)
 
-  let inputTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(inputToken, event)
-  let outputTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(outputToken, event)
-  let inputTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(inputToken, event)
-  let outputTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(outputToken, event)
+  let takerInputNewParStruct = new ValueStruct(event.params.takerInputUpdate.newPar)
+  changeProtocolBalance(takerToken, takerInputNewParStruct, takerInputDeltaWeiStruct, takerIndex, isVirtualTransfer, soloMargin)
 
-  updateTimeDataForTrade(dolomiteDayData, inputTokenDayData, inputTokenHourData, inputToken, trade as Trade)
-  updateTimeDataForTrade(dolomiteDayData, outputTokenDayData, outputTokenHourData, outputToken, trade as Trade)
+  let takerOutputNewParStruct = new ValueStruct(event.params.takerOutputUpdate.newPar)
+  changeProtocolBalance(makerToken, takerOutputNewParStruct, takerOutputDeltaWeiStruct, makerIndex, isVirtualTransfer, soloMargin)
+
+  let makerInputNewParStruct = new ValueStruct(event.params.makerInputUpdate.newPar)
+  let makerInputDeltaWeiStruct = new ValueStruct(event.params.makerInputUpdate.deltaWei)
+  changeProtocolBalance(makerToken, makerInputNewParStruct, makerInputDeltaWeiStruct, takerIndex, isVirtualTransfer, soloMargin)
+
+  let makerOutputNewParStruct = new ValueStruct(event.params.makerOutputUpdate.newPar)
+  let makerOutputDeltaWeiStruct = new ValueStruct(event.params.makerOutputUpdate.deltaWei)
+  changeProtocolBalance(takerToken, makerOutputNewParStruct, makerOutputDeltaWeiStruct, makerIndex, isVirtualTransfer, soloMargin)
+
+  let takerTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(takerToken, event)
+  let makerTokenHourData = updateAndReturnTokenHourDataForDyDxEvent(makerToken, event)
+  let takerTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(takerToken, event)
+  let makerTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(makerToken, event)
+
+  updateTimeDataForTrade(dolomiteDayData, takerTokenDayData, takerTokenHourData, takerToken, trade as Trade)
+  updateTimeDataForTrade(dolomiteDayData, makerTokenDayData, makerTokenHourData, makerToken, trade as Trade)
 
   takerMarginAccount.save()
   makerMarginAccount.save()
   trade.save()
   transaction.save()
+  soloMargin.save()
 
   if (makerMarginAccount.accountNumber.notEqual(ZERO_BI)) {
     let marginPosition = getOrCreateMarginPosition(event, makerMarginAccount)
     if (marginPosition.status == MarginPositionStatus.Open) {
-      updateMarginPositionForTrade(marginPosition, trade as Trade, event, dydxProtocol, false, outputIndex, inputIndex)
+      updateMarginPositionForTrade(marginPosition, trade as Trade, event, dydxProtocol, false, makerIndex, takerIndex)
       marginPosition.save()
     }
   }
   if (takerMarginAccount.accountNumber.notEqual(ZERO_BI)) {
     let marginPosition = getOrCreateMarginPosition(event, takerMarginAccount)
     if (marginPosition.status == MarginPositionStatus.Open) {
-      updateMarginPositionForTrade(marginPosition, trade as Trade, event, dydxProtocol, false, inputIndex, outputIndex)
+      updateMarginPositionForTrade(marginPosition, trade as Trade, event, dydxProtocol, false, takerIndex, makerIndex)
       marginPosition.save()
     }
   }
@@ -1118,79 +1016,51 @@ export function handleLiquidate(event: LiquidationEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
+  let dydxProtocol = DyDx.bind(event.address)
+  let heldToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.heldMarket).toHexString()) as Token
+  let owedToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.owedMarket).toHexString()) as Token
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.liquidAccountOwner,
     event.params.liquidAccountNumber,
     event.params.heldMarket,
     event.params.liquidHeldUpdate.newPar.value,
-    event.params.liquidHeldUpdate.newPar.sign
+    event.params.liquidHeldUpdate.newPar.sign,
+    heldToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateOne, event.block)
+  handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.liquidAccountOwner,
     event.params.liquidAccountNumber,
     event.params.owedMarket,
     event.params.liquidOwedUpdate.newPar.value,
-    event.params.liquidOwedUpdate.newPar.sign
+    event.params.liquidOwedUpdate.newPar.sign,
+    owedToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
+  let liquidMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.solidAccountOwner,
     event.params.solidAccountNumber,
     event.params.heldMarket,
     event.params.solidHeldUpdate.newPar.value,
-    event.params.solidHeldUpdate.newPar.sign
+    event.params.solidHeldUpdate.newPar.sign,
+    heldToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateThree, event.block)
+  handleDyDxBalanceUpdateForAccount(balanceUpdateThree, event.block)
 
   let balanceUpdateFour = new BalanceUpdate(
     event.params.solidAccountOwner,
     event.params.solidAccountNumber,
     event.params.owedMarket,
     event.params.solidOwedUpdate.newPar.value,
-    event.params.solidOwedUpdate.newPar.sign
+    event.params.solidOwedUpdate.newPar.sign,
+    owedToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateFour, event.block)
+  let solidMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateFour, event.block)
 
   let transaction = getOrCreateTransaction(event)
-
-  let dydxProtocol = DyDx.bind(event.address)
-  let heldToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.heldMarket).toHexString()) as Token
-  let owedToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.owedMarket).toHexString()) as Token
-
-  let liquidMarginAccount = getOrCreateMarginAccount(event.params.liquidAccountOwner, event.params.liquidAccountNumber, event.block)
-  updateMarginAccountForEventAndSaveTokenValue(
-    liquidMarginAccount,
-    event,
-    event.params.heldMarket,
-    new ValueStruct(event.params.liquidHeldUpdate.newPar),
-    heldToken
-  )
-  updateMarginAccountForEventAndSaveTokenValue(
-    liquidMarginAccount,
-    event,
-    event.params.owedMarket,
-    new ValueStruct(event.params.liquidOwedUpdate.newPar),
-    owedToken
-  )
-
-  let solidMarginAccount = getOrCreateMarginAccount(event.params.solidAccountOwner, event.params.solidAccountNumber, event.block)
-  updateMarginAccountForEventAndSaveTokenValue(
-    solidMarginAccount,
-    event,
-    event.params.heldMarket,
-    new ValueStruct(event.params.solidHeldUpdate.newPar),
-    heldToken
-  )
-  updateMarginAccountForEventAndSaveTokenValue(
-    solidMarginAccount,
-    event,
-    event.params.owedMarket,
-    new ValueStruct(event.params.solidOwedUpdate.newPar),
-    owedToken
-  )
 
   let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
 
@@ -1224,31 +1094,22 @@ export function handleLiquidate(event: LiquidationEvent): void {
   let liquidOwedDeltaWeiStruct = new ValueStruct(event.params.liquidOwedUpdate.deltaWei)
   let liquidOwedNewParStruct = new ValueStruct(event.params.liquidOwedUpdate.newPar)
 
-  let heldPriceUSD = dydxProtocol.getMarketPrice(event.params.heldMarket).value
-  let owedPriceUSD = dydxProtocol.getMarketPrice(event.params.owedMarket).value
+  let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
+  let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
 
   let liquidationSpread = dydxProtocol.getLiquidationSpreadForPair(event.params.heldMarket, event.params.owedMarket).value
   let heldDeltaWei = event.params.solidHeldUpdate.deltaWei.value
   let heldTokenLiquidationRewardWei = heldDeltaWei.minus(heldDeltaWei.times(BI_ONE_ETH).div(liquidationSpread))
   liquidation.heldTokenLiquidationRewardWei = convertTokenToDecimal(heldTokenLiquidationRewardWei, heldToken.decimals)
 
-  let owedDeltaWeiUSD = ValueStruct.fromFields(
-    true,
-    event.params.liquidOwedUpdate.deltaWei.value.abs().times(owedPriceUSD)
-  )
-  liquidation.debtUSDLiquidated = convertStructToDecimal(owedDeltaWeiUSD, BigInt.fromI32(36))
+  let liquidOwedDeltaWeiBD = convertStructToDecimal(liquidOwedDeltaWeiStruct, owedToken.decimals)
+  liquidation.debtUSDLiquidated = liquidOwedDeltaWeiBD.times(owedPriceUSD)
 
-  let heldDeltaWeiUSD = ValueStruct.fromFields(
-    true,
-    event.params.liquidHeldUpdate.deltaWei.value.abs().times(heldPriceUSD)
-  )
-  liquidation.collateralUSDLiquidated = convertStructToDecimal(heldDeltaWeiUSD, BigInt.fromI32(36))
+  let liquidHeldDeltaWeiBD = convertStructToDecimal(liquidHeldDeltaWeiStruct, heldToken.decimals)
+  liquidation.collateralUSDLiquidated = liquidHeldDeltaWeiBD.times(heldPriceUSD)
 
-  let liquidationRewardUSD = ValueStruct.fromFields(
-    true,
-    heldTokenLiquidationRewardWei.times(heldPriceUSD)
-  )
-  liquidation.collateralUSDLiquidationReward = convertStructToDecimal(liquidationRewardUSD, BigInt.fromI32(36))
+  let heldTokenLiquidationRewardWeiBD = convertTokenToDecimal(heldTokenLiquidationRewardWei, heldToken.decimals)
+  liquidation.collateralUSDLiquidationReward = heldTokenLiquidationRewardWeiBD.times(heldPriceUSD)
 
   soloMargin.liquidationCount = soloMargin.liquidationCount.plus(ONE_BI)
   soloMargin.totalLiquidationVolumeUSD = soloMargin.totalLiquidationVolumeUSD.plus(liquidation.debtUSDLiquidated)
@@ -1295,8 +1156,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
       marginPosition.heldAmountPar = marginPosition.heldAmountPar.minus(heldAmountDeltaPar)
 
       if (marginPosition.closeHeldAmountUSD === null && marginPosition.closeOwedAmountUSD === null) {
-        let heldPriceUSD = getTokenPriceUSD(heldToken, dydxProtocol)
-        let owedPriceUSD = getTokenPriceUSD(owedToken, dydxProtocol)
+        let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
+        let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
 
         marginPosition.closeHeldPriceUSD = heldPriceUSD
         marginPosition.closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(heldIndex.supplyIndex)
@@ -1318,71 +1179,50 @@ export function handleVaporize(event: VaporizationEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
+  let dydxProtocol = DyDx.bind(event.address)
+  let heldToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.heldMarket).toHexString()) as Token
+  let owedToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.owedMarket).toHexString()) as Token
+
   let balanceUpdateOne = new BalanceUpdate(
     event.params.vaporAccountOwner,
     event.params.vaporAccountNumber,
     event.params.owedMarket,
     event.params.vaporOwedUpdate.newPar.value,
-    event.params.vaporOwedUpdate.newPar.sign
+    event.params.vaporOwedUpdate.newPar.sign,
+    owedToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateOne, event.block)
+  let vaporMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.solidAccountOwner,
     event.params.solidAccountNumber,
     event.params.heldMarket,
     event.params.solidHeldUpdate.newPar.value,
-    event.params.solidHeldUpdate.newPar.sign
+    event.params.solidHeldUpdate.newPar.sign,
+    heldToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateTwo, event.block)
+  handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.solidAccountOwner,
     event.params.solidAccountNumber,
     event.params.owedMarket,
     event.params.solidOwedUpdate.newPar.value,
-    event.params.solidOwedUpdate.newPar.sign
+    event.params.solidOwedUpdate.newPar.sign,
+    owedToken
   )
-  handleDyDxBalanceUpdate(balanceUpdateThree, event.block)
+  let solidMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateThree, event.block)
 
   let transaction = getOrCreateTransaction(event)
 
-  let dydxProtocol = DyDx.bind(event.address)
-  let heldToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.heldMarket).toHexString()) as Token
-  let owedToken = Token.load(dydxProtocol.getMarketTokenAddress(event.params.owedMarket).toHexString()) as Token
-
-  let vaporMarginAccount = getOrCreateMarginAccount(event.params.vaporAccountOwner, event.params.vaporAccountNumber, event.block)
   let vaporOwedNewParStruct = new ValueStruct(event.params.vaporOwedUpdate.newPar)
   let vaporOwedDeltaWeiStruct = new ValueStruct(event.params.vaporOwedUpdate.deltaWei)
-  updateMarginAccountForEventAndSaveTokenValue(
-    vaporMarginAccount,
-    event,
-    event.params.owedMarket,
-    vaporOwedNewParStruct,
-    owedToken
-  )
-
-  let solidMarginAccount = getOrCreateMarginAccount(event.params.solidAccountOwner, event.params.solidAccountNumber, event.block)
 
   let solidHeldNewParStruct = new ValueStruct(event.params.solidHeldUpdate.newPar)
   let solidHeldDeltaWeiStruct = new ValueStruct(event.params.solidHeldUpdate.deltaWei)
-  updateMarginAccountForEventAndSaveTokenValue(
-    solidMarginAccount,
-    event,
-    event.params.heldMarket,
-    solidHeldNewParStruct,
-    heldToken
-  )
 
   let solidOwedNewParStruct = new ValueStruct(event.params.solidOwedUpdate.newPar)
   let solidOwedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
-  updateMarginAccountForEventAndSaveTokenValue(
-    solidMarginAccount,
-    event,
-    event.params.owedMarket,
-    solidOwedNewParStruct,
-    owedToken
-  )
 
   let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
 
@@ -1408,9 +1248,10 @@ export function handleVaporize(event: VaporizationEvent): void {
   let heldDeltaWeiStruct = new ValueStruct(event.params.solidHeldUpdate.deltaWei)
   vaporization.heldTokenAmountDeltaWei = convertStructToDecimal(heldDeltaWeiStruct.abs(), heldToken.decimals)
 
-  let owedPriceUSD = dydxProtocol.getMarketPrice(event.params.owedMarket).value
+  let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
 
-  vaporization.amountUSDVaporized = convertTokenToDecimal(owedPriceUSD.times(event.params.vaporOwedUpdate.deltaWei.value), BigInt.fromI32(36))
+  let vaporOwedDeltaWeiBD = convertStructToDecimal(vaporOwedDeltaWeiStruct, owedToken.decimals)
+  vaporization.amountUSDVaporized = vaporOwedDeltaWeiBD.times(owedPriceUSD)
 
   soloMargin.vaporizationCount = soloMargin.vaporizationCount.plus(ONE_BI)
   soloMargin.totalVaporizationVolumeUSD = soloMargin.totalVaporizationVolumeUSD.plus(vaporization.amountUSDVaporized)
@@ -1457,8 +1298,8 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
   }
   marginPosition.save()
 
-  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
-  let tokenAddress = dydx.getMarketTokenAddress(event.params.marketId).toHexString()
+  let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let tokenAddress = dydxProtocol.getMarketTokenAddress(event.params.marketId).toHexString()
   let token = Token.load(tokenAddress) as Token
 
   let tokenValue = getOrCreateTokenValue(marginAccount, token)

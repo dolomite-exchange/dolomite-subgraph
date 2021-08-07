@@ -15,7 +15,12 @@ import {
   updateTokenDayDataForAmmEvent,
   updateTokenHourDataForAmmEvent
 } from './dayUpdates'
-import { findEthPerToken, getEthPriceInUSD, getTrackedLiquidityUSD, getTrackedVolumeUSD } from './pricing'
+import {
+  findEthPerToken,
+  getEthPriceInUSD,
+  getTokenOraclePriceUSD,
+  getTrackedLiquidityUSD,
+} from './pricing'
 import {
   ADDRESS_ZERO,
   BI_18,
@@ -279,11 +284,8 @@ export function handleMint(event: MintEvent): void {
   token1.transactionCount = token1.transactionCount.plus(ONE_BI)
 
   // get new amounts of USD and ETH for tracking
-  let bundle = Bundle.load('1')
-  let amountTotalUSD = token1.derivedETH
-    .times(token1Amount)
-    .plus(token0.derivedETH.times(token0Amount))
-    .times(bundle.ethPrice)
+  let amountTotalUSD = getTokenOraclePriceUSD(token0).times(token0Amount)
+    .plus(getTokenOraclePriceUSD(token1).times(token1Amount))
 
   // update txn counts
   pair.transactionCount = pair.transactionCount.plus(ONE_BI)
@@ -341,11 +343,8 @@ export function handleBurn(event: BurnEvent): void {
   token1.transactionCount = token1.transactionCount.plus(ONE_BI)
 
   // get new amounts of USD and ETH for tracking
-  let bundle = Bundle.load('1')
-  let amountTotalUSD = token1.derivedETH
-    .times(token1Amount)
-    .plus(token0.derivedETH.times(token0Amount))
-    .times(bundle.ethPrice)
+  let amountTotalUSD = getTokenOraclePriceUSD(token0).times(token0Amount)
+    .plus(getTokenOraclePriceUSD(token1).times(token1Amount))
 
   // update txn counts
   ammFactory.transactionCount = ammFactory.transactionCount.plus(ONE_BI)
@@ -402,8 +401,12 @@ export function handleSwap(event: SwapEvent): void {
 
   let derivedAmountUSD = derivedAmountETH.times(bundle.ethPrice)
 
+  let token0PriceUSD = getTokenOraclePriceUSD(token0)
+  let token1PriceUSD = getTokenOraclePriceUSD(token1)
+
   // only accounts for volume through white listed tokens
-  let trackedAmountUSD = getTrackedVolumeUSD(amount0Total, token0, amount1Total, token1, pair as AmmPair)
+  let trackedAmountUSD = amount0Total.times(token0PriceUSD)
+    .plus(amount1Total.times(token1PriceUSD))
 
   // update token0 global volume and token liquidity stats
   token0.tradeVolume = token0.tradeVolume.plus(amount0In.plus(amount0Out))
@@ -490,13 +493,13 @@ export function handleSwap(event: SwapEvent): void {
 
   // swap specific updating for token0
   token0DayData.dailyAmmSwapVolumeToken = token0DayData.dailyAmmSwapVolumeToken.plus(amount0Total)
-  token0DayData.dailyAmmSwapVolumeUSD = token0DayData.dailyAmmSwapVolumeUSD.plus(amount0Total.times(token0.derivedETH as BigDecimal).times(bundle.ethPrice))
+  token0DayData.dailyAmmSwapVolumeUSD = token0DayData.dailyAmmSwapVolumeUSD.plus(amount0Total.times(token0PriceUSD))
   token0DayData.dailyAmmSwapCount = token0DayData.dailyAmmSwapCount.plus(ONE_BI)
   token0DayData.save()
 
   // swap specific updating
   token1DayData.dailyAmmSwapVolumeToken = token1DayData.dailyAmmSwapVolumeToken.plus(amount1Total)
-  token1DayData.dailyAmmSwapVolumeUSD = token1DayData.dailyAmmSwapVolumeUSD.plus(amount1Total.times(token1.derivedETH as BigDecimal).times(bundle.ethPrice))
+  token1DayData.dailyAmmSwapVolumeUSD = token1DayData.dailyAmmSwapVolumeUSD.plus(amount1Total.times(token1PriceUSD))
   token1DayData.dailyAmmSwapCount = token1DayData.dailyAmmSwapCount.plus(ONE_BI)
   token1DayData.save()
 }

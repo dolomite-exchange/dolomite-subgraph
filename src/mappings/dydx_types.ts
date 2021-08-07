@@ -1,5 +1,6 @@
 import { Address, BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
-import { BI_18, convertTokenToDecimal, ZERO_BI } from './helpers'
+import { convertTokenToDecimal, ZERO_BI } from './helpers'
+import { Token } from '../types/schema'
 
 export class BalanceUpdate {
 
@@ -13,15 +14,16 @@ export class BalanceUpdate {
     accountNumber: BigInt,
     market: BigInt,
     valuePar: BigInt,
-    sign: boolean
+    sign: boolean,
+    token: Token
   ) {
     this.accountOwner = accountOwner
     this.accountNumber = accountNumber
     this.market = market
     if (sign) {
-      this.valuePar = convertTokenToDecimal(valuePar, BI_18)
+      this.valuePar = convertTokenToDecimal(valuePar, token.decimals)
     } else {
-      this.valuePar = convertTokenToDecimal(ZERO_BI.minus(valuePar), BI_18)
+      this.valuePar = convertTokenToDecimal(ZERO_BI.minus(valuePar), token.decimals)
     }
   }
 

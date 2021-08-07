@@ -256,8 +256,14 @@ type AmmSwap @entity {
 
 # stores for USD calculations
 type Bundle @entity {
-  id: ID!
-  ethPrice: BigDecimal! # price of ETH usd
+  id: ID! # always '1'
+  ethPrice: BigDecimal! # AMM price of ETH/USD
+  priceOracleLastUpdatedBlockHash: String!
+}
+
+type OraclePrice @entity {
+  id: ID! # marketID
+  price: BigDecimal! # oracle price of ETH/USD. Updated every dYdX call
 }
 
 type TokenHourData @entity {
