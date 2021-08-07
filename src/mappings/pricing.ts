@@ -47,11 +47,8 @@ export function getEthPriceInUSD(): BigDecimal {
     let usdcReserveETH = usdcPair.token0 == WETH_ADDRESS ? usdcPair.reserve0 : usdcPair.reserve1
     let totalLiquidityETH = daiReserveETH.plus(usdcReserveETH)
 
-    let daiReserveStable = daiPair.token0 == WETH_ADDRESS ? daiPair.reserve1 : daiPair.reserve0
-    let usdcReserveStable = usdcPair.token0 == WETH_ADDRESS ? usdcPair.reserve1 : usdcPair.reserve0
-
-    let daiWeight = daiReserveStable.div(totalLiquidityETH)
-    let usdcWeight = usdcReserveStable.div(totalLiquidityETH)
+    let daiWeight = daiReserveETH.div(totalLiquidityETH)
+    let usdcWeight = usdcReserveETH.div(totalLiquidityETH)
 
     let daiPrice = daiPair.token0 == WETH_ADDRESS ? daiPair.token1Price : daiPair.token0Price
     let usdcPrice = usdcPair.token0 == WETH_ADDRESS ? usdcPair.token1Price : usdcPair.token0Price
@@ -71,7 +68,7 @@ export function getEthPriceInUSD(): BigDecimal {
 let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('10000')
 
 // minimum liquidity for price to get tracked
-let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
+let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('0.2')
 
 export function getTokenOraclePriceUSD(token: Token): BigDecimal {
   return OraclePrice.load(token.marketId.toString()).price
@@ -86,7 +83,7 @@ export function findEthPerToken(token: Token): BigDecimal {
     return ONE_BD
   }
   // loop through whitelist and check if paired with any
-  for (let i = 0; i < WHITELIST.length; ++i) {
+  for (let i = 0; i < WHITELIST.length; i += 1) {
     let pairAddress = factoryContract.getPair(Address.fromString(token.id), Address.fromString(WHITELIST[i]))
     if (pairAddress.toHexString() != ADDRESS_ZERO) {
       let pair = AmmPair.load(pairAddress.toHexString())
