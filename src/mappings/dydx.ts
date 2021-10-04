@@ -30,7 +30,7 @@ import {
   MarginPosition, MarketRiskInfo, OraclePrice,
   Token,
   Trade,
-  Transfer,
+  Transfer, User,
   Vaporization,
   Withdrawal
 } from '../types/schema'
@@ -41,7 +41,7 @@ import {
   bigDecimalExp18,
   changeProtocolBalance,
   convertStructToDecimal,
-  convertTokenToDecimal,
+  convertTokenToDecimal, createUserIfNecessary,
   ONE_BI,
   SECONDS_IN_YEAR,
   SOLO_MARGIN_ADDRESS,
@@ -260,13 +260,16 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
 
   let interestRate = InterestRate.load(id) as InterestRate
   interestRate.borrowInterestRate = interestPerYearBD.div(bigDecimalExp18())
-  interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(earningsRateMax).truncate(18)
+  interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(earningsRateMax)
+  interestRate.save()
 }
 
 function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: ethereum.Block): MarginAccount {
   let id = owner.toHexString() + '-' + accountNumber.toString()
   let marginAccount = MarginAccount.load(id)
   if (marginAccount === null) {
+    createUserIfNecessary(owner)
+
     marginAccount = new MarginAccount(id)
     marginAccount.user = owner.toHexString()
     marginAccount.accountNumber = accountNumber
@@ -309,8 +312,8 @@ function handleDyDxBalanceUpdateForAccount(balanceUpdate: BalanceUpdate, block: 
     [marginAccount.id, tokenValue.valuePar.toString()]
   )
 
-  tokenValue.save()
   marginAccount.save()
+  tokenValue.save()
 
   return marginAccount
 }
@@ -818,8 +821,6 @@ export function handleSell(event: SellEvent): void {
   let marginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let transaction = getOrCreateTransaction(event)
-
-  getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
 
   let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
 

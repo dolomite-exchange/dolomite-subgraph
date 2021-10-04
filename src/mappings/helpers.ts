@@ -225,7 +225,7 @@ export function createLiquidityPosition(exchange: Address, user: Address): AmmLi
   return liquidityTokenBalance as AmmLiquidityPosition
 }
 
-export function createUser(address: Address): void {
+export function createUserIfNecessary(address: Address): void {
   let user = User.load(address.toHexString())
   if (user === null) {
     user = new User(address.toHexString())

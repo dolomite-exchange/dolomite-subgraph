@@ -102,7 +102,7 @@ dataSources:
       startBlock: 17270000
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.5
       language: wasm/assemblyscript
       file: ./src/mappings/dydx.ts
       entities:
@@ -130,7 +130,7 @@ dataSources:
       startBlock: 17270000
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.4
+      apiVersion: 0.0.5
       language: wasm/assemblyscript
       file: ./src/mappings/dydx.ts
       entities:

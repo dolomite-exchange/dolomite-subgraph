@@ -27,7 +27,7 @@ import {
   convertTokenToDecimal,
   createLiquidityPosition,
   createLiquiditySnapshot,
-  createUser,
+  createUserIfNecessary,
   FACTORY_ADDRESS,
   ONE_BI,
   ZERO_BD
@@ -66,9 +66,9 @@ export function handleERC20Transfer(event: TransferEvent): void {
 
   // user stats
   let from = event.params.from
-  createUser(from)
+  createUserIfNecessary(from)
   let to = event.params.to
-  createUser(to)
+  createUserIfNecessary(to)
 
   // get pair and load contract
   let pair = AmmPair.load(event.address.toHexString()) as AmmPair
