@@ -86,6 +86,12 @@ type Token @entity {
   pairQuote: [AmmPair!]! @derivedFrom(field: "token1")
 }
 
+type AmmPairReverseLookup @entity {
+  # token0-token1 and token1-token0
+  id: ID!
+  pair: AmmPair!
+}
+
 type AmmPair @entity {
   # pair address
   id: ID!
@@ -166,10 +172,10 @@ type Transaction @entity {
   blockNumber: BigInt!
   timestamp: BigInt!
   # This is not the reverse of AmmMint.transaction.
-  # This is only used to track incomplete mints (similar for burns aand swaps)
-  intermitentMints: [AmmMint]!
-  intermitentBurns: [AmmBurn]!
-  intermitentSwaps: [AmmSwap]!
+  # This is only used to track incomplete mints (similar for burns and swaps)
+  intermitentMints: [AmmMint!]!
+  intermitentBurns: [AmmBurn!]!
+  intermitentSwaps: [AmmSwap!]!
 
   ammMints: [AmmMint!]! @derivedFrom(field: "transaction")
   ammBurns: [AmmBurn!]! @derivedFrom(field: "transaction")

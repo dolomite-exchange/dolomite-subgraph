@@ -210,7 +210,7 @@ export function createLiquidityPosition(exchange: Address, user: Address): AmmLi
 
   let liquidityTokenBalance = AmmLiquidityPosition.load(positionID)
   if (liquidityTokenBalance === null) {
-    let pair = AmmPair.load(exchange.toHexString())
+    let pair = AmmPair.load(exchange.toHexString()) as AmmPair
     pair.liquidityProviderCount = pair.liquidityProviderCount.plus(ONE_BI)
 
     liquidityTokenBalance = new AmmLiquidityPosition(positionID)
@@ -255,10 +255,10 @@ export function absBI(bi: BigInt): BigInt {
 
 export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: ethereum.Event): void {
   let timestamp = event.block.timestamp.toI32()
-  let bundle = Bundle.load('1')
-  let pair = AmmPair.load(position.pair)
-  let token0 = Token.load(pair.token0)
-  let token1 = Token.load(pair.token1)
+  let bundle = Bundle.load('1') as Bundle
+  let pair = AmmPair.load(position.pair) as AmmPair
+  let token0 = Token.load(pair.token0) as Token
+  let token1 = Token.load(pair.token1) as Token
 
   // create new snapshot
   let snapshot = new AmmLiquidityPositionSnapshot(position.id.concat(timestamp.toString()))
@@ -267,8 +267,8 @@ export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: e
   snapshot.block = event.block.number.toI32()
   snapshot.user = position.user
   snapshot.pair = position.pair
-  snapshot.token0PriceUSD = token0.derivedETH.times(bundle.ethPrice)
-  snapshot.token1PriceUSD = token1.derivedETH.times(bundle.ethPrice)
+  snapshot.token0PriceUSD = (token0.derivedETH as BigDecimal).times(bundle.ethPrice)
+  snapshot.token1PriceUSD = (token1.derivedETH as BigDecimal).times(bundle.ethPrice)
   snapshot.reserve0 = pair.reserve0
   snapshot.reserve1 = pair.reserve1
   snapshot.reserveUSD = pair.reserveUSD

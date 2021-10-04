@@ -12,21 +12,9 @@ import {
   Trade,
   Vaporization
 } from '../types/schema'
-import {
-  BigInt,
-  ethereum
-} from '@graphprotocol/graph-ts'
-import {
-  FACTORY_ADDRESS,
-  ONE_BI,
-  SOLO_MARGIN_ADDRESS,
-  WETH_ADDRESS,
-  ZERO_BD,
-  ZERO_BI
-} from './helpers'
-import {
-  getTokenOraclePriceUSD
-} from './pricing'
+import { BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
+import { FACTORY_ADDRESS, ONE_BI, SOLO_MARGIN_ADDRESS, WETH_ADDRESS, ZERO_BD, ZERO_BI } from './helpers'
+import { getTokenOraclePriceUSD } from './pricing'
 
 function getDayId(timestamp: BigInt): string {
   let _86400 = BigInt.fromI32(86400)
@@ -69,10 +57,9 @@ function setupDolomiteDayData(dolomiteDayData: DolomiteDayData): DolomiteDayData
 }
 
 export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
-  let factory = AmmFactory.load(FACTORY_ADDRESS)
-  let soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS)
-  let timestamp = event.block.timestamp
-  let dayId = getDayId(timestamp)
+  let factory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
+  let soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS) as DyDxSoloMargin
+  let dayId = getDayId(event.block.timestamp)
 
   let dolomiteDayData = DolomiteDayData.load(dayId)
   if (dolomiteDayData === null) {
@@ -98,10 +85,9 @@ export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
 }
 
 export function updatePairDayData(event: ethereum.Event): AmmPairDayData {
-  let timestamp = event.block.timestamp
-  let dayId = getDayId(timestamp)
+  let dayId = getDayId(event.block.timestamp)
   let dayPairID = event.address.toHexString() + '-' + dayId
-  let pair = AmmPair.load(event.address.toHexString())
+  let pair = AmmPair.load(event.address.toHexString()) as AmmPair
 
   let pairDayData = AmmPairDayData.load(dayPairID)
   if (pairDayData === null) {
@@ -127,10 +113,9 @@ export function updatePairDayData(event: ethereum.Event): AmmPairDayData {
 }
 
 export function updatePairHourData(event: ethereum.Event): AmmPairHourData {
-  let timestamp = event.block.timestamp
-  let hourId = getHourId(timestamp)
+  let hourId = getHourId(event.block.timestamp)
   let hourPairID = event.address.toHexString() + '-' + hourId
-  let pair = AmmPair.load(event.address.toHexString())
+  let pair = AmmPair.load(event.address.toHexString()) as AmmPair
 
   let pairHourData = AmmPairHourData.load(hourPairID)
   if (pairHourData === null) {
@@ -204,8 +189,7 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Eve
   let ethToken = Token.load(WETH_ADDRESS)
   let ethPriceUSD = getTokenOraclePriceUSD(ethToken as Token)
   let tokenPriceUSD = getTokenOraclePriceUSD(token)
-  let timestamp = event.block.timestamp
-  let hourId = getHourId(timestamp)
+  let hourId = getHourId(event.block.timestamp)
   let tokenHourID = token.id + '-' + hourId
 
   let tokenHourData = TokenHourData.load(tokenHourID)
@@ -214,9 +198,9 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Eve
     setupTokenHourData(tokenHourData as TokenHourData, BigInt.fromString(hourId).toI32(), token)
   }
 
-  tokenHourData.ammPriceUSD = token.derivedETH.times(ethPriceUSD)
+  tokenHourData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
   tokenHourData.ammLiquidityToken = token.ammSwapLiquidity
-  tokenHourData.ammLiquidityUSD = token.ammSwapLiquidity.times(tokenPriceUSD)
+  tokenHourData.ammLiquidityUSD = token.ammSwapLiquidity.times(tokenPriceUSD).truncate(18)
   tokenHourData.hourlyAllTransactionCount = tokenHourData.hourlyAllTransactionCount.plus(ONE_BI)
   tokenHourData.save()
 
@@ -279,8 +263,7 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Even
   let ethToken = Token.load(WETH_ADDRESS)
   let ethPriceUSD = getTokenOraclePriceUSD(ethToken as Token)
   let tokenPriceUSD = getTokenOraclePriceUSD(token)
-  let timestamp = event.block.timestamp
-  let dayId = getDayId(timestamp)
+  let dayId = getDayId(event.block.timestamp)
   let tokenDayID = token.id + '-' + dayId
 
   let tokenDayData = TokenDayData.load(tokenDayID)
@@ -289,9 +272,9 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Even
     setupTokenDayData(tokenDayData as TokenDayData, BigInt.fromString(dayId).toI32(), token)
   }
 
-  tokenDayData.ammPriceUSD = token.derivedETH.times(ethPriceUSD)
+  tokenDayData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
   tokenDayData.ammLiquidityToken = token.ammSwapLiquidity
-  tokenDayData.ammLiquidityUSD = token.ammSwapLiquidity.times(tokenPriceUSD)
+  tokenDayData.ammLiquidityUSD = token.ammSwapLiquidity.times(tokenPriceUSD).truncate(18)
   tokenDayData.dailyAllTransactionCount = tokenDayData.dailyAllTransactionCount.plus(ONE_BI)
   tokenDayData.save()
 
@@ -299,8 +282,7 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Even
 }
 
 export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: ethereum.Event): TokenHourData {
-  let timestamp = event.block.timestamp
-  let hourId = getHourId(timestamp)
+  let hourId = getHourId(event.block.timestamp)
   let tokenHourID = token.id + '-' + hourId
 
   let tokenHourData = TokenHourData.load(tokenHourID)
@@ -362,7 +344,7 @@ export function updateTimeDataForTrade(
   // IE: BUY 4 ETH @ $300 --> outputDeltaWei = $1200; inputDeltaWei = 4 ETH; takerToken = USD; makerToken = ETH
   // IE: SELL 4 ETH @ $300 --> outputDeltaWei = 4 ETH; inputDeltaWei = $1200; takerToken = ETH; makerToken = USD
   if (trade.takerToken == token.id) {
-    let amountUSD = trade.takerTokenDeltaWei.times(closePriceUSD)
+    let amountUSD = trade.takerTokenDeltaWei.times(closePriceUSD).truncate(18)
 
     dolomiteDayData.dailyTradeVolumeUSD = dolomiteDayData.dailyTradeVolumeUSD.plus(amountUSD)
 
@@ -373,7 +355,7 @@ export function updateTimeDataForTrade(
     tokenHourData.hourlyTradeVolumeUSD = tokenHourData.hourlyTradeVolumeUSD.plus(amountUSD)
   } else {
     // trade.makerToken == token.id
-    let amountUSD = trade.makerTokenDeltaWei.times(closePriceUSD)
+    let amountUSD = trade.makerTokenDeltaWei.times(closePriceUSD).truncate(18)
 
     dolomiteDayData.dailyTradeVolumeUSD = dolomiteDayData.dailyTradeVolumeUSD.plus(amountUSD)
 
@@ -448,7 +430,7 @@ export function updateTimeDataForLiquidation(
     }
 
     let tokenPriceUSD = getTokenOraclePriceUSD(token)
-    let liquidationVolumeUSD = liquidationVolumeToken.times(tokenPriceUSD)
+    let liquidationVolumeUSD = liquidationVolumeToken.times(tokenPriceUSD).truncate(18)
 
     tokenDayData.dailyLiquidationVolumeToken = tokenDayData.dailyLiquidationVolumeToken.plus(liquidationVolumeToken)
     tokenDayData.dailyLiquidationVolumeUSD = tokenDayData.dailyLiquidationVolumeUSD.plus(liquidationVolumeUSD)
@@ -482,7 +464,7 @@ export function updateTimeDataForVaporization(
     }
 
     let tokenPriceUSD = getTokenOraclePriceUSD(token)
-    let vaporizationVolumeUSD = vaporizationVolumeToken.times(tokenPriceUSD)
+    let vaporizationVolumeUSD = vaporizationVolumeToken.times(tokenPriceUSD).truncate(18)
 
     tokenDayData.dailyVaporizationVolumeToken = tokenDayData.dailyVaporizationVolumeToken.plus(vaporizationVolumeToken)
     tokenDayData.dailyVaporizationVolumeUSD = tokenDayData.dailyVaporizationVolumeUSD.plus(vaporizationVolumeUSD)

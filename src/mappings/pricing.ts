@@ -1,4 +1,4 @@
-import { AmmPair, Bundle, OraclePrice, Token, Trade } from '../types/schema'
+import { AmmPair, AmmPairReverseLookup, Bundle, OraclePrice, Token, Trade } from '../types/schema'
 import { Address, BigDecimal, BigInt } from '@graphprotocol/graph-ts'
 import {
   ADDRESS_ZERO,
@@ -71,7 +71,7 @@ let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('10000')
 let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('0.2')
 
 export function getTokenOraclePriceUSD(token: Token): BigDecimal {
-  return OraclePrice.load(token.marketId.toString()).price
+  return (OraclePrice.load(token.marketId.toString()) as OraclePrice).price
 }
 
 /**
@@ -84,14 +84,15 @@ export function findEthPerToken(token: Token): BigDecimal {
   }
   // loop through whitelist and check if paired with any
   for (let i = 0; i < WHITELIST.length; i += 1) {
-    let pairAddress = factoryContract.getPair(Address.fromString(token.id), Address.fromString(WHITELIST[i]))
-    if (pairAddress.toHexString() != ADDRESS_ZERO) {
-      let pair = AmmPair.load(pairAddress.toHexString())
+    // let pairAddress = factoryContract.getPair(Address.fromString(token.id), Address.fromString(WHITELIST[i]))
+    let reverseLookup = AmmPairReverseLookup.load(token.id.concat('-').concat(WHITELIST[i]))
+    if (reverseLookup !== null) {
+      let pair = AmmPair.load(reverseLookup.pair) as AmmPair
       if (pair.token0 == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
-        let token1 = Token.load(pair.token1)
+        let token1 = Token.load(pair.token1) as Token
         return pair.token1Price.times(token1.derivedETH as BigDecimal) // return token1 per our token * Eth per token 1
       } else if (pair.token1 == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
-        let token0 = Token.load(pair.token0)
+        let token0 = Token.load(pair.token0) as Token
         return pair.token0Price.times(token0.derivedETH as BigDecimal) // return token0 per our token * ETH per token 0
       }
     }
@@ -183,9 +184,9 @@ export function getTrackedLiquidityUSD(
   tokenAmount1: BigDecimal,
   token1: Token
 ): BigDecimal {
-  let bundle = Bundle.load('1')
-  let price0 = token0.derivedETH.times(bundle.ethPrice)
-  let price1 = token1.derivedETH.times(bundle.ethPrice)
+  let bundle = Bundle.load('1') as Bundle
+  let price0 = (token0.derivedETH as BigDecimal).times(bundle.ethPrice)
+  let price1 = (token1.derivedETH as BigDecimal).times(bundle.ethPrice)
 
   // both are whitelist tokens, take average of both amounts
   if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {

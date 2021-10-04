@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
 import { log, Address, BigInt } from '@graphprotocol/graph-ts'
-import { AmmFactory, AmmPair, Token, Bundle } from '../types/schema'
+import { AmmFactory, AmmPair, Token, Bundle, AmmPairReverseLookup } from '../types/schema'
 import { PairCreated } from '../types/UniswapV2Factory/UniswapV2Factory'
 import { AmmPair as PairTemplate } from '../types/templates'
 import {
@@ -10,7 +10,8 @@ import {
   fetchTokenSymbol,
   fetchTokenName,
   fetchTokenDecimals,
-  fetchTokenTotalSupply, SOLO_MARGIN_ADDRESS
+  fetchTokenTotalSupply,
+  SOLO_MARGIN_ADDRESS
 } from './helpers'
 import { DyDx } from '../types/MarginTrade/DyDx'
 
@@ -104,9 +105,17 @@ export function handleNewPair(event: PairCreated): void {
   // create the tracked contract based on the template
   PairTemplate.create(event.params.pair)
 
+  let reverseLookup1 = new AmmPairReverseLookup(token0.id.concat('-').concat(token1.id))
+  reverseLookup1.pair = pair.id
+
+  let reverseLookup2 = new AmmPairReverseLookup(token1.id.concat('-').concat(token0.id))
+  reverseLookup2.pair = pair.id
+
   // save updated values
   token0.save()
   token1.save()
   pair.save()
+  reverseLookup1.save()
+  reverseLookup2.save()
   factory.save()
 }

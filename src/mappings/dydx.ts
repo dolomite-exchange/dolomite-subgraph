@@ -65,7 +65,7 @@ import { log } from '@graphprotocol/graph-ts'
 import { getTokenOraclePriceUSD } from './pricing'
 
 function isMarginPositionExpired(marginPosition: MarginPosition, event: ethereum.Event): boolean {
-  return marginPosition.expirationTimestamp !== null && marginPosition.expirationTimestamp.lt(event.block.timestamp)
+  return marginPosition.expirationTimestamp !== null && (marginPosition.expirationTimestamp as BigInt).lt(event.block.timestamp)
 }
 
 function getOrCreateSoloMarginForDyDxCall(event: ethereum.Event): DyDxSoloMargin {
@@ -148,10 +148,10 @@ export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
   let numMarkets = dydxProtocol.getNumMarkets()
 
   for (let i = 0; i < numMarkets.toI32(); i++) {
-    let interestRate = InterestRate.load(i.toString())
+    let interestRate = InterestRate.load(i.toString()) as InterestRate
     let earningsRate = new BigDecimal(event.params.earningsRate.value)
     let maxEarningsRate = new BigDecimal(riskLimits.earningsRateMax)
-    interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(maxEarningsRate)
+    interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(maxEarningsRate).truncate(18)
     interestRate.save()
   }
 }
@@ -214,15 +214,16 @@ export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
 }
 
 export function handleOperation(event: OperationEvent): void {
-  let bundle = Bundle.load('1')
+  let bundle = Bundle.load('1') as Bundle
   if (bundle.priceOracleLastUpdatedBlockHash !== event.block.hash.toHexString()) {
     bundle.priceOracleLastUpdatedBlockHash = event.block.hash.toHexString()
 
     let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
     let marketCount = dydxProtocol.getNumMarkets().toI32()
     for (let marketId = 0; marketId < marketCount; marketId++) {
-      let oraclePrice = OraclePrice.load(marketId.toString())
-      let token = Token.load(dydxProtocol.getMarketTokenAddress(BigInt.fromI32(marketId)).toHexString())
+      let oraclePrice = OraclePrice.load(marketId.toString()) as OraclePrice
+      let token = Token.load(dydxProtocol.getMarketTokenAddress(BigInt.fromI32(marketId)).toHexString()) as Token
+
       let tokenAmountBI = dydxProtocol.getMarketPrice(BigInt.fromI32(marketId)).value
       oraclePrice.price = convertTokenToDecimal(tokenAmountBI, BigInt.fromI32(36 - token.decimals.toI32()))
       oraclePrice.save()
@@ -252,9 +253,9 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
   let earningsRateMax = new BigDecimal(dydxProtocol.getRiskLimits().earningsRateMax)
   let earningsRate = new BigDecimal(dydxProtocol.getEarningsRate().value)
 
-  let interestRate = InterestRate.load(id)
+  let interestRate = InterestRate.load(id) as InterestRate
   interestRate.borrowInterestRate = interestPerYearBD.div(bigDecimalExp18())
-  interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(earningsRateMax)
+  interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(earningsRateMax).truncate(18)
 }
 
 function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: ethereum.Block): MarginAccount {
@@ -380,12 +381,12 @@ function updateMarginPositionForTrade(
       // The user is initially opening the position if they are sizing up the trade
       marginPosition.initialOwedAmountPar = marginPosition.initialOwedAmountPar.plus(makerAmountPar)
       marginPosition.initialOwedAmountWei = marginPosition.initialOwedAmountWei.plus(makerAmountWei)
-      marginPosition.initialOwedAmountUSD = marginPosition.initialOwedAmountUSD.plus(makerAmountWei.times(owedPriceUSD))
+      marginPosition.initialOwedAmountUSD = marginPosition.initialOwedAmountUSD.plus(makerAmountWei.times(owedPriceUSD).truncate(18))
       marginPosition.initialOwedPriceUSD = owedPriceUSD
 
       marginPosition.initialHeldAmountPar = marginPosition.initialHeldAmountPar.plus(takerAmountWei.div(takerTokenIndex.supplyIndex))
       marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(takerAmountWei)
-      marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(takerAmountWei.times(heldPriceUSD))
+      marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(takerAmountWei.times(heldPriceUSD).truncate(18))
       marginPosition.initialHeldPriceUSD = heldPriceUSD
     }
   } else if (marginPosition.heldToken == trade.makerToken) {
@@ -402,12 +403,12 @@ function updateMarginPositionForTrade(
       // The user is initially opening the position if they are sizing up the trade
       marginPosition.initialOwedAmountPar = marginPosition.initialOwedAmountPar.plus(takerAmountWei.div(takerTokenIndex.borrowIndex))
       marginPosition.initialOwedAmountWei = marginPosition.initialOwedAmountWei.plus(takerAmountWei)
-      marginPosition.initialOwedAmountUSD = marginPosition.initialOwedAmountUSD.plus(takerAmountWei.times(owedPriceUSD))
+      marginPosition.initialOwedAmountUSD = marginPosition.initialOwedAmountUSD.plus(takerAmountWei.times(owedPriceUSD).truncate(18))
       marginPosition.initialOwedPriceUSD = owedPriceUSD
 
       marginPosition.initialHeldAmountPar = marginPosition.initialHeldAmountPar.plus(takerAmountWei.div(takerTokenIndex.supplyIndex))
       marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(takerAmountWei)
-      marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(takerAmountWei.times(heldPriceUSD))
+      marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(takerAmountWei.times(heldPriceUSD).truncate(18))
       marginPosition.initialHeldPriceUSD = heldPriceUSD
     }
   }
@@ -421,7 +422,7 @@ function updateMarginPositionForTrade(
 
 function getOwedPriceUSD(dydxProtocol: DyDx, marginPosition: MarginPosition): BigDecimal {
   if (marginPosition.owedToken !== null) {
-    let token = Token.load(marginPosition.owedToken) as Token
+    let token = Token.load(marginPosition.owedToken as string) as Token
     return getTokenOraclePriceUSD(token)
   } else {
     return ZERO_BD
@@ -467,7 +468,7 @@ export function handleDeposit(event: DepositEvent): void {
   deposit.token = token.id
   deposit.from = event.params.from
   deposit.amountDeltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
-  deposit.amountUSDDeltaWei = deposit.amountDeltaWei.times(getTokenOraclePriceUSD(token))
+  deposit.amountUSDDeltaWei = deposit.amountDeltaWei.times(getTokenOraclePriceUSD(token)).truncate(18)
 
   soloMargin.totalSupplyVolumeUSD = soloMargin.totalSupplyVolumeUSD.plus(deposit.amountUSDDeltaWei)
 
@@ -523,7 +524,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   withdrawal.token = token.id
   withdrawal.to = event.params.to
   withdrawal.amountDeltaWei = convertStructToDecimal(deltaWeiStructAbs, token.decimals)
-  withdrawal.amountUSDDeltaWei = withdrawal.amountDeltaWei.times(getTokenOraclePriceUSD(token))
+  withdrawal.amountUSDDeltaWei = withdrawal.amountDeltaWei.times(getTokenOraclePriceUSD(token)).truncate(18)
 
   marginAccount.save()
   withdrawal.save()
@@ -592,7 +593,7 @@ export function handleTransfer(event: TransferEvent): void {
   let amountDeltaWei = new ValueStruct(event.params.updateOne.deltaWei)
   let priceUSD = getTokenOraclePriceUSD(token)
   transfer.amountDeltaWei = convertStructToDecimal(amountDeltaWei.abs(), token.decimals)
-  transfer.amountUSDDeltaWei = transfer.amountDeltaWei.times(priceUSD)
+  transfer.amountUSDDeltaWei = transfer.amountDeltaWei.times(priceUSD).truncate(18)
 
   marginAccount1.save()
   marginAccount2.save()
@@ -654,16 +655,18 @@ export function handleTransfer(event: TransferEvent): void {
           marginPosition.status = MarginPositionStatus.Closed
           marginPosition.closeTimestamp = event.block.timestamp
 
+          let closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(marketIndex.supplyIndex).truncate(18)
           marginPosition.closeHeldPriceUSD = priceUSD
-          marginPosition.closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(marketIndex.supplyIndex)
-          marginPosition.closeHeldAmountUSD = marginPosition.closeHeldAmountWei.times(priceUSD)
+          marginPosition.closeHeldAmountWei = closeHeldAmountWei
+          marginPosition.closeHeldAmountUSD = closeHeldAmountWei.times(priceUSD).truncate(18)
 
-          let owedToken = Token.load(marginPosition.owedToken)
-          if (owedToken !== null) {
-            let owedTokenIndex = InterestIndex.load(owedToken.id)
+          if (marginPosition.owedToken !== null) {
+            let owedToken = Token.load(marginPosition.owedToken as string) as Token
+            let owedTokenIndex = InterestIndex.load(owedToken.id) as InterestIndex
             marginPosition.closeOwedPriceUSD = getOwedPriceUSD(dydxProtocol, marginPosition)
-            marginPosition.closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedTokenIndex.borrowIndex)
-            marginPosition.closeOwedAmountUSD = marginPosition.closeOwedAmountWei.times(marginPosition.closeOwedPriceUSD as BigDecimal)
+            let closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedTokenIndex.borrowIndex).truncate(18)
+            marginPosition.closeOwedAmountWei = closeOwedAmountWei
+            marginPosition.closeOwedAmountUSD = closeOwedAmountWei.times(marginPosition.closeOwedPriceUSD as BigDecimal).truncate(18)
           }
         }
       } else if (token.id == marginPosition.owedToken) {
@@ -739,7 +742,7 @@ export function handleBuy(event: BuyEvent): void {
   let makerDeltaWeiStruct = new ValueStruct(event.params.makerUpdate.deltaWei)
   trade.makerTokenDeltaWei = convertStructToDecimal(makerDeltaWeiStruct.abs(), makerToken.decimals)
 
-  trade.amountUSD = trade.takerTokenDeltaWei.times(getTokenOraclePriceUSD(takerToken))
+  trade.amountUSD = trade.takerTokenDeltaWei.times(getTokenOraclePriceUSD(takerToken)).truncate(18)
 
   soloMargin.totalTradeVolumeUSD = soloMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
   soloMargin.tradeCount = soloMargin.tradeCount.plus(ONE_BI)
@@ -838,7 +841,7 @@ export function handleSell(event: SellEvent): void {
   let makerDeltaWeiStruct = new ValueStruct(event.params.makerUpdate.deltaWei)
   trade.makerTokenDeltaWei = convertStructToDecimal(makerDeltaWeiStruct.abs(), makerToken.decimals)
 
-  trade.amountUSD = trade.takerTokenDeltaWei.times(getTokenOraclePriceUSD(takerToken))
+  trade.amountUSD = trade.takerTokenDeltaWei.times(getTokenOraclePriceUSD(takerToken)).truncate(18)
 
   soloMargin.totalTradeVolumeUSD = soloMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
   soloMargin.tradeCount = soloMargin.tradeCount.plus(ONE_BI)
@@ -955,7 +958,7 @@ export function handleTrade(event: TradeEvent): void {
   let takerOutputDeltaWeiStruct = new ValueStruct(event.params.takerOutputUpdate.deltaWei)
   trade.makerTokenDeltaWei = convertStructToDecimal(takerOutputDeltaWeiStruct.abs(), makerToken.decimals)
 
-  trade.amountUSD = trade.takerTokenDeltaWei.times(getTokenOraclePriceUSD(takerToken))
+  trade.amountUSD = trade.takerTokenDeltaWei.times(getTokenOraclePriceUSD(takerToken)).truncate(18)
 
   soloMargin.totalTradeVolumeUSD = soloMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
   soloMargin.tradeCount = soloMargin.tradeCount.plus(ONE_BI)
@@ -1103,13 +1106,13 @@ export function handleLiquidate(event: LiquidationEvent): void {
   liquidation.heldTokenLiquidationRewardWei = convertTokenToDecimal(heldTokenLiquidationRewardWei, heldToken.decimals)
 
   let liquidOwedDeltaWeiBD = convertStructToDecimal(liquidOwedDeltaWeiStruct, owedToken.decimals)
-  liquidation.debtUSDLiquidated = liquidOwedDeltaWeiBD.times(owedPriceUSD)
+  liquidation.debtUSDLiquidated = liquidOwedDeltaWeiBD.times(owedPriceUSD).truncate(18)
 
   let liquidHeldDeltaWeiBD = convertStructToDecimal(liquidHeldDeltaWeiStruct, heldToken.decimals)
-  liquidation.collateralUSDLiquidated = liquidHeldDeltaWeiBD.times(heldPriceUSD)
+  liquidation.collateralUSDLiquidated = liquidHeldDeltaWeiBD.times(heldPriceUSD).truncate(18)
 
   let heldTokenLiquidationRewardWeiBD = convertTokenToDecimal(heldTokenLiquidationRewardWei, heldToken.decimals)
-  liquidation.collateralUSDLiquidationReward = heldTokenLiquidationRewardWeiBD.times(heldPriceUSD)
+  liquidation.collateralUSDLiquidationReward = heldTokenLiquidationRewardWeiBD.times(heldPriceUSD).truncate(18)
 
   soloMargin.liquidationCount = soloMargin.liquidationCount.plus(ONE_BI)
   soloMargin.totalLiquidationVolumeUSD = soloMargin.totalLiquidationVolumeUSD.plus(liquidation.debtUSDLiquidated)
@@ -1159,13 +1162,15 @@ export function handleLiquidate(event: LiquidationEvent): void {
         let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
         let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
 
+        let closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(heldIndex.supplyIndex).truncate(18)
         marginPosition.closeHeldPriceUSD = heldPriceUSD
-        marginPosition.closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(heldIndex.supplyIndex)
-        marginPosition.closeHeldAmountUSD = marginPosition.closeHeldAmountWei.times(heldPriceUSD)
+        marginPosition.closeHeldAmountWei = closeHeldAmountWei
+        marginPosition.closeHeldAmountUSD = closeHeldAmountWei.times(heldPriceUSD).truncate(18)
 
+        let closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedIndex.borrowIndex).truncate(18)
         marginPosition.closeOwedPriceUSD = owedPriceUSD
-        marginPosition.closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedIndex.borrowIndex)
-        marginPosition.closeOwedAmountUSD = marginPosition.closeOwedAmountWei.times(owedPriceUSD)
+        marginPosition.closeOwedAmountWei = closeOwedAmountWei
+        marginPosition.closeOwedAmountUSD = closeOwedAmountWei.times(owedPriceUSD).truncate(18)
       }
 
       marginPosition.save()
@@ -1251,7 +1256,7 @@ export function handleVaporize(event: VaporizationEvent): void {
   let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
 
   let vaporOwedDeltaWeiBD = convertStructToDecimal(vaporOwedDeltaWeiStruct, owedToken.decimals)
-  vaporization.amountUSDVaporized = vaporOwedDeltaWeiBD.times(owedPriceUSD)
+  vaporization.amountUSDVaporized = vaporOwedDeltaWeiBD.times(owedPriceUSD).truncate(18)
 
   soloMargin.vaporizationCount = soloMargin.vaporizationCount.plus(ONE_BI)
   soloMargin.totalVaporizationVolumeUSD = soloMargin.totalVaporizationVolumeUSD.plus(vaporization.amountUSDVaporized)
