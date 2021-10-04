@@ -108,6 +108,11 @@ export function handleMarketAdded(event: AddMarketEvent): void {
     [event.params.marketId.toString(), event.params.token.toHexString(), event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
+  if (event.address.toHexString() != SOLO_MARGIN_ADDRESS) {
+    log.error('Invalid SoloMargin address, found {} and {}', [event.address.toHexString(), SOLO_MARGIN_ADDRESS])
+    throw new Error()
+  }
+
   let id = event.params.marketId.toString()
 
   let tokenAddress = event.params.token.toHexString()
@@ -215,7 +220,7 @@ export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
 
 export function handleOperation(event: OperationEvent): void {
   let bundle = Bundle.load('1') as Bundle
-  if (bundle.priceOracleLastUpdatedBlockHash !== event.block.hash.toHexString()) {
+  if (bundle.priceOracleLastUpdatedBlockHash != event.block.hash.toHexString()) {
     bundle.priceOracleLastUpdatedBlockHash = event.block.hash.toHexString()
 
     let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))

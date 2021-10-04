@@ -18,13 +18,13 @@ import { ValueStruct } from './dydx_types'
 import { getTokenOraclePriceUSD } from './pricing'
 
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
-export const FACTORY_ADDRESS = '0xef2722fb0f82f0234d2de7cc3afc8379cbf1dfac'
-export const SOLO_MARGIN_ADDRESS = '0xa7a88079c4f405af5151569532f1b09e5c7ff90d'
+export const FACTORY_ADDRESS = '0x1ff16ed820f7423a81aa6e86a83f202b90410940'
+export const SOLO_MARGIN_ADDRESS = '0xce3d0c98e1070448f8f29cb087a696a00a9a57f7'
 export const DAI_ADDRESS = '0x8ac8ae0a208bef466512cd26142ac5a3ddb5b99e'
 export const USDC_ADDRESS = '0xade692c9b8c36e6b04bcfd01f0e91c7ebee0a160'
 export const WETH_ADDRESS = '0xa38ef095d071ebbafea5e7d1ce02be79fc376793'
-export const USDC_WETH_PAIR = '0x15efb5b6da7a9f2be4cec7674d0d4e39ef60a8f5'
-export const DAI_WETH_PAIR = '0x24326f8c397730a5535ab76b0ddc77483c5bb5e7' // not on testnet
+export const USDC_WETH_PAIR = '0xcf4f950077be104be83e2af19510f075278ded8b'
+export const DAI_WETH_PAIR = '' // not on testnet
 export const USDT_WETH_PAIR = '' // not on testnet
 
 // token where amounts should contribute to tracked volume and liquidity

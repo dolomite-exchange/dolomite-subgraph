@@ -42,6 +42,11 @@ export function initializeToken(token: Token, marketId: BigInt): void {
 }
 
 export function handleNewPair(event: PairCreated): void {
+  if (event.address.toHexString() != FACTORY_ADDRESS) {
+    log.error('Invalid Factory address, found {} and {}', [event.address.toHexString(), FACTORY_ADDRESS])
+    throw new Error()
+  }
+
   // load factory (create if first exchange)
   let factory = AmmFactory.load(FACTORY_ADDRESS)
   if (factory === null) {
