@@ -9,9 +9,9 @@ dataSources:
     network: mumbai
     source:
 #      address: '' # Mainnet
-      address: '0x1ff16ED820F7423A81AA6e86a83F202B90410940' # Matic Testnet
+      address: '0xaE3a05f33E2f358eB98c24F59f0E13f92D869160' # Matic Testnet
       abi: UniswapV2Factory
-      startBlock: 17270000
+      startBlock: 19806560
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
@@ -39,9 +39,9 @@ dataSources:
     network: mumbai
     source:
 #      address: '' # Mainnet
-      address: '0xce3D0C98e1070448f8F29CB087a696a00a9A57F7' # Matic Testnet
+      address: '0x2099Ec20e4CDE118ceCa32D0357F3a7713514960' # Matic Testnet
       abi: DyDx
-      startBlock: 17270000
+      startBlock: 19806560
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
@@ -97,9 +97,9 @@ dataSources:
     network: mumbai
     source:
       #      address: '' # Mainnet
-      address: '0x454cB7177cEF33283EDC93433C0f5C8f268EcFd4' # Matic Testnet
+      address: '0xB149A173295a156F668359DBb92c80681815DB5A' # Matic Testnet
       abi: DyDx
-      startBlock: 17270000
+      startBlock: 19806560
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
@@ -125,9 +125,9 @@ dataSources:
     network: mumbai
     source:
       #      address: '' # Mainnet
-      address: '0x3526639aABB8B4b535a0bB93d6730637d053f6c4' # Matic Testnet
+      address: '0xBe3D82CeC93AF484350F267c4f954133fD52f66E' # Matic Testnet
       abi: DyDx
-      startBlock: 17270000
+      startBlock: 19806560
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5

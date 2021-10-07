@@ -16,16 +16,20 @@ import {
 import { UniswapV2Factory as UniswapV2FactoryContract } from '../types/templates/AmmPair/UniswapV2Factory'
 import { ValueStruct } from './dydx_types'
 import { getTokenOraclePriceUSD } from './pricing'
+import {
+  DyDx as DyDxProtocol,
+  DyDx__getMarketTotalParResultValue0Struct as DyDxMarketTotalParStruct
+} from '../types/MarginTrade/DyDx'
 
-export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
-export const FACTORY_ADDRESS = '0x1ff16ed820f7423a81aa6e86a83f202b90410940'
-export const SOLO_MARGIN_ADDRESS = '0xce3d0c98e1070448f8f29cb087a696a00a9a57f7'
-export const DAI_ADDRESS = '0x8ac8ae0a208bef466512cd26142ac5a3ddb5b99e'
-export const USDC_ADDRESS = '0xade692c9b8c36e6b04bcfd01f0e91c7ebee0a160'
-export const WETH_ADDRESS = '0xa38ef095d071ebbafea5e7d1ce02be79fc376793'
-export const USDC_WETH_PAIR = '0xcf4f950077be104be83e2af19510f075278ded8b'
-export const DAI_WETH_PAIR = '' // not on testnet
-export const USDT_WETH_PAIR = '' // not on testnet
+export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'.toLowerCase()
+export const FACTORY_ADDRESS = '0xaE3a05f33E2f358eB98c24F59f0E13f92D869160'.toLowerCase()
+export const SOLO_MARGIN_ADDRESS = '0x2099Ec20e4CDE118ceCa32D0357F3a7713514960'.toLowerCase()
+export const DAI_ADDRESS = '0x8ac8ae0a208bef466512cd26142ac5a3ddb5b99e'.toLowerCase()
+export const USDC_ADDRESS = '0xade692c9b8c36e6b04bcfd01f0e91c7ebee0a160'.toLowerCase()
+export const WETH_ADDRESS = '0xa38ef095d071ebbafea5e7d1ce02be79fc376793'.toLowerCase()
+export const USDC_WETH_PAIR = '0x90Bb045AEFbAf3555F44B3CAAa9ACdBfb6F04Dc5'.toLowerCase()
+export const DAI_WETH_PAIR = ''.toLowerCase() // not on testnet
+export const USDT_WETH_PAIR = ''.toLowerCase() // not on testnet
 
 // token where amounts should contribute to tracked volume and liquidity
 // const WHITELIST: string[] = [
@@ -50,7 +54,7 @@ export const WHITELIST: string[] = [
   WETH_ADDRESS, // WETH
   USDC_ADDRESS, // USDC
   DAI_ADDRESS, // DAI
-  '0xbee8c17b7449fa0cc54d857d774ce523a7a35d00', // WMATIC
+  '0xbee8c17b7449fa0cc54d857d774ce523a7a35d00'.toLowerCase(), // WMATIC
 ]
 
 export let ZERO_BYTES = new Bytes(0)
@@ -239,7 +243,7 @@ export function createUserIfNecessary(address: Address): void {
 
 export function absBD(bd: BigDecimal): BigDecimal {
   if (bd.lt(ZERO_BD)) {
-    return ZERO_BD.minus(bd)
+    return bd.neg()
   } else {
     return bd
   }
@@ -288,10 +292,11 @@ export function weiToPar(wei: BigDecimal, index: InterestIndex): BigDecimal {
 }
 
 export function parToWei(par: BigDecimal, index: InterestIndex): BigDecimal {
+  let decimals = par.exp.lt(BigInt.fromI32(0)) ? par.exp.neg().toI32() : 0
   if (par.ge(ZERO_BD)) {
-    return par.times(index.supplyIndex)
+    return par.times(index.supplyIndex).truncate(decimals)
   } else {
-    return par.times(index.borrowIndex)
+    return par.times(index.borrowIndex).truncate(decimals)
   }
 }
 
@@ -305,6 +310,28 @@ function isRepaymentOfBorrowAmount(
   return deltaWei.gt(ZERO_BD) && oldWei.lt(ZERO_BD) // the user added to the negative balance (decreasing it)
 }
 
+function getMarketTotalBorrowWei(
+  value: DyDxMarketTotalParStruct,
+  token: Token,
+  index: InterestIndex
+): BigDecimal {
+  return parToWei(
+    convertTokenToDecimal(value.borrow.neg(), token.decimals),
+    index
+  ).neg()
+}
+
+function getMarketTotalSupplyWei(
+  value: DyDxMarketTotalParStruct,
+  token: Token,
+  index: InterestIndex
+): BigDecimal {
+  return parToWei(
+    convertTokenToDecimal(value.supply.neg(), token.decimals),
+    index
+  ).neg()
+}
+
 export function changeProtocolBalance(
   token: Token,
   newParStruct: ValueStruct,
@@ -312,12 +339,15 @@ export function changeProtocolBalance(
   index: InterestIndex,
   isVirtualTransfer: boolean,
   soloMargin: DyDxSoloMargin,
+  protocol: DyDxProtocol
 ): void {
   let tokenPriceUSD = getTokenOraclePriceUSD(token)
 
   let newPar = convertStructToDecimal(newParStruct, token.decimals)
   let newWei = parToWei(newPar, index)
   let deltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
+
+  let totalParStruct = protocol.getMarketTotalPar(token.marketId)
 
   if (newPar.lt(ZERO_BD) && deltaWei.lt(ZERO_BD)) {
     // the user borrowed funds
@@ -328,31 +358,20 @@ export function changeProtocolBalance(
       borrowVolumeToken = absBD(newWei)
     }
 
-    let borrowVolumeUSD = borrowVolumeToken.times(tokenPriceUSD)
-
     // temporarily get rid of the old USD liquidity
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
 
-    token.borrowLiquidity = token.borrowLiquidity.plus(borrowVolumeToken)
+    token.borrowLiquidity = getMarketTotalBorrowWei(totalParStruct, token, index)
     token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
 
     // add the new liquidity back in
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
-    soloMargin.totalBorrowVolumeUSD = soloMargin.totalBorrowVolumeUSD.plus(borrowVolumeUSD)
+    soloMargin.totalBorrowVolumeUSD = soloMargin.totalBorrowVolumeUSD.plus(borrowVolumeToken.times(tokenPriceUSD))
   } else if (isRepaymentOfBorrowAmount(newPar, deltaWei, index)) {
-    let borrowVolumeToken = absBD(deltaWei)
-    if (absBD(newWei) > ZERO_BD) {
-      // the user supplied from a negative balance to a positive one. Range cap it by oldWei for repayment volume.
-      // why? Because oldWei was negative and indicative of the max repayment amount.
-      // for example, -100 can only be repaid up to 100 units. Beyond that, the user is supplying liquidity
-      let oldWei = newWei.minus(deltaWei)
-      borrowVolumeToken = absBD(oldWei)
-    }
-
     // temporarily get rid of the old USD liquidity
     soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
 
-    token.borrowLiquidity = token.borrowLiquidity.minus(borrowVolumeToken)
+    token.borrowLiquidity = getMarketTotalBorrowWei(totalParStruct, token, index)
     token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
 
     // add the new liquidity back in
@@ -364,7 +383,7 @@ export function changeProtocolBalance(
     // temporarily get rid of the old USD liquidity
     soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
 
-    token.supplyLiquidity = token.supplyLiquidity.plus(deltaWei)
+    token.supplyLiquidity = getMarketTotalSupplyWei(totalParStruct, token, index)
     token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
 
     // add the new liquidity back in
