@@ -283,11 +283,12 @@ export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: e
   position.save()
 }
 
-export function weiToPar(wei: BigDecimal, index: InterestIndex): BigDecimal {
+export function weiToPar(wei: BigDecimal, index: InterestIndex, decimals: BigInt): BigDecimal {
   if (wei.ge(ZERO_BD)) {
-    return wei.div(index.supplyIndex)
+    return wei.div(index.supplyIndex).truncate(decimals.toI32())
   } else {
-    return wei.div(index.borrowIndex)
+    let smallestUnit = BigDecimal.fromString('1').div(new BigDecimal(BigInt.fromI32(10).pow(decimals.toI32() as u8)))
+    return wei.div(index.borrowIndex).truncate(decimals.toI32()).minus(smallestUnit)
   }
 }
 

@@ -399,24 +399,30 @@ function updateMarginPositionForTrade(
   if ((marginPosition.owedToken == trade.makerToken && marginPosition.heldToken == trade.takerToken) ||
     (marginPosition.owedToken == trade.takerToken && marginPosition.heldToken == trade.makerToken)) {
     marginPosition.owedAmountPar = weiToPar(
-      parToWei(marginPosition.owedAmountPar, owedTokenIndex).plus(owedAmountWei),
-      owedTokenIndex
-    )
+      parToWei(marginPosition.owedAmountPar.neg(), owedTokenIndex).minus(owedAmountWei),
+      owedTokenIndex,
+      owedToken.decimals
+    ).neg()
     marginPosition.heldAmountPar = weiToPar(
       parToWei(marginPosition.heldAmountPar, heldTokenIndex).plus(heldAmountWei),
-      heldTokenIndex
+      heldTokenIndex,
+      heldToken.decimals
     )
 
     if (isPositionBeingOpened) {
       let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
       let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
 
-      marginPosition.initialOwedAmountPar = weiToPar(parToWei(marginPosition.initialOwedAmountPar, owedTokenIndex).plus(owedAmountWei), owedTokenIndex)
+      marginPosition.initialOwedAmountPar = marginPosition.owedAmountPar
       marginPosition.initialOwedAmountWei = marginPosition.initialOwedAmountWei.plus(owedAmountWei)
       marginPosition.initialOwedAmountUSD = marginPosition.initialOwedAmountUSD.plus(owedAmountWei.times(owedPriceUSD).truncate(18))
       marginPosition.initialOwedPriceUSD = owedPriceUSD
 
-      marginPosition.initialHeldAmountPar = weiToPar(parToWei(marginPosition.initialHeldAmountPar, heldTokenIndex).plus(heldAmountWei), heldTokenIndex)
+      marginPosition.initialHeldAmountPar = weiToPar(
+        parToWei(marginPosition.initialHeldAmountPar, heldTokenIndex).plus(heldAmountWei),
+        heldTokenIndex,
+        heldToken.decimals
+      )
       marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(heldAmountWei)
       marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(heldAmountWei.times(heldPriceUSD).truncate(18))
       marginPosition.initialHeldPriceUSD = heldPriceUSD
@@ -650,7 +656,8 @@ export function handleTransfer(event: TransferEvent): void {
 
       marginPosition.heldAmountPar = weiToPar(
         parToWei(marginPosition.heldAmountPar, marketIndex).plus(transfer.amountDeltaWei),
-        marketIndex
+        marketIndex,
+        token.decimals
       )
 
       marginPosition.save()
@@ -659,7 +666,8 @@ export function handleTransfer(event: TransferEvent): void {
       if (token.id == marginPosition.heldToken) {
         marginPosition.heldAmountPar = weiToPar(
           parToWei(marginPosition.heldAmountPar, marketIndex).minus(transfer.amountDeltaWei),
-          marketIndex
+          marketIndex,
+          token.decimals
         )
 
         if (marginPosition.heldAmountPar.le(ZERO_BD) && marginPosition.status == MarginPositionStatus.Open) {
@@ -682,9 +690,10 @@ export function handleTransfer(event: TransferEvent): void {
         }
       } else if (token.id == marginPosition.owedToken) {
         marginPosition.owedAmountPar = weiToPar(
-          parToWei(marginPosition.owedAmountPar, marketIndex).minus(transfer.amountDeltaWei),
-          marketIndex
-        )
+          parToWei(marginPosition.owedAmountPar.neg(), marketIndex).minus(transfer.amountDeltaWei),
+          marketIndex,
+          token.decimals
+        ).neg()
       }
 
       marginPosition.save()
@@ -1157,12 +1166,14 @@ export function handleLiquidate(event: LiquidationEvent): void {
       marginPosition.closeTimestamp = event.block.timestamp
 
       marginPosition.owedAmountPar = weiToPar(
-        parToWei(marginPosition.owedAmountPar, owedIndex).minus(liquidation.borrowedTokenAmountDeltaWei),
-        owedIndex
-      )
-      marginPosition.owedAmountPar = weiToPar(
+        parToWei(marginPosition.owedAmountPar.neg(), owedIndex).plus(liquidation.borrowedTokenAmountDeltaWei),
+        owedIndex,
+        owedToken.decimals
+      ).neg()
+      marginPosition.heldAmountPar = weiToPar(
         parToWei(marginPosition.heldAmountPar, heldIndex).minus(liquidation.heldTokenAmountDeltaWei),
-        owedIndex
+        owedIndex,
+        heldToken.decimals
       )
 
       if (marginPosition.closeHeldAmountUSD === null && marginPosition.closeOwedAmountUSD === null) {
