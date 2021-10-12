@@ -103,7 +103,7 @@ export function convertTokenToDecimal(tokenAmount: BigInt, exchangeDecimals: Big
 }
 
 export function convertStructToDecimal(struct: ValueStruct, exchangeDecimals: BigInt): BigDecimal {
-  let value = struct.sign ? struct.value : ZERO_BI.minus(struct.value)
+  let value = struct.sign ? struct.value : struct.value.neg()
   if (exchangeDecimals == ZERO_BI) {
     return value.toBigDecimal()
   } else {
@@ -251,7 +251,7 @@ export function absBD(bd: BigDecimal): BigDecimal {
 
 export function absBI(bi: BigInt): BigInt {
   if (bi.lt(ZERO_BI)) {
-    return ZERO_BI.minus(bi)
+    return bi.neg()
   } else {
     return bi
   }
@@ -293,11 +293,12 @@ export function weiToPar(wei: BigDecimal, index: InterestIndex, decimals: BigInt
 }
 
 export function parToWei(par: BigDecimal, index: InterestIndex): BigDecimal {
-  let decimals = par.exp.lt(BigInt.fromI32(0)) ? par.exp.neg().toI32() : 0
+  let decimals: u8 = par.exp.lt(BigInt.fromI32(0)) ? par.exp.neg().toI32() as u8 : 0
   if (par.ge(ZERO_BD)) {
     return par.times(index.supplyIndex).truncate(decimals)
   } else {
-    return par.times(index.borrowIndex).truncate(decimals)
+    let oneWei = BigDecimal.fromString('1').div(new BigDecimal(BigInt.fromI32(10).pow(decimals)))
+    return par.times(index.borrowIndex).truncate(decimals).minus(oneWei)
   }
 }
 
@@ -316,10 +317,8 @@ function getMarketTotalBorrowWei(
   token: Token,
   index: InterestIndex
 ): BigDecimal {
-  return parToWei(
-    convertTokenToDecimal(value.borrow.neg(), token.decimals),
-    index
-  ).neg()
+  let decimals = token.decimals.toI32()
+  return parToWei(convertTokenToDecimal(value.borrow.neg(), token.decimals), index).neg().truncate(decimals)
 }
 
 function getMarketTotalSupplyWei(
@@ -327,10 +326,8 @@ function getMarketTotalSupplyWei(
   token: Token,
   index: InterestIndex
 ): BigDecimal {
-  return parToWei(
-    convertTokenToDecimal(value.supply.neg(), token.decimals),
-    index
-  ).neg()
+  let decimals = token.decimals.toI32()
+  return parToWei(convertTokenToDecimal(value.supply, token.decimals), index).truncate(decimals)
 }
 
 export function changeProtocolBalance(

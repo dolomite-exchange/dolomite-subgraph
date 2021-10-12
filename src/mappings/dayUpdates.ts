@@ -47,6 +47,12 @@ function setupDolomiteDayData(dolomiteDayData: DolomiteDayData): DolomiteDayData
   dolomiteDayData.supplyLiquidityUSD = ZERO_BD
 
   // ## Daily Counts
+  dolomiteDayData.dailyAmmSwapCount = ZERO_BI
+  dolomiteDayData.dailyLiquidationCount = ZERO_BI
+  dolomiteDayData.dailyTradeCount = ZERO_BI
+  dolomiteDayData.dailyVaporizationCount = ZERO_BI
+
+  // ## Running Total Counts
   dolomiteDayData.totalAllTransactionCount = ZERO_BI
   dolomiteDayData.totalAmmSwapCount = ZERO_BI
   dolomiteDayData.totalLiquidationCount = ZERO_BI
@@ -305,8 +311,7 @@ export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: et
 }
 
 export function updateAndReturnTokenDayDataForDyDxEvent(token: Token, event: ethereum.Event): TokenDayData {
-  let timestamp = event.block.timestamp
-  let dayId = getDayId(timestamp)
+  let dayId = getDayId(event.block.timestamp)
   let tokenDayID = token.id + '-' + dayId.toString()
 
   let tokenDayData = TokenDayData.load(tokenDayID)
@@ -346,7 +351,9 @@ export function updateTimeDataForTrade(
   if (trade.takerToken == token.id) {
     let amountUSD = trade.takerTokenDeltaWei.times(closePriceUSD).truncate(18)
 
+    // we don't want to double count trade volume, so keep it with the taker token
     dolomiteDayData.dailyTradeVolumeUSD = dolomiteDayData.dailyTradeVolumeUSD.plus(amountUSD)
+    dolomiteDayData.dailyTradeCount = dolomiteDayData.dailyTradeCount.plus(ONE_BI)
 
     tokenDayData.dailyTradeVolumeToken = tokenDayData.dailyTradeVolumeToken.plus(trade.takerTokenDeltaWei)
     tokenDayData.dailyTradeVolumeUSD = tokenDayData.dailyTradeVolumeUSD.plus(amountUSD)
@@ -356,8 +363,6 @@ export function updateTimeDataForTrade(
   } else {
     // trade.makerToken == token.id
     let amountUSD = trade.makerTokenDeltaWei.times(closePriceUSD).truncate(18)
-
-    dolomiteDayData.dailyTradeVolumeUSD = dolomiteDayData.dailyTradeVolumeUSD.plus(amountUSD)
 
     tokenDayData.dailyTradeVolumeToken = tokenDayData.dailyTradeVolumeToken.plus(trade.makerTokenDeltaWei)
     tokenDayData.dailyTradeVolumeUSD = tokenDayData.dailyTradeVolumeUSD.plus(amountUSD)
@@ -441,6 +446,7 @@ export function updateTimeDataForLiquidation(
     tokenHourData.hourlyLiquidationCount = tokenHourData.hourlyLiquidationCount.plus(ONE_BI)
 
     dolomiteDayData.dailyLiquidationVolumeUSD = dolomiteDayData.dailyLiquidationVolumeUSD.plus(liquidationVolumeUSD)
+    dolomiteDayData.dailyLiquidationCount = dolomiteDayData.dailyLiquidationCount.plus(ONE_BI)
 
     tokenDayData.save()
     tokenHourData.save()
@@ -475,7 +481,7 @@ export function updateTimeDataForVaporization(
     tokenHourData.hourlyVaporizationCount = tokenHourData.hourlyVaporizationCount.plus(ONE_BI)
 
     dolomiteDayData.dailyVaporizationVolumeUSD = dolomiteDayData.dailyVaporizationVolumeUSD.plus(vaporizationVolumeUSD)
-    dolomiteDayData.totalVaporizationCount = dolomiteDayData.totalVaporizationCount.plus(ONE_BI)
+    dolomiteDayData.dailyVaporizationCount = dolomiteDayData.dailyVaporizationCount.plus(ONE_BI)
 
     tokenDayData.save()
     dolomiteDayData.save()

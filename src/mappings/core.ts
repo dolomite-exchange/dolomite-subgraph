@@ -407,6 +407,7 @@ export function handleSwap(event: SwapEvent): void {
   // only accounts for volume through white listed tokens
   let trackedAmountUSD = amount0Total.times(token0PriceUSD)
     .plus(amount1Total.times(token1PriceUSD))
+    .div(BigDecimal.fromString('2'))
 
   // update token0 global volume and token liquidity stats
   token0.tradeVolume = token0.tradeVolume.plus(amount0In.plus(amount0Out))
@@ -477,6 +478,7 @@ export function handleSwap(event: SwapEvent): void {
   // swap specific updating
   dolomiteDayData.dailyAmmSwapVolumeUSD = dolomiteDayData.dailyAmmSwapVolumeUSD.plus(trackedAmountUSD)
   dolomiteDayData.dailyAmmSwapVolumeUntracked = dolomiteDayData.dailyAmmSwapVolumeUntracked.plus(derivedAmountUSD)
+  dolomiteDayData.dailyAmmSwapCount = dolomiteDayData.dailyAmmSwapCount.plus(ONE_BI)
   dolomiteDayData.save()
 
   // swap specific updating for pair

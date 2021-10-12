@@ -385,6 +385,12 @@ type DolomiteDayData @entity {
   supplyLiquidityUSD: BigDecimal!
 
   ## Daily Counts
+  dailyAmmSwapCount: BigInt!
+  dailyLiquidationCount: BigInt!
+  dailyTradeCount: BigInt!
+  dailyVaporizationCount: BigInt!
+
+  ## Running Total Counts
   totalAllTransactionCount: BigInt!
   totalAmmSwapCount: BigInt!
   totalLiquidationCount: BigInt!
