@@ -344,12 +344,15 @@ export function updateTimeDataForTrade(
   let hourId = tokenHourData.hourStartUnix
 
   // Using the below examples of buying / selling, token == USD || token == ETH
-  let closePriceUSD = getTokenOraclePriceUSD(token)
+  let oraclePriceUSD = getTokenOraclePriceUSD(token)
+  let closePriceUSD = token.id == trade.takerToken
+    ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).times(oraclePriceUSD)
+    : trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei).times(oraclePriceUSD)
 
   // IE: BUY 4 ETH @ $300 --> outputDeltaWei = $1200; inputDeltaWei = 4 ETH; takerToken = USD; makerToken = ETH
   // IE: SELL 4 ETH @ $300 --> outputDeltaWei = 4 ETH; inputDeltaWei = $1200; takerToken = ETH; makerToken = USD
   if (trade.takerToken == token.id) {
-    let amountUSD = trade.takerTokenDeltaWei.times(closePriceUSD).truncate(18)
+    let amountUSD = trade.takerTokenDeltaWei.times(oraclePriceUSD).truncate(18)
 
     // we don't want to double count trade volume, so keep it with the taker token
     dolomiteDayData.dailyTradeVolumeUSD = dolomiteDayData.dailyTradeVolumeUSD.plus(amountUSD)
@@ -362,7 +365,7 @@ export function updateTimeDataForTrade(
     tokenHourData.hourlyTradeVolumeUSD = tokenHourData.hourlyTradeVolumeUSD.plus(amountUSD)
   } else {
     // trade.makerToken == token.id
-    let amountUSD = trade.makerTokenDeltaWei.times(closePriceUSD).truncate(18)
+    let amountUSD = trade.makerTokenDeltaWei.times(oraclePriceUSD).truncate(18)
 
     tokenDayData.dailyTradeVolumeToken = tokenDayData.dailyTradeVolumeToken.plus(trade.makerTokenDeltaWei)
     tokenDayData.dailyTradeVolumeUSD = tokenDayData.dailyTradeVolumeUSD.plus(amountUSD)
