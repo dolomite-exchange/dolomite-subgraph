@@ -325,6 +325,7 @@ function getOrCreateMarginPosition(event: ethereum.Event, account: MarginAccount
     marginPosition.marginAccount = account.id
 
     marginPosition.openTimestamp = event.block.timestamp
+    marginPosition.openTransaction = event.transaction.hash.toHexString()
 
     marginPosition.marginDeposit = ZERO_BD
     marginPosition.marginDepositUSD = ZERO_BD
@@ -363,6 +364,12 @@ function updateMarginPositionForTrade(
   let makerToken = Token.load(trade.makerToken) as Token
   let takerToken = Token.load(trade.takerToken) as Token
 
+  let heldToken = marginPosition.heldToken == trade.makerToken ? makerToken : takerToken
+  let owedToken = marginPosition.owedToken == trade.makerToken ? makerToken : takerToken
+
+  let heldTokenIndex = marginPosition.heldToken == trade.makerToken ? makerTokenIndex : takerTokenIndex
+  let owedTokenIndex = marginPosition.owedToken == trade.makerToken ? makerTokenIndex : takerTokenIndex
+
   // if the trader is the taker, the taker gets `makerToken` and spends `takerToken`, else the opposite is true
   // if the trader is the taker and is receiving owed token, the taker is repaying the loan OR
   // if the trader is the maker and is receiving owed token, the maker is repaying a loan
@@ -372,8 +379,8 @@ function updateMarginPositionForTrade(
   let makerAmountWei = isRepayingLoan ? trade.makerTokenDeltaWei.neg() : trade.makerTokenDeltaWei
 
   if (marginPosition.owedToken == trade.makerToken) {
-    let owedPriceUSD = getTokenOraclePriceUSD(makerToken)
-    let heldPriceUSD = getTokenOraclePriceUSD(takerToken)
+    let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
+    let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
 
     let makerAmountPar = makerAmountWei.div(makerTokenIndex.borrowIndex)
     let takerAmountPar = takerAmountWei.div(takerTokenIndex.supplyIndex)
@@ -394,8 +401,8 @@ function updateMarginPositionForTrade(
       marginPosition.initialHeldPriceUSD = heldPriceUSD
     }
   } else if (marginPosition.heldToken == trade.makerToken) {
-    let owedPriceUSD = getTokenOraclePriceUSD(takerToken)
-    let heldPriceUSD = getTokenOraclePriceUSD(makerToken)
+    let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
+    let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
 
     let takerAmountPar = takerAmountWei.div(takerTokenIndex.borrowIndex)
     let makerAmountPar = makerAmountWei.div(makerTokenIndex.supplyIndex)
@@ -417,20 +424,24 @@ function updateMarginPositionForTrade(
     }
   }
 
-  if (marginPosition.heldAmountPar.equals(ZERO_BD) && isMarginPositionExpired(marginPosition, event)) {
-    marginPosition.status = MarginPositionStatus.Expired
+  if (marginPosition.owedAmountPar.equals(ZERO_BD)) {
+    // TODO fix
+    marginPosition.status = isMarginPositionExpired(marginPosition, event) ? MarginPositionStatus.Expired : MarginPositionStatus.Closed
+    marginPosition.closeTimestamp = event.block.timestamp
+    marginPosition.closeTransaction = event.transaction.hash.toHexString()
+
+    let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
+    marginPosition.closeHeldPriceUSD = heldPriceUSD
+    marginPosition.closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(makerTokenIndex.supplyIndex)
+    marginPosition.closeHeldAmountUSD = marginPosition.closeHeldAmountWei.times(heldPriceUSD)
+
+    let owedTokenIndex = InterestIndex.load(owedToken.id)
+    marginPosition.closeOwedPriceUSD = getTokenOraclePriceUSD(owedToken)
+    marginPosition.closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedTokenIndex.borrowIndex)
+    marginPosition.closeOwedAmountUSD = marginPosition.closeOwedAmountWei.times(marginPosition.closeOwedPriceUSD as BigDecimal)
   }
 
   marginPosition.save()
-}
-
-function getOwedPriceUSD(dydxProtocol: DyDx, marginPosition: MarginPosition): BigDecimal {
-  if (marginPosition.owedToken !== null) {
-    let token = Token.load(marginPosition.owedToken) as Token
-    return getTokenOraclePriceUSD(token)
-  } else {
-    return ZERO_BD
-  }
 }
 
 export function handleDeposit(event: DepositEvent): void {
@@ -648,30 +659,15 @@ export function handleTransfer(event: TransferEvent): void {
 
       marginPosition.save()
     } else if (marginAccount2.accountNumber.equals(ZERO_BI) && marginAccount1.accountNumber.notEqual(ZERO_BI)) {
-      // The user is closing the position or removing collateral
+      // The user is removing collateral
       if (token.id == marginPosition.heldToken) {
+        // TODO use new par
         let transferAmountDeltaPar = !event.params.updateTwo.newPar.sign ?
           transfer.amountDeltaWei.div(marketIndex.borrowIndex) :
           transfer.amountDeltaWei.div(marketIndex.supplyIndex)
         marginPosition.heldAmountPar = marginPosition.heldAmountPar.minus(transferAmountDeltaPar)
-
-        if (marginPosition.heldAmountPar.le(ZERO_BD) && marginPosition.status == MarginPositionStatus.Open) {
-          marginPosition.status = MarginPositionStatus.Closed
-          marginPosition.closeTimestamp = event.block.timestamp
-
-          marginPosition.closeHeldPriceUSD = priceUSD
-          marginPosition.closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(marketIndex.supplyIndex)
-          marginPosition.closeHeldAmountUSD = marginPosition.closeHeldAmountWei.times(priceUSD)
-
-          let owedToken = Token.load(marginPosition.owedToken)
-          if (owedToken !== null) {
-            let owedTokenIndex = InterestIndex.load(owedToken.id)
-            marginPosition.closeOwedPriceUSD = getOwedPriceUSD(dydxProtocol, marginPosition)
-            marginPosition.closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedTokenIndex.borrowIndex)
-            marginPosition.closeOwedAmountUSD = marginPosition.closeOwedAmountWei.times(marginPosition.closeOwedPriceUSD as BigDecimal)
-          }
-        }
       } else if (token.id == marginPosition.owedToken) {
+        // TODO use new par
         let transferAmountDeltaPar = !event.params.updateTwo.newPar.sign ?
           transfer.amountDeltaWei.div(marketIndex.borrowIndex) :
           transfer.amountDeltaWei.div(marketIndex.supplyIndex)
@@ -1148,6 +1144,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     if (marginPosition.status == MarginPositionStatus.Open || marginPosition.status == MarginPositionStatus.Liquidated) {
       marginPosition.status = MarginPositionStatus.Liquidated
       marginPosition.closeTimestamp = event.block.timestamp
+      marginPosition.closeTransaction = event.transaction.hash.toHexString()
 
       let owedAmountDeltaPar = !event.params.liquidOwedUpdate.newPar.sign ?
         liquidation.borrowedTokenAmountDeltaWei.div(owedIndex.borrowIndex) :
