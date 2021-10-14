@@ -57,7 +57,7 @@ import {
 } from './helpers'
 import { getOrCreateTransaction } from './core'
 import { BalanceUpdate, MarginPositionStatus, ValueStruct } from './dydx_types'
-import { Address, BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, dataSource, ethereum, log } from '@graphprotocol/graph-ts'
 import {
   updateAndReturnTokenDayDataForDyDxEvent,
   updateAndReturnTokenHourDataForDyDxEvent,
@@ -68,6 +68,8 @@ import {
 } from './dayUpdates'
 import { initializeToken } from './factory'
 import { getTokenOraclePriceUSD } from './pricing'
+
+const network = dataSource.network()
 
 function isMarginPositionExpired(marginPosition: MarginPosition, event: ethereum.Event): boolean {
   return marginPosition.expirationTimestamp !== null && (marginPosition.expirationTimestamp as BigInt).lt(event.block.timestamp)
@@ -422,10 +424,7 @@ function updateMarginPositionForTrade(
     }
   }
 
-  if (
-    (marginPosition.heldAmountPar.ge(ZERO_BD) || marginPosition.heldAmountPar.le(BigDecimal.fromString('0.000001')))
-    && isMarginPositionExpired(marginPosition, event)
-  ) {
+  if (marginPosition.owedAmountPar.equals(ZERO_BD) && isMarginPositionExpired(marginPosition, event)) {
     marginPosition.status = MarginPositionStatus.Expired
   }
 
@@ -988,8 +987,8 @@ export function handleTrade(event: TradeEvent): void {
   let takerTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(takerToken, event)
   let makerTokenDayData = updateAndReturnTokenDayDataForDyDxEvent(makerToken, event)
 
-  updateTimeDataForTrade(dolomiteDayData, takerTokenDayData, takerTokenHourData, takerToken, trade as Trade)
   updateTimeDataForTrade(dolomiteDayData, makerTokenDayData, makerTokenHourData, makerToken, trade as Trade)
+  updateTimeDataForTrade(dolomiteDayData, takerTokenDayData, takerTokenHourData, takerToken, trade as Trade)
 
   takerMarginAccount.save()
   makerMarginAccount.save()

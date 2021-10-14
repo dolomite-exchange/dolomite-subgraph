@@ -1,5 +1,5 @@
 /* eslint-disable prefer-const */
-import { log, Address, BigInt } from '@graphprotocol/graph-ts'
+import { log, Address, BigInt, dataSource } from '@graphprotocol/graph-ts'
 import { AmmFactory, AmmPair, Token, Bundle, AmmPairReverseLookup } from '../types/schema'
 import { PairCreated } from '../types/UniswapV2Factory/UniswapV2Factory'
 import { AmmPair as PairTemplate } from '../types/templates'
@@ -42,15 +42,16 @@ export function initializeToken(token: Token, marketId: BigInt): void {
 }
 
 export function handleNewPair(event: PairCreated): void {
-  if (event.address.toHexString() != FACTORY_ADDRESS) {
-    log.error('Invalid Factory address, found {} and {}', [event.address.toHexString(), FACTORY_ADDRESS])
+  let factoryAddress = FACTORY_ADDRESS
+  if (event.address.toHexString() != factoryAddress) {
+    log.error('Invalid Factory address, found {} and {}', [event.address.toHexString(), factoryAddress])
     throw new Error()
   }
 
   // load factory (create if first exchange)
-  let factory = AmmFactory.load(FACTORY_ADDRESS)
+  let factory = AmmFactory.load(factoryAddress)
   if (factory === null) {
-    factory = new AmmFactory(FACTORY_ADDRESS)
+    factory = new AmmFactory(factoryAddress)
     factory.pairCount = 0
     factory.totalAmmVolumeUSD = ZERO_BD
     factory.untrackedAmmVolumeUSD = ZERO_BD

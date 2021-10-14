@@ -343,11 +343,15 @@ export function updateTimeDataForTrade(
   let dayId = tokenDayData.dayStartUnix
   let hourId = tokenHourData.hourStartUnix
 
+  let otherToken: Token = token.id == trade.takerToken
+    ? Token.load(trade.makerToken) as Token
+    : Token.load(trade.takerToken) as Token
+
   // Using the below examples of buying / selling, token == USD || token == ETH
   let oraclePriceUSD = getTokenOraclePriceUSD(token)
   let closePriceUSD = token.id == trade.takerToken
-    ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).times(oraclePriceUSD)
-    : trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei).times(oraclePriceUSD)
+    ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).div(getTokenOraclePriceUSD(otherToken)).truncate(36)
+    : trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei).times(getTokenOraclePriceUSD(otherToken)).truncate(36)
 
   // IE: BUY 4 ETH @ $300 --> outputDeltaWei = $1200; inputDeltaWei = 4 ETH; takerToken = USD; makerToken = ETH
   // IE: SELL 4 ETH @ $300 --> outputDeltaWei = 4 ETH; inputDeltaWei = $1200; takerToken = ETH; makerToken = USD
