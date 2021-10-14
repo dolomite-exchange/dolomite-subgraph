@@ -1,16 +1,6 @@
-import { AmmPair, Bundle, OraclePrice, Token, Trade } from '../types/schema'
-import { Address, BigDecimal, BigInt } from '@graphprotocol/graph-ts'
-import {
-  ADDRESS_ZERO,
-  DAI_WETH_PAIR,
-  factoryContract,
-  ONE_BD,
-  USDC_WETH_PAIR,
-  USDT_WETH_PAIR,
-  WETH_ADDRESS,
-  ZERO_BD,
-  WHITELIST,
-} from './helpers'
+import { AmmPair, AmmPairReverseLookup, Bundle, OraclePrice, Token, Trade } from '../types/schema'
+import { BigDecimal, BigInt } from '@graphprotocol/graph-ts'
+import { DAI_WETH_PAIR, ONE_BD, USDC_WETH_PAIR, USDT_WETH_PAIR, WETH_ADDRESS, WHITELIST, ZERO_BD } from './helpers'
 
 export function getEthPriceInUSD(): BigDecimal {
   // fetch eth prices for each stablecoin
@@ -18,47 +8,47 @@ export function getEthPriceInUSD(): BigDecimal {
   let usdcPair = AmmPair.load(USDC_WETH_PAIR) // usdc is token0
   let usdtPair = AmmPair.load(USDT_WETH_PAIR) // usdt is token1
 
-  // all 3 have been created
+  let wethAddress = WETH_ADDRESS
+
   if (daiPair !== null && usdcPair !== null && usdtPair !== null) {
-    let daiReserveETH = daiPair.token0 == WETH_ADDRESS ? daiPair.reserve0 : daiPair.reserve1
-    let usdcReserveETH = usdcPair.token0 == WETH_ADDRESS ? usdcPair.reserve0 : usdcPair.reserve1
-    let usdtReserveETH = usdtPair.token0 == WETH_ADDRESS ? usdtPair.reserve0 : usdtPair.reserve1
+    // all 3 have been created
+    let daiReserveETH = daiPair.token0 == wethAddress ? daiPair.reserve0 : daiPair.reserve1
+    let usdcReserveETH = usdcPair.token0 == wethAddress ? usdcPair.reserve0 : usdcPair.reserve1
+    let usdtReserveETH = usdtPair.token0 == wethAddress ? usdtPair.reserve0 : usdtPair.reserve1
     let totalLiquidityETH = daiReserveETH.plus(usdcReserveETH).plus(usdtReserveETH)
 
-    let daiReserveStable = daiPair.token0 == WETH_ADDRESS ? daiPair.reserve1 : daiPair.reserve0
-    let usdcReserveStable = usdcPair.token0 == WETH_ADDRESS ? usdcPair.reserve1 : usdcPair.reserve0
-    let usdtReserveStable = usdtPair.token0 == WETH_ADDRESS ? usdtPair.reserve1 : usdtPair.reserve0
+    let daiReserveStable = daiPair.token0 == wethAddress ? daiPair.reserve1 : daiPair.reserve0
+    let usdcReserveStable = usdcPair.token0 == wethAddress ? usdcPair.reserve1 : usdcPair.reserve0
+    let usdtReserveStable = usdtPair.token0 == wethAddress ? usdtPair.reserve1 : usdtPair.reserve0
 
     let daiWeight = daiReserveStable.div(totalLiquidityETH)
     let usdcWeight = usdcReserveStable.div(totalLiquidityETH)
     let usdtWeight = usdtReserveStable.div(totalLiquidityETH)
 
-    let daiPrice = daiPair.token0 == WETH_ADDRESS ? daiPair.token1Price : daiPair.token0Price
-    let usdcPrice = usdcPair.token0 == WETH_ADDRESS ? usdcPair.token1Price : usdcPair.token0Price
-    let usdtPrice = usdtPair.token0 == WETH_ADDRESS ? usdtPair.token1Price : usdtPair.token0Price
+    let daiPrice = daiPair.token0 == wethAddress ? daiPair.token1Price : daiPair.token0Price
+    let usdcPrice = usdcPair.token0 == wethAddress ? usdcPair.token1Price : usdcPair.token0Price
+    let usdtPrice = usdtPair.token0 == wethAddress ? usdtPair.token1Price : usdtPair.token0Price
 
-    return daiPrice
-      .times(daiWeight)
+    return daiPrice.times(daiWeight)
       .plus(usdcPrice.times(usdcWeight))
       .plus(usdtPrice.times(usdtWeight))
-    // dai and USDC have been created
   } else if (daiPair !== null && usdcPair !== null) {
-    let daiReserveETH = daiPair.token0 == WETH_ADDRESS ? daiPair.reserve0 : daiPair.reserve1
-    let usdcReserveETH = usdcPair.token0 == WETH_ADDRESS ? usdcPair.reserve0 : usdcPair.reserve1
+    // dai and USDC have been created
+    let daiReserveETH = daiPair.token0 == wethAddress ? daiPair.reserve0 : daiPair.reserve1
+    let usdcReserveETH = usdcPair.token0 == wethAddress ? usdcPair.reserve0 : usdcPair.reserve1
     let totalLiquidityETH = daiReserveETH.plus(usdcReserveETH)
 
     let daiWeight = daiReserveETH.div(totalLiquidityETH)
     let usdcWeight = usdcReserveETH.div(totalLiquidityETH)
 
-    let daiPrice = daiPair.token0 == WETH_ADDRESS ? daiPair.token1Price : daiPair.token0Price
-    let usdcPrice = usdcPair.token0 == WETH_ADDRESS ? usdcPair.token1Price : usdcPair.token0Price
+    let daiPrice = daiPair.token0 == wethAddress ? daiPair.token1Price : daiPair.token0Price
+    let usdcPrice = usdcPair.token0 == wethAddress ? usdcPair.token1Price : usdcPair.token0Price
 
-    return daiPrice
-      .times(daiWeight)
+    return daiPrice.times(daiWeight)
       .plus(usdcPrice.times(usdcWeight))
-    // USDC is the only pair so far
   } else if (usdcPair !== null) {
-    return usdcPair.token0 == WETH_ADDRESS ? usdcPair.token1Price : usdcPair.token0Price
+    // USDC is the only pair so far
+    return usdcPair.token0 == wethAddress ? usdcPair.token1Price : usdcPair.token0Price
   } else {
     return ZERO_BD
   }
@@ -68,10 +58,10 @@ export function getEthPriceInUSD(): BigDecimal {
 let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('10000')
 
 // minimum liquidity for price to get tracked
-let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('0.2')
+let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
 
 export function getTokenOraclePriceUSD(token: Token): BigDecimal {
-  return OraclePrice.load(token.marketId.toString()).price
+  return (OraclePrice.load(token.marketId.toString()) as OraclePrice).price
 }
 
 /**
@@ -82,16 +72,17 @@ export function findEthPerToken(token: Token): BigDecimal {
   if (token.id == WETH_ADDRESS) {
     return ONE_BD
   }
+
   // loop through whitelist and check if paired with any
   for (let i = 0; i < WHITELIST.length; i += 1) {
-    let pairAddress = factoryContract.getPair(Address.fromString(token.id), Address.fromString(WHITELIST[i]))
-    if (pairAddress.toHexString() != ADDRESS_ZERO) {
-      let pair = AmmPair.load(pairAddress.toHexString())
+    let reverseLookup = AmmPairReverseLookup.load(token.id.concat('-').concat(WHITELIST[i]))
+    if (reverseLookup !== null) {
+      let pair = AmmPair.load(reverseLookup.pair) as AmmPair
       if (pair.token0 == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
-        let token1 = Token.load(pair.token1)
+        let token1 = Token.load(pair.token1) as Token
         return pair.token1Price.times(token1.derivedETH as BigDecimal) // return token1 per our token * Eth per token 1
       } else if (pair.token1 == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
-        let token0 = Token.load(pair.token0)
+        let token0 = Token.load(pair.token0) as Token
         return pair.token0Price.times(token0.derivedETH as BigDecimal) // return token0 per our token * ETH per token 0
       }
     }
@@ -183,9 +174,9 @@ export function getTrackedLiquidityUSD(
   tokenAmount1: BigDecimal,
   token1: Token
 ): BigDecimal {
-  let bundle = Bundle.load('1')
-  let price0 = token0.derivedETH.times(bundle.ethPrice)
-  let price1 = token1.derivedETH.times(bundle.ethPrice)
+  let bundle = Bundle.load('1') as Bundle
+  let price0 = (token0.derivedETH as BigDecimal).times(bundle.ethPrice)
+  let price1 = (token1.derivedETH as BigDecimal).times(bundle.ethPrice)
 
   // both are whitelist tokens, take average of both amounts
   if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {

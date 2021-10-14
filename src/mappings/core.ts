@@ -1,4 +1,4 @@
-import { BigDecimal, BigInt, ethereum, store, Address } from '@graphprotocol/graph-ts'
+import { BigDecimal, BigInt, ethereum, store, Address, Bytes } from '@graphprotocol/graph-ts'
 import { AmmBurn, AmmFactory, AmmMint, AmmPair, AmmSwap, Bundle, Token, Transaction } from '../types/schema'
 import {
   Burn as BurnEvent,
@@ -27,14 +27,14 @@ import {
   convertTokenToDecimal,
   createLiquidityPosition,
   createLiquiditySnapshot,
-  createUser,
+  createUserIfNecessary,
   FACTORY_ADDRESS,
   ONE_BI,
   ZERO_BD
 } from './helpers'
 
 function isCompleteMint(mintId: string): boolean {
-  return AmmMint.load(mintId).sender !== null // sufficient checks
+  return (AmmMint.load(mintId) as AmmMint).sender !== null // sufficient checks
 }
 
 export function getOrCreateTransaction(event: ethereum.Event): Transaction {
@@ -62,16 +62,16 @@ export function handleERC20Transfer(event: TransferEvent): void {
     return
   }
 
-  let ammFactory = AmmFactory.load(FACTORY_ADDRESS)
+  let ammFactory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
 
   // user stats
   let from = event.params.from
-  createUser(from)
+  createUserIfNecessary(from)
   let to = event.params.to
-  createUser(to)
+  createUserIfNecessary(to)
 
   // get pair and load contract
-  let pair = AmmPair.load(event.address.toHexString())
+  let pair = AmmPair.load(event.address.toHexString()) as AmmPair
   let pairContract = AmmPairContract.bind(event.address)
 
   // liquidity token amount being transferred
@@ -134,9 +134,9 @@ export function handleERC20Transfer(event: TransferEvent): void {
     let burns = transaction.intermitentBurns
     let burn: AmmBurn
     if (burns.length > 0) {
-      let currentBurn = AmmBurn.load(burns[burns.length - 1])
+      let currentBurn = AmmBurn.load(burns[burns.length - 1]) as AmmBurn
       if (currentBurn.needsComplete) {
-        burn = currentBurn as AmmBurn
+        burn = currentBurn
       } else {
         burn = new AmmBurn(getAmmEventID(event, burns))
         burn.transaction = transaction.id
@@ -158,7 +158,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
 
     // if this logical burn included a fee mint, account for this
     if (mints.length != 0 && !isCompleteMint(mints[mints.length - 1])) {
-      let mint = AmmMint.load(mints[mints.length - 1])
+      let mint = AmmMint.load(mints[mints.length - 1]) as AmmMint
       burn.feeTo = mint.to
       burn.feeLiquidity = mint.liquidity
       // remove the logical mint
@@ -198,10 +198,10 @@ export function handleERC20Transfer(event: TransferEvent): void {
 }
 
 export function handleSync(event: SyncEvent): void {
-  let ammPair = AmmPair.load(event.address.toHex())
+  let ammPair = AmmPair.load(event.address.toHex()) as AmmPair
   let token0 = Token.load(ammPair.token0) as Token
   let token1 = Token.load(ammPair.token1) as Token
-  let ammFactory = AmmFactory.load(FACTORY_ADDRESS)
+  let ammFactory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
 
   // reset factory liquidity by subtracting only tracked liquidity
   ammFactory.ammLiquidityUSD = ammFactory.ammLiquidityUSD.minus(ammPair.reserveUSD)
@@ -228,7 +228,7 @@ export function handleSync(event: SyncEvent): void {
   ammPair.save()
 
   // update ETH price, since reserves could have changed
-  let bundle = Bundle.load('1')
+  let bundle = Bundle.load('1') as Bundle
   bundle.ethPrice = getEthPriceInUSD()
   bundle.save()
 
@@ -265,12 +265,12 @@ export function handleSync(event: SyncEvent): void {
 }
 
 export function handleMint(event: MintEvent): void {
-  let transaction = Transaction.load(event.transaction.hash.toHexString())
+  let transaction = Transaction.load(event.transaction.hash.toHexString()) as Transaction
   let mints = transaction.intermitentMints
-  let mint = AmmMint.load(mints[mints.length - 1])
+  let mint = AmmMint.load(mints[mints.length - 1]) as AmmMint
 
-  let pair = AmmPair.load(event.address.toHex())
-  let ammFactory = AmmFactory.load(FACTORY_ADDRESS)
+  let pair = AmmPair.load(event.address.toHex()) as AmmPair
+  let ammFactory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
 
   let token0 = Token.load(pair.token0) as Token
   let token1 = Token.load(pair.token1) as Token
@@ -327,10 +327,10 @@ export function handleBurn(event: BurnEvent): void {
   }
 
   let burns = transaction.intermitentBurns
-  let burn = AmmBurn.load(burns[burns.length - 1])
+  let burn = AmmBurn.load(burns[burns.length - 1]) as AmmBurn
 
-  let ammPair = AmmPair.load(event.address.toHex())
-  let ammFactory = AmmFactory.load(FACTORY_ADDRESS)
+  let ammPair = AmmPair.load(event.address.toHex()) as AmmPair
+  let ammFactory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
 
   //update token info
   let token0 = Token.load(ammPair.token0) as Token
@@ -366,7 +366,7 @@ export function handleBurn(event: BurnEvent): void {
   burn.save()
 
   // update the LP position
-  let liquidityPosition = createLiquidityPosition(event.address, Address.fromString(burn.sender.toHexString()))
+  let liquidityPosition = createLiquidityPosition(event.address, Address.fromString((burn.sender as Bytes).toHexString()))
   createLiquiditySnapshot(liquidityPosition, event)
 
   // update day entities
@@ -378,7 +378,7 @@ export function handleBurn(event: BurnEvent): void {
 }
 
 export function handleSwap(event: SwapEvent): void {
-  let pair = AmmPair.load(event.address.toHexString())
+  let pair = AmmPair.load(event.address.toHexString()) as AmmPair
   let token0 = Token.load(pair.token0) as Token
   let token1 = Token.load(pair.token1) as Token
   let amount0In = convertTokenToDecimal(event.params.amount0In, token0.decimals)
@@ -391,12 +391,12 @@ export function handleSwap(event: SwapEvent): void {
   let amount1Total = amount1Out.plus(amount1In)
 
   // ETH/USD prices
-  let bundle = Bundle.load('1')
+  let bundle = Bundle.load('1') as Bundle
 
   // get total amounts of derived USD and ETH for tracking
-  let derivedAmountETH = token1.derivedETH
+  let derivedAmountETH = (token1.derivedETH as BigDecimal)
     .times(amount1Total)
-    .plus(token0.derivedETH.times(amount0Total))
+    .plus((token0.derivedETH as BigDecimal).times(amount0Total))
     .div(BigDecimal.fromString('2'))
 
   let derivedAmountUSD = derivedAmountETH.times(bundle.ethPrice)
@@ -407,6 +407,7 @@ export function handleSwap(event: SwapEvent): void {
   // only accounts for volume through white listed tokens
   let trackedAmountUSD = amount0Total.times(token0PriceUSD)
     .plus(amount1Total.times(token1PriceUSD))
+    .div(BigDecimal.fromString('2'))
 
   // update token0 global volume and token liquidity stats
   token0.tradeVolume = token0.tradeVolume.plus(amount0In.plus(amount0Out))
@@ -431,7 +432,7 @@ export function handleSwap(event: SwapEvent): void {
   pair.save()
 
   // update global values, only used tracked amounts for volume
-  let ammFactory = AmmFactory.load(FACTORY_ADDRESS)
+  let ammFactory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
   ammFactory.totalAmmVolumeUSD = ammFactory.totalAmmVolumeUSD.plus(trackedAmountUSD)
   ammFactory.untrackedAmmVolumeUSD = ammFactory.untrackedAmmVolumeUSD.plus(derivedAmountUSD)
   ammFactory.transactionCount = ammFactory.transactionCount.plus(ONE_BI)
@@ -477,6 +478,7 @@ export function handleSwap(event: SwapEvent): void {
   // swap specific updating
   dolomiteDayData.dailyAmmSwapVolumeUSD = dolomiteDayData.dailyAmmSwapVolumeUSD.plus(trackedAmountUSD)
   dolomiteDayData.dailyAmmSwapVolumeUntracked = dolomiteDayData.dailyAmmSwapVolumeUntracked.plus(derivedAmountUSD)
+  dolomiteDayData.dailyAmmSwapCount = dolomiteDayData.dailyAmmSwapCount.plus(ONE_BI)
   dolomiteDayData.save()
 
   // swap specific updating for pair

@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
-import { log, Address, BigInt } from '@graphprotocol/graph-ts'
-import { AmmFactory, AmmPair, Token, Bundle } from '../types/schema'
+import { log, Address, BigInt, dataSource } from '@graphprotocol/graph-ts'
+import { AmmFactory, AmmPair, Token, Bundle, AmmPairReverseLookup } from '../types/schema'
 import { PairCreated } from '../types/UniswapV2Factory/UniswapV2Factory'
 import { AmmPair as PairTemplate } from '../types/templates'
 import {
@@ -10,7 +10,8 @@ import {
   fetchTokenSymbol,
   fetchTokenName,
   fetchTokenDecimals,
-  fetchTokenTotalSupply, SOLO_MARGIN_ADDRESS
+  fetchTokenTotalSupply,
+  SOLO_MARGIN_ADDRESS
 } from './helpers'
 import { DyDx } from '../types/MarginTrade/DyDx'
 
@@ -41,15 +42,16 @@ export function initializeToken(token: Token, marketId: BigInt): void {
 }
 
 export function handleNewPair(event: PairCreated): void {
-  if (event.address.toHexString() != FACTORY_ADDRESS) {
-    log.error('Invalid Factory address, found {} and {}', [event.address.toHexString(), FACTORY_ADDRESS])
+  let factoryAddress = FACTORY_ADDRESS
+  if (event.address.toHexString() != factoryAddress) {
+    log.error('Invalid Factory address, found {} and {}', [event.address.toHexString(), factoryAddress])
     throw new Error()
   }
 
   // load factory (create if first exchange)
-  let factory = AmmFactory.load(FACTORY_ADDRESS)
+  let factory = AmmFactory.load(factoryAddress)
   if (factory === null) {
-    factory = new AmmFactory(FACTORY_ADDRESS)
+    factory = new AmmFactory(factoryAddress)
     factory.pairCount = 0
     factory.totalAmmVolumeUSD = ZERO_BD
     factory.untrackedAmmVolumeUSD = ZERO_BD
@@ -109,9 +111,17 @@ export function handleNewPair(event: PairCreated): void {
   // create the tracked contract based on the template
   PairTemplate.create(event.params.pair)
 
+  let reverseLookup1 = new AmmPairReverseLookup(token0.id.concat('-').concat(token1.id))
+  reverseLookup1.pair = pair.id
+
+  let reverseLookup2 = new AmmPairReverseLookup(token1.id.concat('-').concat(token0.id))
+  reverseLookup2.pair = pair.id
+
   // save updated values
   token0.save()
   token1.save()
   pair.save()
+  reverseLookup1.save()
+  reverseLookup2.save()
   factory.save()
 }
