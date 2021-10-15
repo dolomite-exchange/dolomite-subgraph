@@ -57,7 +57,7 @@ import {
 } from './helpers'
 import { getOrCreateTransaction } from './core'
 import { BalanceUpdate, MarginPositionStatus, ValueStruct } from './dydx_types'
-import { Address, BigDecimal, BigInt, dataSource, ethereum, log } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts'
 import {
   updateAndReturnTokenDayDataForDyDxEvent,
   updateAndReturnTokenHourDataForDyDxEvent,
@@ -68,8 +68,6 @@ import {
 } from './dayUpdates'
 import { initializeToken } from './factory'
 import { getTokenOraclePriceUSD } from './pricing'
-
-const network = dataSource.network()
 
 function isMarginPositionExpired(marginPosition: MarginPosition, event: ethereum.Event): boolean {
   return marginPosition.expirationTimestamp !== null && (marginPosition.expirationTimestamp as BigInt).lt(event.block.timestamp)
@@ -1144,7 +1142,10 @@ export function handleLiquidate(event: LiquidationEvent): void {
     let marginPosition = getOrCreateMarginPosition(event, liquidMarginAccount)
     if (marginPosition.status == MarginPositionStatus.Open || marginPosition.status == MarginPositionStatus.Liquidated) {
       marginPosition.status = MarginPositionStatus.Liquidated
-      marginPosition.closeTimestamp = event.block.timestamp
+      if (marginPosition.closeTimestamp === null) {
+        marginPosition.closeTimestamp = event.block.timestamp
+        marginPosition.closeTransaction = event.transaction.hash.toHexString()
+      }
 
       marginPosition.owedAmountPar = weiToPar(
         parToWei(marginPosition.owedAmountPar.neg(), owedIndex).plus(liquidation.borrowedTokenAmountDeltaWei),
