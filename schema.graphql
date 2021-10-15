@@ -619,6 +619,7 @@ type MarginPosition @entity {
   marginAccount: MarginAccount!
 
   openTimestamp: BigInt!
+  openTransaction: Transaction!
 
   heldToken: Token
   marginDeposit: BigDecimal!
@@ -651,5 +652,6 @@ type MarginPosition @entity {
 
   status: String! # one of OPEN, CLOSED, EXPIRED, LIQUIDATED
   closeTimestamp: BigInt
+  closeTransaction: Transaction
   expirationTimestamp: BigInt
 }

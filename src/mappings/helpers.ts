@@ -19,7 +19,7 @@ import {
   DyDx as DyDxProtocol,
   DyDx__getMarketTotalParResultValue0Struct as DyDxMarketTotalParStruct
 } from '../types/MarginTrade/DyDx'
-import { TypedMap } from '@graphprotocol/graph-ts/common/collections'
+import { TypedMap } from '@graphprotocol/graph-ts'
 
 const MAINNET_NETWORK = 'mainnet'
 const MUMBAI_NETWORK = 'mumbai'
