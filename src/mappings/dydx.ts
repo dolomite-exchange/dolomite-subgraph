@@ -57,7 +57,7 @@ import {
 } from './helpers'
 import { getOrCreateTransaction } from './core'
 import { BalanceUpdate, MarginPositionStatus, ValueStruct } from './dydx_types'
-import { Address, BigDecimal, BigInt, dataSource, ethereum, log } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts'
 import {
   updateAndReturnTokenDayDataForDyDxEvent,
   updateAndReturnTokenHourDataForDyDxEvent,
@@ -68,8 +68,6 @@ import {
 } from './dayUpdates'
 import { initializeToken } from './factory'
 import { getTokenOraclePriceUSD } from './pricing'
-
-const network = dataSource.network()
 
 function isMarginPositionExpired(marginPosition: MarginPosition, event: ethereum.Event): boolean {
   return marginPosition.expirationTimestamp !== null && (marginPosition.expirationTimestamp as BigInt).lt(event.block.timestamp)
@@ -282,6 +280,8 @@ function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: 
     marginAccount = new MarginAccount(id)
     marginAccount.user = owner.toHexString()
     marginAccount.accountNumber = accountNumber
+    marginAccount.borrowedMarketIds = []
+    marginAccount.hasBorrowedValue = false
   }
 
   marginAccount.lastUpdatedBlockNumber = block.number
@@ -314,6 +314,20 @@ function handleDyDxBalanceUpdateForAccount(balanceUpdate: BalanceUpdate, block: 
   let tokenAddress = dydxProtocol.getMarketTokenAddress(balanceUpdate.market)
   let token = Token.load(tokenAddress.toHexString())
   let tokenValue = getOrCreateTokenValue(marginAccount, token as Token)
+
+  if (tokenValue.valuePar.lt(ZERO_BD) && balanceUpdate.valuePar.ge(ZERO_BD)) {
+    // The user is going from a negative balance to a positive one. Remove from the list
+    let index = marginAccount.borrowedMarketIds.indexOf(tokenValue.id)
+    if (index != -1) {
+      let arrayCopy = marginAccount.borrowedMarketIds
+      arrayCopy.splice(index, 1)
+      marginAccount.borrowedMarketIds = arrayCopy
+    }
+  } else if (tokenValue.valuePar.ge(ZERO_BD) && balanceUpdate.valuePar.lt(ZERO_BD)) {
+    // The user is going from a positive balance to a negative one, add it to the list
+    marginAccount.borrowedMarketIds = marginAccount.borrowedMarketIds.concat([tokenValue.id])
+  }
+  marginAccount.hasBorrowedValue = marginAccount.borrowedMarketIds.length > 0
 
   tokenValue.valuePar = balanceUpdate.valuePar
   log.info(
