@@ -279,6 +279,10 @@ function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: 
     marginAccount = new MarginAccount(id)
     marginAccount.user = owner.toHexString()
     marginAccount.accountNumber = accountNumber
+    marginAccount.borrowedMarketIds = []
+    marginAccount.expirationMarketIds = []
+    marginAccount.hasBorrowedValue = false
+    marginAccount.hasExpiration = false
   }
 
   marginAccount.lastUpdatedBlockNumber = block.number
@@ -311,6 +315,20 @@ function handleDyDxBalanceUpdateForAccount(balanceUpdate: BalanceUpdate, block: 
   let tokenAddress = dydxProtocol.getMarketTokenAddress(balanceUpdate.market)
   let token = Token.load(tokenAddress.toHexString())
   let tokenValue = getOrCreateTokenValue(marginAccount, token as Token)
+
+  if (tokenValue.valuePar.lt(ZERO_BD) && balanceUpdate.valuePar.ge(ZERO_BD)) {
+    // The user is going from a negative balance to a positive one. Remove from the list
+    let index = marginAccount.borrowedMarketIds.indexOf(tokenValue.id)
+    if (index != -1) {
+      let arrayCopy = marginAccount.borrowedMarketIds
+      arrayCopy.splice(index, 1)
+      marginAccount.borrowedMarketIds = arrayCopy
+    }
+  } else if (tokenValue.valuePar.ge(ZERO_BD) && balanceUpdate.valuePar.lt(ZERO_BD)) {
+    // The user is going from a positive balance to a negative one, add it to the list
+    marginAccount.borrowedMarketIds = marginAccount.borrowedMarketIds.concat([tokenValue.id])
+  }
+  marginAccount.hasBorrowedValue = marginAccount.borrowedMarketIds.length > 0
 
   tokenValue.valuePar = balanceUpdate.valuePar
   log.info(
@@ -1298,7 +1316,20 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
   let token = Token.load(tokenAddress) as Token
 
   let tokenValue = getOrCreateTokenValue(marginAccount, token)
-  tokenValue.expirationTimestamp = event.block.timestamp
-  tokenValue.expiryAddress = event.address.toHexString()
+  if (tokenValue.expirationTimestamp !== null && event.params.time.equals(ZERO_BI)) {
+    // The user is going from having an expiration to not having one, remove
+    let index = marginAccount.expirationMarketIds.indexOf(tokenValue.id)
+    if (index != -1) {
+      let arrayCopy = marginAccount.expirationMarketIds
+      arrayCopy.splice(index, 1)
+      marginAccount.expirationMarketIds = arrayCopy
+    }
+  } else if (tokenValue.expirationTimestamp === null && event.params.time.gt(ZERO_BI)) {
+    // The user is going from having no expiration to having one, add it to the list
+    marginAccount.expirationMarketIds = marginAccount.expirationMarketIds.concat([tokenValue.id])
+  }
+  marginAccount.hasExpiration = marginAccount.expirationMarketIds.length > 0
+
+  tokenValue.expirationTimestamp = event.params.time.gt(ZERO_BI) ? event.params.time : null
   tokenValue.save()
 }
