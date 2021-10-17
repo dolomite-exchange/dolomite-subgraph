@@ -1331,5 +1331,6 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
   marginAccount.hasExpiration = marginAccount.expirationMarketIds.length > 0
 
   tokenValue.expirationTimestamp = event.params.time.gt(ZERO_BI) ? event.params.time : null
+  tokenValue.expiryAddress = event.params.time.gt(ZERO_BI) ? event.address.toHexString() : null
   tokenValue.save()
 }
