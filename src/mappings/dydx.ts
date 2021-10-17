@@ -281,7 +281,9 @@ function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: 
     marginAccount.user = owner.toHexString()
     marginAccount.accountNumber = accountNumber
     marginAccount.borrowedMarketIds = []
+    marginAccount.expirationMarketIds = []
     marginAccount.hasBorrowedValue = false
+    marginAccount.hasExpiration = false
   }
 
   marginAccount.lastUpdatedBlockNumber = block.number
@@ -1308,6 +1310,20 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
   let token = Token.load(tokenAddress) as Token
 
   let tokenValue = getOrCreateTokenValue(marginAccount, token)
-  tokenValue.expirationTimestamp = event.block.timestamp
+  if (tokenValue.expirationTimestamp !== null && event.params.time.equals(ZERO_BI)) {
+    // The user is going from having an expiration to not having one, remove
+    let index = marginAccount.expirationMarketIds.indexOf(tokenValue.id)
+    if (index != -1) {
+      let arrayCopy = marginAccount.expirationMarketIds
+      arrayCopy.splice(index, 1)
+      marginAccount.expirationMarketIds = arrayCopy
+    }
+  } else if (tokenValue.expirationTimestamp === null && event.params.time.gt(ZERO_BI)) {
+    // The user is going from having no expiration to having one, add it to the list
+    marginAccount.expirationMarketIds = marginAccount.expirationMarketIds.concat([tokenValue.id])
+  }
+  marginAccount.hasExpiration = marginAccount.expirationMarketIds.length > 0
+
+  tokenValue.expirationTimestamp = event.params.time.gt(ZERO_BI) ? event.params.time : null
   tokenValue.save()
 }

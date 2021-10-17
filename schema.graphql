@@ -475,7 +475,9 @@ type MarginAccount @entity {
   lastUpdatedBlockNumber: BigInt!
   tokenValues: [MarginAccountTokenValue!]! @derivedFrom(field: "marginAccount")
   borrowedMarketIds: [MarginAccountTokenValue!]!
+  expirationMarketIds: [MarginAccountTokenValue!]!
   hasBorrowedValue: Boolean!
+  hasExpiration: Boolean!
 }
 
 type MarginAccountTokenValue @entity {
