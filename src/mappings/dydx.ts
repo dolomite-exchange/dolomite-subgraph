@@ -50,7 +50,6 @@ import {
   parToWei,
   SECONDS_IN_YEAR,
   SOLO_MARGIN_ADDRESS,
-  weiToPar,
   ZERO_BD,
   ZERO_BI,
   ZERO_BYTES
@@ -1150,26 +1149,24 @@ export function handleLiquidate(event: LiquidationEvent): void {
     let marginPosition = getOrCreateMarginPosition(event, liquidMarginAccount)
     if (marginPosition.status == MarginPositionStatus.Open || marginPosition.status == MarginPositionStatus.Liquidated) {
       marginPosition.status = MarginPositionStatus.Liquidated
-      marginPosition.closeTimestamp = event.block.timestamp
-      marginPosition.closeTransaction = event.transaction.hash.toHexString()
+      if (marginPosition.closeTimestamp === null) {
+        marginPosition.closeTimestamp = event.block.timestamp
+        marginPosition.closeTransaction = event.transaction.hash.toHexString()
+      }
 
-      marginPosition.owedAmountPar =
-      marginPosition.heldAmountPar = weiToPar(
-        parToWei(marginPosition.heldAmountPar, heldIndex).minus(liquidation.heldTokenAmountDeltaWei),
-        owedIndex,
-        heldToken.decimals
-      )
+      marginPosition.heldAmountPar = convertStructToDecimal(liquidHeldNewParStruct, heldToken.decimals)
+      marginPosition.owedAmountPar = convertStructToDecimal(liquidOwedNewParStruct, owedToken.decimals)
 
       if (marginPosition.closeHeldAmountUSD === null && marginPosition.closeOwedAmountUSD === null) {
         let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
         let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
 
-        let closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(heldIndex.supplyIndex).truncate(18)
+        let closeHeldAmountWei = parToWei(marginPosition.initialHeldAmountPar, heldIndex)
         marginPosition.closeHeldPriceUSD = heldPriceUSD
         marginPosition.closeHeldAmountWei = closeHeldAmountWei
         marginPosition.closeHeldAmountUSD = closeHeldAmountWei.times(heldPriceUSD).truncate(18)
 
-        let closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedIndex.borrowIndex).truncate(18)
+        let closeOwedAmountWei = parToWei(marginPosition.initialOwedAmountPar.neg(), owedIndex).neg()
         marginPosition.closeOwedPriceUSD = owedPriceUSD
         marginPosition.closeOwedAmountWei = closeOwedAmountWei
         marginPosition.closeOwedAmountUSD = closeOwedAmountWei.times(owedPriceUSD).truncate(18)
@@ -1280,6 +1277,15 @@ export function handleVaporize(event: VaporizationEvent): void {
 
   updateTimeDataForVaporization(dolomiteDayData, heldTokenDayData, heldTokenHourData, heldToken, vaporization as Vaporization)
   updateTimeDataForVaporization(dolomiteDayData, owedTokenDayData, owedTokenHourData, owedToken, vaporization as Vaporization)
+
+  if (vaporMarginAccount.accountNumber.notEqual(ZERO_BI)) {
+    let marginPosition = getOrCreateMarginPosition(event, vaporMarginAccount)
+    if (marginPosition.status == MarginPositionStatus.Liquidated) {
+      // when an account is vaporized, the vaporHeldAmount is zero, so it's not updated
+      marginPosition.owedAmountPar = convertStructToDecimal(vaporOwedNewParStruct, owedToken.decimals)
+      marginPosition.save()
+    }
+  }
 
   vaporMarginAccount.save()
   solidMarginAccount.save()
