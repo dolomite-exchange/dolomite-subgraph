@@ -1299,5 +1299,6 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
 
   let tokenValue = getOrCreateTokenValue(marginAccount, token)
   tokenValue.expirationTimestamp = event.block.timestamp
+  tokenValue.expiryAddress = event.address.toHexString()
   tokenValue.save()
 }

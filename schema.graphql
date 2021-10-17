@@ -483,6 +483,7 @@ type MarginAccountTokenValue @entity {
   token: Token!
   valuePar: BigDecimal! # Par value of the user's held token. Can be negative, meaning it's borrowed funds.
   expirationTimestamp: BigInt
+  expiryAddress: String
 }
 
 type MarginAccountTokenValueSnapshot @entity {
