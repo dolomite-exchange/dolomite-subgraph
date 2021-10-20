@@ -6,12 +6,11 @@ schema:
 dataSources:
   - kind: ethereum/contract
     name: UniswapV2Factory
-    network: mumbai
+    network: {{network}}
     source:
-#      address: '' # Mainnet
-      address: '0xaE3a05f33E2f358eB98c24F59f0E13f92D869160' # Matic Testnet
+      address: '{{uniswapV2FactoryAddress}}'
       abi: UniswapV2Factory
-      startBlock: 19806560
+      startBlock: {{startBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
@@ -36,12 +35,11 @@ dataSources:
           handler: handleNewPair
   - kind: ethereum/contract
     name: MarginTrade
-    network: mumbai
+    network: {{network}}
     source:
-#      address: '' # Mainnet
-      address: '0x2099Ec20e4CDE118ceCa32D0357F3a7713514960' # Matic Testnet
+      address: '{{dyDxAddress}}'
       abi: DyDx
-      startBlock: 19806560
+      startBlock: {{startBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
@@ -91,41 +89,12 @@ dataSources:
         - event: LogVaporize(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
           handler: handleVaporize
   - kind: ethereum/contract
-    name: MarginTradeExpiryV1
-    network: mumbai
-    source:
-      #      address: '' # Mainnet
-      address: '0xB149A173295a156F668359DBb92c80681815DB5A' # Matic Testnet
-      abi: DyDx
-      startBlock: 19806560
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.5
-      language: wasm/assemblyscript
-      file: ./src/mappings/dydx.ts
-      entities:
-        - AmmPair
-        - Token
-      abis:
-        - name: DyDx
-          file: ./abis/dydx.json
-        - name: ERC20
-          file: ./abis/erc20.json
-        - name: ERC20SymbolBytes
-          file: ./abis/erc20-symbol-bytes.json
-        - name: ERC20NameBytes
-          file: ./abis/erc20-name-bytes.json
-      eventHandlers:
-        - event: ExpirySet(address,uint256,uint256,uint32)
-          handler: handleSetExpiry
-  - kind: ethereum/contract
     name: MarginTradeExpiryV2
-    network: mumbai
+    network: {{network}}
     source:
-      #      address: '' # Mainnet
-      address: '0xBe3D82CeC93AF484350F267c4f954133fD52f66E' # Matic Testnet
+      address: '{{expiryAddress}}'
       abi: DyDx
-      startBlock: 19806560
+      startBlock: {{startBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
@@ -149,7 +118,7 @@ dataSources:
 templates:
   - kind: ethereum/contract
     name: AmmPair
-    network: mumbai
+    network: {{network}}
     source:
       abi: AmmPair
     mapping:
