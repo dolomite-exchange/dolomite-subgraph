@@ -483,7 +483,6 @@ type MarginAccount @entity {
 type MarginAccountTokenValue @entity {
   id: ID! # Defined as "user-accountNumber-marketId"
   marginAccount: MarginAccount!
-  marketId: BigInt!
   token: Token!
   valuePar: BigDecimal! # Par value of the user's held token. Can be negative, meaning it's borrowed funds.
   expirationTimestamp: BigInt

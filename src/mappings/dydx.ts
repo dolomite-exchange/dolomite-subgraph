@@ -300,7 +300,6 @@ function getOrCreateTokenValue(
   if (tokenValue === null) {
     tokenValue = new MarginAccountTokenValue(id)
     tokenValue.marginAccount = marginAccount.id
-    tokenValue.marketId = token.marketId
     tokenValue.token = token.id
     tokenValue.valuePar = ZERO_BD
   }
