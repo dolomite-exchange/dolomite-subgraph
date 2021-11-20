@@ -89,6 +89,29 @@ dataSources:
         - event: LogVaporize(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
           handler: handleVaporize
   - kind: ethereum/contract
+    name: DolomiteAmmRouter
+    network: {{network}}
+    source:
+      address: '{{dolomiteMarginProxyAddress}}'
+      abi: DolomiteAmmRouterProxy
+      startBlock: {{startBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.5
+      language: wasm/assemblyscript
+      file: ./src/mappings/dydx.ts
+      entities:
+        - AmmPair
+        - Token
+      abis:
+        - name: DolomiteAmmRouterProxy
+          file: ./abis/dolomite-amm-router-proxy.json
+      eventHandlers:
+        - event: MarginPositionOpen(indexed address,indexed uint256,address,address,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
+          handler: handleMarginPositionOpen
+        - event: MarginPositionClose(indexed address,indexed uint256,address,address,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
+          handler: handleMarginPositionClose
+  - kind: ethereum/contract
     name: MarginTradeExpiryV2
     network: {{network}}
     source:

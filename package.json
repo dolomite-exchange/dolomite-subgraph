@@ -8,11 +8,11 @@
     "build:mumbai": "yarn prepare:mumbai && graph build",
     "prepare:mumbai": "mustache config/mumbai.json subgraph.template.yaml > subgraph.yaml",
     "create-local": "graph create coreycaplan3/dolomite-v2 --node http://127.0.0.1:8020",
-    "deploy-local": "yarn prepare:local && graph deploy coreycaplan3/dolomite-v2 --debug --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
-    "deploy-mainnet": "yarn prepare:mainnet && graph deploy coreycaplan3/dolomite-v2 --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/ --debug",
-    "deploy-matic": "yarn prepare:matic && graph deploy coreycaplan3/dolomite-v2-matic --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
-    "deploy-mumbai": "yarn prepare:mumbai && graph deploy dolomite-v2-mumbai",
-    "deploy-mumbai-local": "yarn prepare:mumbai && graph deploy coreycaplan3/dolomite-v2-mumbai --ipfs http://localhost:5001 --node http://localhost:8020/",
+    "deploy:local": "yarn prepare:local && graph deploy coreycaplan3/dolomite-v2 --debug --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
+    "deploy:mainnet": "yarn prepare:mainnet && graph deploy coreycaplan3/dolomite-v2 --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/ --debug",
+    "deploy:matic": "yarn prepare:matic && graph deploy coreycaplan3/dolomite-v2-matic --ipfs https://api.thegraph.com/ipfs/ --node https://api.thegraph.com/deploy/",
+    "deploy:mumbai": "yarn prepare:mumbai && graph deploy --product hosted-service dolomite-exchange/dolomite-v2-mumbai",
+    "deploy:mumbai-local": "yarn prepare:mumbai && graph deploy coreycaplan3/dolomite-v2-mumbai --ipfs http://localhost:5001 --node http://localhost:8020/",
     "watch-local": "graph deploy coreycaplan3/dolomite-v2 --watch --debug --node http://127.0.0.1:8020/ --ipfs http://localhost:5001"
   },
   "devDependencies": {
