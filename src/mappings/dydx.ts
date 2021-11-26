@@ -436,18 +436,18 @@ function updateMarginPositionForTrade(
     let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
     let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
 
-    marginPosition.initialOwedAmountPar = marginPosition.owedAmountPar
-    marginPosition.initialOwedAmountWei = marginPosition.initialOwedAmountWei.plus(owedAmountWei)
-    marginPosition.initialOwedAmountUSD = marginPosition.initialOwedAmountUSD.plus(owedAmountWei.times(owedPriceUSD).truncate(18))
+    marginPosition.initialOwedAmountPar = owedTokenNewPar
+    marginPosition.initialOwedAmountWei = owedAmountWei
     marginPosition.initialOwedPriceUSD = absBD(heldAmountWei).div(absBD(owedAmountWei)).times(heldPriceUSD).truncate(36)
+    marginPosition.initialOwedAmountUSD = owedAmountWei.times(marginPosition.initialOwedPriceUSD).truncate(36)
 
     marginPosition.initialHeldAmountPar = heldTokenNewPar
     marginPosition.initialHeldAmountWei = heldAmountWei
     if (marginPosition.heldToken == event.depositToken.id) {
       marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(event.depositWei)
     }
-    marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(marginPosition.initialHeldAmountWei.times(heldPriceUSD).truncate(18))
-    marginPosition.initialHeldPriceUSD = absBD(owedAmountWei).div(absBD(marginPosition.initialHeldAmountWei)).times(owedPriceUSD).truncate(36)
+    marginPosition.initialHeldPriceUSD = absBD(owedAmountWei).div(absBD(heldAmountWei)).times(owedPriceUSD).truncate(36)
+    marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountWei.times(marginPosition.initialHeldPriceUSD).truncate(36)
 
     marginPosition.marginDeposit = event.depositWei
     marginPosition.marginDepositUSD = event.depositWei.times(marginPosition.initialHeldPriceUSD)
