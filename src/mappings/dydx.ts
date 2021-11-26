@@ -660,18 +660,11 @@ export function handleTransfer(event: TransferEvent): void {
       let marginPosition = getOrCreateMarginPosition(event, marginAccount2)
       // The user is opening the position or transferring collateral
       if (marginPosition.status == MarginPositionStatus.Open && marginPosition.heldToken == token.id) {
-        marginPosition.marginDeposit = transfer.amountDeltaWei
-        marginPosition.marginDepositUSD = transfer.amountUSDDeltaWei
-
-        marginPosition.initialHeldAmountPar = balanceUpdateTwo.valuePar
-        marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(marginPosition.marginDeposit)
-        marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(marginPosition.marginDepositUSD)
-        marginPosition.initialHeldPriceUSD = priceUSD
-
         marginPosition.heldAmountPar = balanceUpdateTwo.valuePar
-
-        marginPosition.save()
+      } else if (marginPosition.status == MarginPositionStatus.Open && marginPosition.owedToken == token.id) {
+        marginPosition.owedAmountPar = balanceUpdateTwo.valuePar
       }
+      marginPosition.save()
     } else if (marginAccount2.accountNumber.equals(ZERO_BI) && marginAccount1.accountNumber.notEqual(ZERO_BI)) {
       let marginPosition = getOrCreateMarginPosition(event, marginAccount1)
       // The user is removing collateral
