@@ -107,9 +107,9 @@ dataSources:
         - name: DolomiteAmmRouterProxy
           file: ./abis/dolomite-amm-router-proxy.json
       eventHandlers:
-        - event: MarginPositionOpen(indexed address,indexed uint256,address,address,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
+        - event: MarginPositionOpen(indexed address,indexed uint256,address,address,address,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
           handler: handleMarginPositionOpen
-        - event: MarginPositionClose(indexed address,indexed uint256,address,address,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
+        - event: MarginPositionClose(indexed address,indexed uint256,address,address,address,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
           handler: handleMarginPositionClose
   - kind: ethereum/contract
     name: MarginTradeExpiryV2

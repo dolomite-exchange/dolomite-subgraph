@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
-import { log, Address, BigInt, dataSource } from '@graphprotocol/graph-ts'
-import { AmmFactory, AmmPair, Token, Bundle, AmmPairReverseLookup } from '../types/schema'
+import { log, Address, BigInt } from '@graphprotocol/graph-ts'
+import { AmmFactory, AmmPair, Token, Bundle, AmmPairReverseLookup, TokenMarketIdReverseMap } from '../types/schema'
 import { PairCreated } from '../types/UniswapV2Factory/UniswapV2Factory'
 import { AmmPair as PairTemplate } from '../types/templates'
 import {
@@ -39,6 +39,10 @@ export function initializeToken(token: Token, marketId: BigInt): void {
   token.supplyLiquidity = ZERO_BD
   token.supplyLiquidityUSD = ZERO_BD
   token.transactionCount = ZERO_BI
+
+  let reverseMap = new TokenMarketIdReverseMap(marketId.toString())
+  reverseMap.tokenAddress = token.id
+  reverseMap.save()
 }
 
 export function handleNewPair(event: PairCreated): void {

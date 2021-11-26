@@ -86,6 +86,11 @@ type Token @entity {
   pairQuote: [AmmPair!]! @derivedFrom(field: "token1")
 }
 
+type TokenMarketIdReverseMap @entity {
+  id: ID! # marketId.toString()
+  tokenAddress: String!
+}
+
 type AmmPairReverseLookup @entity {
   # token0-token1 and token1-token0
   id: ID!

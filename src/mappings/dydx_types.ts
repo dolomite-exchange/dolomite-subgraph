@@ -1,25 +1,69 @@
-import { Address, BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, Bytes, ethereum } from '@graphprotocol/graph-ts'
 import { convertTokenToDecimal } from './helpers'
 import { Token } from '../types/schema'
+
+export class PositionChangeEvent {
+
+  accountOwner: Address
+  accountNumber: BigInt
+  inputToken: Token
+  outputToken: Token
+  depositToken: Token
+  inputWei: BigDecimal
+  outputWei: BigDecimal
+  depositWei: BigDecimal
+  isOpen: boolean
+  block: BigInt
+  timestamp: BigInt
+  hash: Bytes
+
+  constructor(
+    accountOwner: Address,
+    accountNumber: BigInt,
+    inputToken: Token,
+    outputToken: Token,
+    depositToken: Token,
+    inputWei: BigInt,
+    outputWei: BigInt,
+    depositWei: BigInt,
+    isOpen: boolean,
+    block: BigInt,
+    timestamp: BigInt,
+    hash: Bytes
+  ) {
+    this.accountOwner = accountOwner
+    this.accountNumber = accountNumber
+    this.inputToken = inputToken
+    this.outputToken = outputToken
+    this.depositToken = depositToken
+    this.inputWei = convertTokenToDecimal(inputWei, inputToken.decimals)
+    this.outputWei = convertTokenToDecimal(outputWei, outputToken.decimals)
+    this.depositWei = convertTokenToDecimal(depositWei, depositToken.decimals)
+    this.isOpen = isOpen
+    this.block = block
+    this.timestamp = timestamp
+    this.hash = hash
+  }
+
+}
 
 export class BalanceUpdate {
 
   accountOwner: Address
   accountNumber: BigInt
-  market: BigInt
+  token: Token
   valuePar: BigDecimal
 
   constructor(
     accountOwner: Address,
     accountNumber: BigInt,
-    market: BigInt,
     valuePar: BigInt,
     sign: boolean,
     token: Token
   ) {
     this.accountOwner = accountOwner
     this.accountNumber = accountNumber
-    this.market = market
+    this.token = token
     if (sign) {
       this.valuePar = convertTokenToDecimal(valuePar, token.decimals)
     } else {
@@ -30,14 +74,6 @@ export class BalanceUpdate {
 }
 
 export class ValueStruct {
-
-  static fromFields(sign: boolean, value: BigInt): ValueStruct {
-    let values: ethereum.Value[] = [
-      ethereum.Value.fromBoolean(sign),
-      ethereum.Value.fromUnsignedBigInt(value)
-    ]
-    return new ValueStruct(values)
-  }
 
   private tuple: Array<ethereum.Value>
 
@@ -51,6 +87,14 @@ export class ValueStruct {
 
   get value(): BigInt {
     return this.tuple[1].toBigInt()
+  }
+
+  static fromFields(sign: boolean, value: BigInt): ValueStruct {
+    let values: ethereum.Value[] = [
+      ethereum.Value.fromBoolean(sign),
+      ethereum.Value.fromUnsignedBigInt(value)
+    ]
+    return new ValueStruct(values)
   }
 
   neg(): ValueStruct {
@@ -75,4 +119,6 @@ export class MarginPositionStatus {
   static Expired: string = 'EXPIRED'
   // eslint-disable-next-line
   static Liquidated: string = 'LIQUIDATED'
+  // eslint-disable-next-line
+  static Unknown: string = 'UNKNOWN'
 }
