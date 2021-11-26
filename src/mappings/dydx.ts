@@ -442,9 +442,12 @@ function updateMarginPositionForTrade(
     marginPosition.initialOwedPriceUSD = absBD(heldAmountWei).div(absBD(owedAmountWei)).times(heldPriceUSD).truncate(36)
 
     marginPosition.initialHeldAmountPar = heldTokenNewPar
-    marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(heldAmountWei)
-    marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(heldAmountWei.times(heldPriceUSD).truncate(18))
-    marginPosition.initialHeldPriceUSD = absBD(owedAmountWei).div(absBD(heldAmountWei)).times(owedPriceUSD).truncate(36)
+    marginPosition.initialHeldAmountWei = heldAmountWei
+    if (marginPosition.heldToken == event.depositToken.id) {
+      marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(event.depositWei)
+    }
+    marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(marginPosition.initialHeldAmountWei.times(heldPriceUSD).truncate(18))
+    marginPosition.initialHeldPriceUSD = absBD(owedAmountWei).div(absBD(marginPosition.initialHeldAmountWei)).times(owedPriceUSD).truncate(36)
 
     marginPosition.marginDeposit = event.depositWei
     marginPosition.marginDepositUSD = event.depositWei.times(marginPosition.initialHeldPriceUSD)
