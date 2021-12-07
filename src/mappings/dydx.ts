@@ -1298,8 +1298,8 @@ export function handleMarginPositionClose(event: MarginPositionCloseEvent): void
   let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
   let inputBalanceUpdate = new ValueStruct(event.params.inputBalanceUpdate.newPar)
   let outputBalanceUpdate = new ValueStruct(event.params.outputBalanceUpdate.newPar)
-  let inputIndex = InterestIndex.load(positionChangeEvent.inputToken.id) as InterestIndex
-  let outputIndex = InterestIndex.load(positionChangeEvent.outputToken.id) as InterestIndex
+  let inputIndex = InterestIndex.load(positionChangeEvent.inputToken.marketId.toString()) as InterestIndex
+  let outputIndex = InterestIndex.load(positionChangeEvent.outputToken.marketId.toString()) as InterestIndex
 
   updateMarginPositionForTrade(marginPosition, positionChangeEvent, dydxProtocol, inputBalanceUpdate, outputBalanceUpdate, inputIndex, outputIndex)
   marginPosition.save()
