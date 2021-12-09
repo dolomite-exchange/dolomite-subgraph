@@ -1,6 +1,6 @@
 import { Address, BigDecimal, BigInt, Bytes, ethereum } from '@graphprotocol/graph-ts'
 import { convertTokenToDecimal } from './helpers'
-import { Token } from '../types/schema'
+import { MarginPosition, Token } from '../types/schema'
 
 export class PositionChangeEvent {
 
@@ -121,4 +121,8 @@ export class MarginPositionStatus {
   static Liquidated: string = 'LIQUIDATED'
   // eslint-disable-next-line
   static Unknown: string = 'UNKNOWN'
+
+  static isClosed(position: MarginPosition): boolean {
+    return position.status != MarginPositionStatus.Open
+  }
 }

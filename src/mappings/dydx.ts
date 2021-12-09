@@ -471,6 +471,11 @@ function updateMarginPositionForTrade(
     marginPosition.closeOwedAmountUSD = (marginPosition.closeOwedAmountWei as BigDecimal).times(owedPriceUSD)
   }
 
+  let tokenValue = getOrCreateTokenValue(MarginAccount.load(marginPosition.marginAccount)!, owedToken)
+  if (tokenValue.expirationTimestamp !== null) {
+    marginPosition.expirationTimestamp = tokenValue.expirationTimestamp
+  }
+
   marginPosition.save()
 }
 
@@ -1316,7 +1321,7 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
   marginAccount.save()
 
   let marginPosition = getOrCreateMarginPosition(event, marginAccount)
-  if (marginPosition.marginDeposit.notEqual(ZERO_BD)) {
+  if (marginPosition.marginDeposit.notEqual(ZERO_BD) && marginPosition.status == MarginPositionStatus.Open) {
     if (params.time.equals(ZERO_BI)) {
       marginPosition.expirationTimestamp = null
     } else {
