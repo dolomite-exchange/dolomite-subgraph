@@ -438,7 +438,8 @@ function updateMarginPositionForTrade(
 
     marginPosition.initialOwedAmountPar = owedTokenNewPar
     marginPosition.initialOwedAmountWei = owedAmountWei
-    marginPosition.initialOwedPriceUSD = absBD(heldAmountWei).div(absBD(owedAmountWei)).times(heldPriceUSD).truncate(36)
+    marginPosition.initialOwedPrice = absBD(heldAmountWei).div(absBD(owedAmountWei)).truncate(36)
+    marginPosition.initialOwedPriceUSD = marginPosition.initialOwedPrice.times(heldPriceUSD).truncate(36)
     marginPosition.initialOwedAmountUSD = owedAmountWei.times(marginPosition.initialOwedPriceUSD).truncate(36)
 
     marginPosition.initialHeldAmountPar = heldTokenNewPar
@@ -446,7 +447,8 @@ function updateMarginPositionForTrade(
     if (marginPosition.heldToken == event.depositToken.id) {
       marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(event.depositWei)
     }
-    marginPosition.initialHeldPriceUSD = absBD(owedAmountWei).div(absBD(heldAmountWei)).times(owedPriceUSD).truncate(36)
+    marginPosition.initialHeldPrice = absBD(owedAmountWei).div(absBD(heldAmountWei)).truncate(36)
+    marginPosition.initialHeldPriceUSD = marginPosition.initialHeldPrice.times(owedPriceUSD).truncate(36)
     marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountWei.times(marginPosition.initialHeldPriceUSD).truncate(36)
 
     marginPosition.marginDeposit = event.depositWei
@@ -462,11 +464,13 @@ function updateMarginPositionForTrade(
     let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
     let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
 
-    marginPosition.closeHeldPriceUSD = owedAmountWei.div(heldAmountWei).times(owedPriceUSD).truncate(36)
+    marginPosition.closeHeldPrice = owedAmountWei.div(heldAmountWei).truncate(36)
+    marginPosition.closeHeldPriceUSD = (marginPosition.closeHeldPrice as BigDecimal).times(owedPriceUSD).truncate(36)
     marginPosition.closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(heldTokenIndex.supplyIndex)
     marginPosition.closeHeldAmountUSD = (marginPosition.closeHeldAmountWei as BigDecimal).times(heldPriceUSD)
 
-    marginPosition.closeOwedPriceUSD = heldAmountWei.div(owedAmountWei).times(heldPriceUSD).truncate(36)
+    marginPosition.closeOwedPrice = heldAmountWei.div(owedAmountWei).truncate(36)
+    marginPosition.closeOwedPriceUSD = (marginPosition.closeOwedPrice as BigDecimal).times(heldPriceUSD).truncate(36)
     marginPosition.closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedTokenIndex.borrowIndex)
     marginPosition.closeOwedAmountUSD = (marginPosition.closeOwedAmountWei as BigDecimal).times(owedPriceUSD)
   }

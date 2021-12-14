@@ -638,8 +638,10 @@ type MarginPosition @entity {
   initialHeldAmountPar: BigDecimal!
   initialHeldAmountWei: BigDecimal!
   initialHeldAmountUSD: BigDecimal!
+  initialHeldPrice: BigDecimal!
   initialHeldPriceUSD: BigDecimal!
 
+  closeHeldPrice: BigDecimal
   closeHeldPriceUSD: BigDecimal
   closeHeldAmountWei: BigDecimal
   closeHeldAmountUSD: BigDecimal
@@ -651,8 +653,10 @@ type MarginPosition @entity {
   initialOwedAmountPar: BigDecimal!
   initialOwedAmountWei: BigDecimal!
   initialOwedAmountUSD: BigDecimal!
+  initialOwedPrice: BigDecimal!
   initialOwedPriceUSD: BigDecimal!
 
+  closeOwedPrice: BigDecimal
   closeOwedPriceUSD: BigDecimal
   closeOwedAmountWei: BigDecimal
   closeOwedAmountUSD: BigDecimal
