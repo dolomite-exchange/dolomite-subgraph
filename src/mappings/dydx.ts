@@ -48,7 +48,7 @@ import {
   absBD,
   BD_ONE_ETH,
   BI_18,
-  BI_ONE_ETH, bigDecimalAbs,
+  BI_ONE_ETH,
   bigDecimalExp18,
   changeProtocolBalance,
   convertStructToDecimal,

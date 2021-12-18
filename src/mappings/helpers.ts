@@ -127,7 +127,7 @@ export function convertEthToDecimal(eth: BigInt): BigDecimal {
 }
 
 export function convertTokenToDecimal(tokenAmount: BigInt, exchangeDecimals: BigInt): BigDecimal {
-  if (exchangeDecimals == ZERO_BI) {
+  if (exchangeDecimals.equals(ZERO_BI)) {
     return tokenAmount.toBigDecimal()
   } else {
     return tokenAmount.toBigDecimal().div(exponentToBigDecimal(exchangeDecimals))
@@ -136,7 +136,7 @@ export function convertTokenToDecimal(tokenAmount: BigInt, exchangeDecimals: Big
 
 export function convertStructToDecimal(struct: ValueStruct, exchangeDecimals: BigInt): BigDecimal {
   let value = struct.sign ? struct.value : struct.value.neg()
-  if (exchangeDecimals == ZERO_BI) {
+  if (exchangeDecimals.equals(ZERO_BI)) {
     return value.toBigDecimal()
   } else {
     return value.toBigDecimal().div(exponentToBigDecimal(exchangeDecimals))
