@@ -3,6 +3,86 @@
     "anonymous": false,
     "inputs": [
       {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Monetary.Value",
+        "name": "minBorrowedValue",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogSetMinBorrowedValue",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Decimal.D256",
+        "name": "earningsRate",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogSetEarningsRate",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Decimal.D256",
+        "name": "liquidationSpread",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogSetLiquidationSpread",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Decimal.D256",
+        "name": "marginRatio",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogSetMarginRatio",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": false,
         "internalType": "address",
         "name": "owner",

@@ -60,6 +60,8 @@ dataSources:
       eventHandlers:
         - event: LogAddMarket(uint256,address)
           handler: handleMarketAdded
+        - event: LogAddMarket(uint256,address)
+          handler: handleMarketAdded
         - event: LogSetEarningsRate((uint256))
           handler: handleEarningsRateUpdate
         - event: LogSetMarginPremium(uint256,(uint256))

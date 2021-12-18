@@ -13,6 +13,9 @@ import {
   LogSetIsClosing as IsClosingUpdateEvent,
   LogSetMarginPremium as MarginPremiumUpdateEvent,
   LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent,
+  LogSetMarginRatio as MarginRatioUpdateEvent,
+  LogSetLiquidationSpread as LiquidationSpreadUpdateEvent,
+  LogSetMinBorrowedValue as MinBorrowedValueUpdateEvent,
   LogTrade as TradeEvent,
   LogTransfer as TransferEvent,
   LogVaporize as VaporizationEvent,
@@ -45,12 +48,12 @@ import {
   absBD,
   BD_ONE_ETH,
   BI_18,
-  BI_ONE_ETH,
+  BI_ONE_ETH, bigDecimalAbs,
   bigDecimalExp18,
   changeProtocolBalance,
   convertStructToDecimal,
   convertTokenToDecimal,
-  createUserIfNecessary,
+  createUserIfNecessary, ONE_BD,
   ONE_BI,
   parToWei,
   SECONDS_IN_YEAR,
@@ -77,13 +80,28 @@ function isMarginPositionExpired(marginPosition: MarginPosition, event: Position
   return marginPosition.expirationTimestamp !== null && (marginPosition.expirationTimestamp as BigInt).lt(event.timestamp)
 }
 
-function getOrCreateSoloMarginForDyDxCall(event: ethereum.Event): DyDxSoloMargin {
+function getOrCreateSoloMarginForDyDxCall(event: ethereum.Event, isAction: boolean): DyDxSoloMargin {
   let soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS)
   if (soloMargin === null) {
     soloMargin = new DyDxSoloMargin(SOLO_MARGIN_ADDRESS)
 
     soloMargin.supplyLiquidityUSD = ZERO_BD
     soloMargin.borrowLiquidityUSD = ZERO_BD
+
+    soloMargin.numberOfMarkets = 0
+
+    let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+    let riskParams = dydxProtocol.getRiskParams()
+
+    let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
+    let liquidationRewardBD = new BigDecimal(riskParams.liquidationSpread.value)
+    let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
+    let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
+
+    soloMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH).plus(ONE_BD)
+    soloMargin.liquidationReward = liquidationRewardBD.div(BD_ONE_ETH).plus(ONE_BD)
+    soloMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH)
+    soloMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH).div(BD_ONE_ETH)
 
     soloMargin.totalBorrowVolumeUSD = ZERO_BD
     soloMargin.totalLiquidationVolumeUSD = ZERO_BD
@@ -105,8 +123,10 @@ function getOrCreateSoloMarginForDyDxCall(event: ethereum.Event): DyDxSoloMargin
     soloMargin.transactionCount = soloMargin.transactionCount.plus(ONE_BI)
   }
 
-  soloMargin.actionCount = soloMargin.actionCount.plus(ONE_BI)
-  soloMargin.save()
+  if (isAction) {
+    soloMargin.actionCount = soloMargin.actionCount.plus(ONE_BI)
+    soloMargin.save()
+  }
 
   return soloMargin as DyDxSoloMargin
 }
@@ -117,10 +137,9 @@ export function handleMarketAdded(event: AddMarketEvent): void {
     [event.params.marketId.toString(), event.params.token.toHexString(), event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  if (event.address.toHexString() != SOLO_MARGIN_ADDRESS) {
-    log.error('Invalid SoloMargin address, found {} and {}', [event.address.toHexString(), SOLO_MARGIN_ADDRESS])
-    throw new Error()
-  }
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, false)
+  soloMargin.numberOfMarkets = soloMargin.numberOfMarkets + 1
+  soloMargin.save()
 
   let id = event.params.marketId.toString()
 
@@ -157,17 +176,57 @@ export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let dydxProtocol = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
-  let riskLimits = dydxProtocol.getRiskLimits()
-  let numMarkets = dydxProtocol.getNumMarkets()
+  let earningsRateBD = new BigDecimal(event.params.earningsRate.value)
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, false)
+  soloMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH) // it's a ratio where ONE_ETH is 100%
+  soloMargin.save()
 
-  for (let i = 0; i < numMarkets.toI32(); i++) {
+  let numMarkets = soloMargin.numberOfMarkets
+
+  for (let i = 0; i < numMarkets; i++) {
     let interestRate = InterestRate.load(i.toString()) as InterestRate
-    let earningsRate = new BigDecimal(event.params.earningsRate.value)
-    let maxEarningsRate = new BigDecimal(riskLimits.earningsRateMax)
-    interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate).div(maxEarningsRate).truncate(18)
+    interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(soloMargin.earningsRate).truncate(18)
     interestRate.save()
   }
+}
+
+export function handleSetLiquidationReward(event: LiquidationSpreadUpdateEvent): void {
+  log.info(
+    'Handling liquidation ratio change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
+  let liquidationPremiumBD = new BigDecimal(event.params.liquidationSpread.value)
+
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, false)
+  soloMargin.liquidationReward = liquidationPremiumBD.div(BD_ONE_ETH).plus(ONE_BD)
+  soloMargin.save()
+}
+
+export function handleSetLiquidationRatio(event: MarginRatioUpdateEvent): void {
+  log.info(
+    'Handling liquidation ratio change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
+  let liquidationRatioBD = new BigDecimal(event.params.marginRatio.value)
+
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, false)
+  soloMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH).plus(ONE_BD)
+  soloMargin.save()
+}
+
+export function handleSetMinBorrowedValue(event: MinBorrowedValueUpdateEvent): void {
+  log.info(
+    'Handling min borrowed value change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
+  let minBorrowedValueBD = new BigDecimal(event.params.minBorrowedValue.value)
+
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, false)
+  soloMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH).div(BD_ONE_ETH)
+  soloMargin.save()
 }
 
 export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
@@ -503,7 +562,7 @@ export function handleDeposit(event: DepositEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, true)
 
   let depositID = getIDForEvent(event)
   let deposit = Deposit.load(depositID)
@@ -557,7 +616,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, true)
 
   let withdrawalID = getIDForEvent(event)
   let withdrawal = Withdrawal.load(withdrawalID)
@@ -621,7 +680,7 @@ export function handleTransfer(event: TransferEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, true)
 
   let transferID = getIDForEvent(event)
   let transfer = Transfer.load(transferID)
@@ -734,7 +793,7 @@ export function handleBuy(event: BuyEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, true)
 
   let tradeID = getIDForEvent(event)
   let trade = Trade.load(tradeID)
@@ -821,7 +880,7 @@ export function handleSell(event: SellEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, true)
 
   let tradeID = getIDForEvent(event)
   let trade = Trade.load(tradeID)
@@ -925,7 +984,7 @@ export function handleTrade(event: TradeEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, true)
 
   let tradeID = getIDForEvent(event)
   let trade = Trade.load(tradeID)
@@ -1038,7 +1097,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, true)
 
   let liquidationID = getIDForEvent(event)
   let liquidation = Liquidation.load(liquidationID)
@@ -1195,7 +1254,7 @@ export function handleVaporize(event: VaporizationEvent): void {
   let solidOwedNewParStruct = new ValueStruct(event.params.solidOwedUpdate.newPar)
   let solidOwedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
 
-  let soloMargin = getOrCreateSoloMarginForDyDxCall(event)
+  let soloMargin = getOrCreateSoloMarginForDyDxCall(event, true)
 
   let vaporizationID = getIDForEvent(event)
   let vaporization = Vaporization.load(vaporizationID)

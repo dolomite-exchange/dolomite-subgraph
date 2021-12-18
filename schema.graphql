@@ -23,6 +23,14 @@ type DyDxSoloMargin @entity {
   # contract address
   id: ID!
 
+  numberOfMarkets: Int!
+
+  # risk params
+  liquidationRatio: BigDecimal!
+  liquidationReward: BigDecimal!
+  earningsRate: BigDecimal!
+  minBorrowedValue: BigDecimal!
+
   # current liquidity across all markets
   supplyLiquidityUSD: BigDecimal!
   borrowLiquidityUSD: BigDecimal!
