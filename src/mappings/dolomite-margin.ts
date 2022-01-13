@@ -166,8 +166,8 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   index.save()
 
   let interestRate = new InterestRate(id)
-  interestRate.borrowInterestRate = BigDecimal.fromString('0')
-  interestRate.supplyInterestRate = BigDecimal.fromString('0')
+  interestRate.borrowInterestRate = ZERO_BD
+  interestRate.supplyInterestRate = ZERO_BD
   interestRate.token = token.id
   interestRate.save()
 
@@ -205,8 +205,8 @@ export function handleMarketRemoved(event: RemoveMarketEvent): void {
   index.save()
 
   let interestRate = new InterestRate(id)
-  interestRate.borrowInterestRate = BigDecimal.fromString('0')
-  interestRate.supplyInterestRate = BigDecimal.fromString('0')
+  interestRate.borrowInterestRate = ZERO_BD
+  interestRate.supplyInterestRate = ZERO_BD
   interestRate.token = token.id
   interestRate.save()
 
@@ -285,7 +285,7 @@ export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
   if (marketInfo === null) {
     marketInfo = new MarketRiskInfo(event.params.marketId.toString())
     marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId).toHexString()
-    marketInfo.liquidationRewardPremium = BigDecimal.fromString('0')
+    marketInfo.liquidationRewardPremium = ZERO_BD
     marketInfo.isBorrowingDisabled = false
   }
   let marginPremium = new BigDecimal(event.params.marginPremium.value)
@@ -304,7 +304,7 @@ export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpda
   if (marketInfo === null) {
     marketInfo = new MarketRiskInfo(event.params.marketId.toString())
     marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId).toHexString()
-    marketInfo.marginPremium = BigDecimal.fromString('0')
+    marketInfo.marginPremium = ZERO_BD
     marketInfo.isBorrowingDisabled = false
   }
   let spreadPremium = new BigDecimal(event.params.spreadPremium.value)
@@ -323,8 +323,8 @@ export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
   if (marketInfo === null) {
     marketInfo = new MarketRiskInfo(event.params.marketId.toString())
     marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId).toHexString()
-    marketInfo.marginPremium = BigDecimal.fromString('0')
-    marketInfo.liquidationRewardPremium = BigDecimal.fromString('0')
+    marketInfo.marginPremium = ZERO_BD
+    marketInfo.liquidationRewardPremium = ZERO_BD
     marketInfo.isBorrowingDisabled = false
   }
   marketInfo.isBorrowingDisabled = event.params.isClosing
