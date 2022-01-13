@@ -17,19 +17,13 @@ dataSources:
       language: wasm/assemblyscript
       file: ./src/mappings/factory.ts
       entities:
+        - AmmFactory
         - AmmPair
         - Token
+        - Transaction
       abis:
         - name: DolomiteAmmFactory
           file: ./abis/dolomite-amm-factory.json
-        - name: ERC20
-          file: ./abis/erc20.json
-        - name: ERC20SymbolBytes
-          file: ./abis/erc20-symbol-bytes.json
-        - name: ERC20NameBytes
-          file: ./abis/erc20-name-bytes.json
-        - name: DolomiteMargin
-          file: ./abis/dolomite-margin.json
       eventHandlers:
         - event: PairCreated(indexed address,indexed address,address,uint256)
           handler: handleNewPair
@@ -46,17 +40,12 @@ dataSources:
       language: wasm/assemblyscript
       file: ./src/mappings/dolomite-margin.ts
       entities:
-        - AmmPair
+        - MarginPosition
         - Token
+        - Transaction
       abis:
         - name: DolomiteMargin
           file: ./abis/dolomite-margin.json
-        - name: ERC20
-          file: ./abis/erc20.json
-        - name: ERC20SymbolBytes
-          file: ./abis/erc20-symbol-bytes.json
-        - name: ERC20NameBytes
-          file: ./abis/erc20-name-bytes.json
       eventHandlers:
         - event: LogAddMarket(uint256,address)
           handler: handleMarketAdded
@@ -103,8 +92,8 @@ dataSources:
       language: wasm/assemblyscript
       file: ./src/mappings/dolomite-margin.ts
       entities:
-        - AmmPair
-        - Token
+        - MarginPosition
+        - Transaction
       abis:
         - name: DolomiteAmmRouterProxy
           file: ./abis/dolomite-amm-router-proxy.json
@@ -126,8 +115,8 @@ dataSources:
       language: wasm/assemblyscript
       file: ./src/mappings/dolomite-margin.ts
       entities:
-        - AmmPair
-        - Token
+        - MarginPosition
+        - Transaction
       abis:
         - name: DolomiteMarginExpiry
           file: ./abis/dolomite-margin-expiry.json
@@ -148,6 +137,7 @@ templates:
       entities:
         - AmmPair
         - Token
+        - Transaction
       abis:
         - name: AmmPair
           file: ./abis/amm-pair.json

@@ -373,7 +373,7 @@ function getOrCreateTokenValue(
   return tokenValue as MarginAccountTokenValue
 }
 
-function handleDyDxBalanceUpdateForAccount(balanceUpdate: BalanceUpdate, block: ethereum.Block): MarginAccount {
+function handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate: BalanceUpdate, block: ethereum.Block): MarginAccount {
   let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, block)
 
   let tokenValue = getOrCreateTokenValue(marginAccount, balanceUpdate.token)
@@ -440,7 +440,7 @@ function getOrCreateMarginPosition(event: ethereum.Event, account: MarginAccount
 function updateMarginPositionForTrade(
   marginPosition: MarginPosition,
   event: PositionChangeEvent,
-  dydxProtocol: DolomiteMarginProtocol,
+  dolomiteMarginProtocol: DolomiteMarginProtocol,
   inputTokenNewPar: ValueStruct,
   outputTokenNewPar: ValueStruct,
   inputTokenIndex: InterestIndex,
@@ -560,7 +560,7 @@ export function handleDeposit(event: DepositEvent): void {
     event.params.update.newPar.sign,
     token
   )
-  let marginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdate, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event.block)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -614,7 +614,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
     event.params.update.newPar.sign,
     token
   )
-  let marginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdate, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event.block)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -669,7 +669,7 @@ export function handleTransfer(event: TransferEvent): void {
     event.params.updateOne.newPar.sign,
     token
   )
-  let marginAccount1 = handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  let marginAccount1 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountTwoOwner,
@@ -678,7 +678,7 @@ export function handleTransfer(event: TransferEvent): void {
     event.params.updateTwo.newPar.sign,
     token
   )
-  let marginAccount2 = handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let marginAccount2 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -782,7 +782,7 @@ export function handleBuy(event: BuyEvent): void {
     makerToken
   )
   // Don't do a variable assignment here since it's overwritten below
-  handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountOwner,
@@ -791,7 +791,7 @@ export function handleBuy(event: BuyEvent): void {
     event.params.takerUpdate.newPar.sign,
     takerToken
   )
-  let marginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -869,7 +869,7 @@ export function handleSell(event: SellEvent): void {
     makerToken
   )
   // Don't do a variable assignment here since it's overwritten below
-  handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountOwner,
@@ -878,7 +878,7 @@ export function handleSell(event: SellEvent): void {
     event.params.takerUpdate.newPar.sign,
     takerToken
   )
-  let marginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -955,7 +955,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.makerInputUpdate.newPar.sign,
     takerToken
   )
-  handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.makerAccountOwner,
@@ -964,7 +964,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.makerOutputUpdate.newPar.sign,
     makerToken
   )
-  let makerMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let makerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.takerAccountOwner,
@@ -973,7 +973,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerInputUpdate.newPar.sign,
     takerToken
   )
-  handleDyDxBalanceUpdateForAccount(balanceUpdateThree, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event.block)
 
   let balanceUpdateFour = new BalanceUpdate(
     event.params.takerAccountOwner,
@@ -982,7 +982,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerOutputUpdate.newPar.sign,
     makerToken
   )
-  let takerMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateFour, event.block)
+  let takerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event.block)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -1068,7 +1068,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.liquidHeldUpdate.newPar.sign,
     heldToken
   )
-  handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.liquidAccountOwner,
@@ -1077,7 +1077,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.liquidOwedUpdate.newPar.sign,
     owedToken
   )
-  let liquidMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let liquidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.solidAccountOwner,
@@ -1086,7 +1086,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.solidHeldUpdate.newPar.sign,
     heldToken
   )
-  handleDyDxBalanceUpdateForAccount(balanceUpdateThree, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event.block)
 
   let balanceUpdateFour = new BalanceUpdate(
     event.params.solidAccountOwner,
@@ -1095,7 +1095,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.solidOwedUpdate.newPar.sign,
     owedToken
   )
-  let solidMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateFour, event.block)
+  let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event.block)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -1225,7 +1225,7 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.vaporOwedUpdate.newPar.sign,
     owedToken
   )
-  let vaporMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  let vaporMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.solidAccountOwner,
@@ -1234,7 +1234,7 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.solidHeldUpdate.newPar.sign,
     heldToken
   )
-  handleDyDxBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.solidAccountOwner,
@@ -1243,7 +1243,7 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.solidOwedUpdate.newPar.sign,
     owedToken
   )
-  let solidMarginAccount = handleDyDxBalanceUpdateForAccount(balanceUpdateThree, event.block)
+  let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event.block)
 
   let transaction = getOrCreateTransaction(event)
 

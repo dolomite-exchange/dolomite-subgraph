@@ -61,7 +61,7 @@ type Token @entity {
   name: String!
   decimals: BigInt!
 
-  # Taken from dYdX
+  # Taken from DolomiteMargin
   marketId: BigInt!
 
   # used for other stats like marketcap
@@ -282,7 +282,7 @@ type Bundle @entity {
 
 type OraclePrice @entity {
   id: ID! # marketID
-  price: BigDecimal! # oracle price of ETH/USD. Updated every dYdX call
+  price: BigDecimal! # oracle price of ETH/USD. Updated every DolomiteMargin call
 }
 
 type TokenHourData @entity {
