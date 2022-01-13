@@ -13,9 +13,7 @@ import {
 } from './helpers'
 import {
   FACTORY_ADDRESS,
-  DOLOMITE_MARGIN_ADDRESS,
 } from './generated/constants'
-import { DolomiteMargin as DolomiteMarginProtocol } from '../types/DolomiteMargin/DolomiteMargin'
 
 export function initializeToken(token: Token, marketId: BigInt): void {
   let tokenAddress = Address.fromString(token.id)
