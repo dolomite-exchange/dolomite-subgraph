@@ -91,19 +91,10 @@ export function fetchTokenSymbol(tokenAddress: Address): string {
 
   let contract = DolomiteMarginERC20.bind(tokenAddress)
 
-  // try types string and bytes32 for symbol
   let symbolValue = 'unknown'
   let symbolResult = contract.try_symbol()
-  if (symbolResult.reverted) {
-    let symbolResultBytes = contract.try_symbol()
-    if (!symbolResultBytes.reverted) {
-      // for broken pairs that have no symbol function exposed
-      if (!isNullEthValue(symbolResultBytes.value.toHexString())) {
-        symbolValue = symbolResultBytes.value.toString()
-      }
-    }
-  } else {
-    symbolValue = symbolResult.value.toString()
+  if (!symbolResult.reverted) {
+    symbolValue = symbolResult.value
   }
 
   return symbolValue
@@ -120,19 +111,10 @@ export function fetchTokenName(tokenAddress: Address): string {
 
   let contract = DolomiteMarginERC20.bind(tokenAddress)
 
-  // try types string and bytes32 for name
   let nameValue = 'unknown'
   let nameResult = contract.try_name()
-  if (nameResult.reverted) {
-    let nameResultBytes = contract.try_name()
-    if (!nameResultBytes.reverted) {
-      // for broken exchanges that have no name function exposed
-      if (!isNullEthValue(nameResultBytes.value.toHexString())) {
-        nameValue = nameResultBytes.value.toString()
-      }
-    }
-  } else {
-    nameValue = nameResult.value.toString()
+  if (!nameResult.reverted) {
+    nameValue = nameResult.value
   }
 
   return nameValue
