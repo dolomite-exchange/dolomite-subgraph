@@ -22,16 +22,18 @@ import {
   getTrackedLiquidityUSD,
 } from './pricing'
 import {
-  ADDRESS_ZERO,
   BI_18,
   convertTokenToDecimal,
   createLiquidityPosition,
   createLiquiditySnapshot,
   createUserIfNecessary,
-  FACTORY_ADDRESS,
   ONE_BI,
-  ZERO_BD
+  ZERO_BD,
 } from './helpers'
+import {
+  ADDRESS_ZERO,
+  FACTORY_ADDRESS,
+} from './generated/constants'
 
 function isCompleteMint(mintId: string): boolean {
   return (AmmMint.load(mintId) as AmmMint).sender !== null // sufficient checks

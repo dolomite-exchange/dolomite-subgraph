@@ -1,11 +1,12 @@
 import { AmmPair, AmmPairReverseLookup, Bundle, OraclePrice, Token, Trade } from '../types/schema'
 import { BigDecimal, BigInt } from '@graphprotocol/graph-ts'
-import { DAI_WETH_PAIR, ONE_BD, USDC_WETH_PAIR, USDT_WETH_PAIR, WETH_ADDRESS, WHITELIST, ZERO_BD } from './helpers'
+import { ONE_BD, ZERO_BD } from './helpers'
+import { DAI_WETH_PAIR, USDT_WETH_PAIR, WETH_ADDRESS, WETH_USDC_ADDRESS, WHITELIST } from './generated/constants'
 
 export function getEthPriceInUSD(): BigDecimal {
   // fetch eth prices for each stablecoin
   let daiPair = AmmPair.load(DAI_WETH_PAIR) // dai is token0
-  let usdcPair = AmmPair.load(USDC_WETH_PAIR) // usdc is token0
+  let usdcPair = AmmPair.load(WETH_USDC_ADDRESS) // usdc is token0
   let usdtPair = AmmPair.load(USDT_WETH_PAIR) // usdt is token1
 
   let wethAddress = WETH_ADDRESS

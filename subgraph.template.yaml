@@ -24,11 +24,13 @@ dataSources:
       abis:
         - name: DolomiteAmmFactory
           file: ./abis/dolomite-amm-factory.json
+        - name: FactoryERC20
+          file: ./abis/erc20.json
       eventHandlers:
         - event: PairCreated(indexed address,indexed address,address,uint256)
           handler: handleNewPair
   - kind: ethereum/contract
-    name: MarginTrade
+    name: DolomiteMargin
     network: {{network}}
     source:
       address: '{{dolomiteMarginAddress}}'
@@ -46,11 +48,13 @@ dataSources:
       abis:
         - name: DolomiteMargin
           file: ./abis/dolomite-margin.json
+        - name: DolomiteMarginERC20
+          file: ./abis/erc20.json
       eventHandlers:
         - event: LogAddMarket(uint256,address)
           handler: handleMarketAdded
-        - event: LogAddMarket(uint256,address)
-          handler: handleMarketAdded
+        - event: LogRemoveMarket(uint256,address)
+          handler: handleMarketRemoved
         - event: LogSetEarningsRate((uint256))
           handler: handleEarningsRateUpdate
         - event: LogSetMarginPremium(uint256,(uint256))
@@ -103,7 +107,7 @@ dataSources:
         - event: MarginPositionClose(indexed address,indexed uint256,address,address,address,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
           handler: handleMarginPositionClose
   - kind: ethereum/contract
-    name: MarginTradeExpiry
+    name: DolomiteMarginExpiry
     network: {{network}}
     source:
       address: '{{expiryAddress}}'

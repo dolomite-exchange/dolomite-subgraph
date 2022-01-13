@@ -2,6 +2,7 @@
 import {
   DolomiteMargin as DolomiteMarginProtocol,
   LogAddMarket as AddMarketEvent,
+  LogRemoveMarket as RemoveMarketEvent,
   LogBuy as BuyEvent,
   LogDeposit as DepositEvent,
   LogIndexUpdate as IndexUpdateEvent,
@@ -19,10 +20,10 @@ import {
   LogTransfer as TransferEvent,
   LogVaporize as VaporizationEvent,
   LogWithdraw as WithdrawEvent
-} from '../types/MarginTrade/DolomiteMargin'
+} from '../types/DolomiteMargin/DolomiteMargin'
 import {
   ExpirySet as ExpirySetEvent
-} from '../types/MarginTradeExpiry/DolomiteMarginExpiry'
+} from '../types/DolomiteMarginExpiry/DolomiteMarginExpiry'
 import {
   MarginPositionClose as MarginPositionCloseEvent,
   MarginPositionOpen as MarginPositionOpenEvent
@@ -59,11 +60,13 @@ import {
   ONE_BI,
   parToWei,
   SECONDS_IN_YEAR,
-  DOLOMITE_MARGIN_ADDRESS,
   ZERO_BD,
   ZERO_BI,
   ZERO_BYTES
 } from './helpers'
+import {
+  DOLOMITE_MARGIN_ADDRESS
+} from './generated/constants'
 import { getOrCreateTransaction } from './core'
 import { BalanceUpdate, MarginPositionStatus, PositionChangeEvent, ValueStruct } from './dolomite-margin-types'
 import { Address, BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts'
@@ -136,6 +139,46 @@ function getOrCreateDolomiteMarginForCall(event: ethereum.Event, isAction: boole
 export function handleMarketAdded(event: AddMarketEvent): void {
   log.info(
     'Adding market[{}] for token {} for hash and index: {}-{}',
+    [event.params.marketId.toString(), event.params.token.toHexString(), event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
+  let dolomiteMarginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false)
+  dolomiteMargin.numberOfMarkets = dolomiteMarginProtocol.getNumMarkets().toI32()
+  dolomiteMargin.save()
+
+  let id = event.params.marketId.toString()
+
+  let tokenAddress = event.params.token.toHexString()
+  let token = Token.load(tokenAddress)
+  if (token === null) {
+    log.info('Adding new token to store {}', [event.params.token.toHexString()])
+    token = new Token(tokenAddress)
+    initializeToken(token as Token, event.params.marketId)
+    token.save()
+  }
+
+  let index = new InterestIndex(id)
+  index.borrowIndex = BigDecimal.fromString('1.0')
+  index.supplyIndex = BigDecimal.fromString('1.0')
+  index.lastUpdate = event.block.timestamp
+  index.token = token.id
+  index.save()
+
+  let interestRate = new InterestRate(id)
+  interestRate.borrowInterestRate = BigDecimal.fromString('0')
+  interestRate.supplyInterestRate = BigDecimal.fromString('0')
+  interestRate.token = token.id
+  interestRate.save()
+
+  let oraclePrice = new OraclePrice(id)
+  oraclePrice.price = ZERO_BD
+  oraclePrice.save()
+}
+
+export function handleMarketRemoved(event: RemoveMarketEvent): void {
+  log.info(
+    'Removing market[{}] for token {} for hash and index: {}-{}',
     [event.params.marketId.toString(), event.params.token.toHexString(), event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 

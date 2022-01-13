@@ -4,16 +4,18 @@ import { AmmFactory, AmmPair, Token, Bundle, AmmPairReverseLookup, TokenMarketId
 import { PairCreated } from '../types/DolomiteAmmFactory/DolomiteAmmFactory'
 import { AmmPair as PairTemplate } from '../types/templates'
 import {
-  FACTORY_ADDRESS,
   ZERO_BD,
   ZERO_BI,
   fetchTokenSymbol,
   fetchTokenName,
   fetchTokenDecimals,
   fetchTokenTotalSupply,
-  DOLOMITE_MARGIN_ADDRESS
 } from './helpers'
-import { DolomiteMargin as DolomiteMarginProtocol } from '../types/MarginTrade/DolomiteMargin'
+import {
+  FACTORY_ADDRESS,
+  DOLOMITE_MARGIN_ADDRESS,
+} from './generated/constants'
+import { DolomiteMargin as DolomiteMarginProtocol } from '../types/DolomiteMargin/DolomiteMargin'
 
 export function initializeToken(token: Token, marketId: BigInt): void {
   let tokenAddress = Address.fromString(token.id)
@@ -73,24 +75,8 @@ export function handleNewPair(event: PairCreated): void {
   factory.save()
 
   // create the tokens
-  let token0 = Token.load(event.params.token0.toHexString())
-  let token1 = Token.load(event.params.token1.toHexString())
-
-  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-
-  // fetch info if null
-  if (token0 === null) {
-    let tokenAddress = event.params.token0.toHexString()
-    token0 = new Token(tokenAddress)
-    initializeToken(token0 as Token, marginProtocol.getMarketIdByTokenAddress(Address.fromString(tokenAddress)))
-  }
-
-  // fetch info if null
-  if (token1 === null) {
-    let tokenAddress = event.params.token1.toHexString()
-    token1 = new Token(tokenAddress)
-    initializeToken(token1 as Token, marginProtocol.getMarketIdByTokenAddress(Address.fromString(tokenAddress)))
-  }
+  let token0 = Token.load(event.params.token0.toHexString()) as Token
+  let token1 = Token.load(event.params.token1.toHexString()) as Token
 
   let pair = new AmmPair(event.params.pair.toHexString())
   pair.token0 = token0.id

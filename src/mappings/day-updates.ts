@@ -13,7 +13,8 @@ import {
   Vaporization
 } from '../types/schema'
 import { BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
-import { FACTORY_ADDRESS, ONE_BI, DOLOMITE_MARGIN_ADDRESS, WETH_ADDRESS, ZERO_BD, ZERO_BI } from './helpers'
+import { ONE_BI, ZERO_BD, ZERO_BI } from './helpers'
+import { DOLOMITE_MARGIN_ADDRESS, FACTORY_ADDRESS, WETH_ADDRESS } from './generated/constants'
 import { getTokenOraclePriceUSD } from './pricing'
 
 function getDayId(timestamp: BigInt): string {
