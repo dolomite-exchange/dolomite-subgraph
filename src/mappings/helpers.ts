@@ -1,5 +1,5 @@
 /* eslint-disable prefer-const */
-import { Address, BigDecimal, BigInt, Bytes, ethereum } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, Bytes, ethereum, log } from '@graphprotocol/graph-ts'
 import { DolomiteMarginERC20 } from '../types/DolomiteMargin/DolomiteMarginERC20'
 import {
   AmmLiquidityPosition,
@@ -8,7 +8,7 @@ import {
   Bundle,
   DolomiteMargin,
   InterestIndex,
-  Token,
+  Token, TokenMarketIdReverseMap,
   User
 } from '../types/schema'
 import { ValueStruct } from './dolomite-margin-types'
@@ -164,6 +164,36 @@ export function fetchTokenDecimals(tokenAddress: Address): BigInt {
   } else {
     return BigInt.fromI32(0)
   }
+}
+
+export function initializeToken(token: Token, marketId: BigInt): void {
+  let tokenAddress = Address.fromString(token.id)
+  token.symbol = fetchTokenSymbol(tokenAddress)
+  token.name = fetchTokenName(tokenAddress)
+  token.totalSupply = fetchTokenTotalSupply(tokenAddress)
+  let decimals = fetchTokenDecimals(tokenAddress)
+  // bail if we couldn't figure out the decimals
+  if (decimals === null) {
+    log.debug('the decimal on token was null', [])
+    return
+  }
+
+  token.decimals = decimals
+  token.marketId = marketId
+  token.derivedETH = ZERO_BD
+  token.tradeVolume = ZERO_BD
+  token.tradeVolumeUSD = ZERO_BD
+  token.untrackedVolumeUSD = ZERO_BD
+  token.ammSwapLiquidity = ZERO_BD
+  token.borrowLiquidity = ZERO_BD
+  token.borrowLiquidityUSD = ZERO_BD
+  token.supplyLiquidity = ZERO_BD
+  token.supplyLiquidityUSD = ZERO_BD
+  token.transactionCount = ZERO_BI
+
+  let reverseMap = new TokenMarketIdReverseMap(marketId.toString())
+  reverseMap.tokenAddress = token.id
+  reverseMap.save()
 }
 
 export function createLiquidityPosition(exchange: Address, user: Address): AmmLiquidityPosition {

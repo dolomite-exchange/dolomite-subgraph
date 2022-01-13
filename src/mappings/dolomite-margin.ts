@@ -78,7 +78,7 @@ import {
   updateTimeDataForTrade,
   updateTimeDataForVaporization
 } from './day-updates'
-import { initializeToken } from './factory'
+import { initializeToken } from './helpers'
 import { getTokenOraclePriceUSD } from './pricing'
 
 function isMarginPositionExpired(marginPosition: MarginPosition, event: PositionChangeEvent): boolean {

@@ -1,49 +1,15 @@
 /* eslint-disable prefer-const */
-import { log, Address, BigInt } from '@graphprotocol/graph-ts'
-import { AmmFactory, AmmPair, Token, Bundle, AmmPairReverseLookup, TokenMarketIdReverseMap } from '../types/schema'
+import { log } from '@graphprotocol/graph-ts'
+import { AmmFactory, AmmPair, Token, Bundle, AmmPairReverseLookup } from '../types/schema'
 import { PairCreated } from '../types/DolomiteAmmFactory/DolomiteAmmFactory'
 import { AmmPair as PairTemplate } from '../types/templates'
 import {
   ZERO_BD,
   ZERO_BI,
-  fetchTokenSymbol,
-  fetchTokenName,
-  fetchTokenDecimals,
-  fetchTokenTotalSupply,
 } from './helpers'
 import {
   FACTORY_ADDRESS,
 } from './generated/constants'
-
-export function initializeToken(token: Token, marketId: BigInt): void {
-  let tokenAddress = Address.fromString(token.id)
-  token.symbol = fetchTokenSymbol(tokenAddress)
-  token.name = fetchTokenName(tokenAddress)
-  token.totalSupply = fetchTokenTotalSupply(tokenAddress)
-  let decimals = fetchTokenDecimals(tokenAddress)
-  // bail if we couldn't figure out the decimals
-  if (decimals === null) {
-    log.debug('the decimal on token was null', [])
-    return
-  }
-
-  token.decimals = decimals
-  token.marketId = marketId
-  token.derivedETH = ZERO_BD
-  token.tradeVolume = ZERO_BD
-  token.tradeVolumeUSD = ZERO_BD
-  token.untrackedVolumeUSD = ZERO_BD
-  token.ammSwapLiquidity = ZERO_BD
-  token.borrowLiquidity = ZERO_BD
-  token.borrowLiquidityUSD = ZERO_BD
-  token.supplyLiquidity = ZERO_BD
-  token.supplyLiquidityUSD = ZERO_BD
-  token.transactionCount = ZERO_BI
-
-  let reverseMap = new TokenMarketIdReverseMap(marketId.toString())
-  reverseMap.tokenAddress = token.id
-  reverseMap.save()
-}
 
 export function handleNewPair(event: PairCreated): void {
   let factoryAddress = FACTORY_ADDRESS
