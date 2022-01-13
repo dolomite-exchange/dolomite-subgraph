@@ -14,7 +14,7 @@ import {
   updatePairHourData,
   updateTokenDayDataForAmmEvent,
   updateTokenHourDataForAmmEvent
-} from './dayUpdates'
+} from './day-updates'
 import {
   findEthPerToken,
   getEthPriceInUSD,
@@ -276,8 +276,8 @@ export function handleMint(event: MintEvent): void {
   let token1 = Token.load(pair.token1) as Token
 
   // update exchange info (except balances, sync will cover that)
-  let token0Amount = convertTokenToDecimal(event.params.amount0, token0.decimals)
-  let token1Amount = convertTokenToDecimal(event.params.amount1, token1.decimals)
+  let token0Amount = convertTokenToDecimal(event.params.amount0Wei, token0.decimals)
+  let token1Amount = convertTokenToDecimal(event.params.amount1Wei, token1.decimals)
 
   // update txn counts
   token0.transactionCount = token0.transactionCount.plus(ONE_BI)
@@ -335,8 +335,8 @@ export function handleBurn(event: BurnEvent): void {
   //update token info
   let token0 = Token.load(ammPair.token0) as Token
   let token1 = Token.load(ammPair.token1) as Token
-  let token0Amount = convertTokenToDecimal(event.params.amount0, token0.decimals)
-  let token1Amount = convertTokenToDecimal(event.params.amount1, token1.decimals)
+  let token0Amount = convertTokenToDecimal(event.params.amount0Wei, token0.decimals)
+  let token1Amount = convertTokenToDecimal(event.params.amount1Wei, token1.decimals)
 
   // update txn counts
   token0.transactionCount = token0.transactionCount.plus(ONE_BI)

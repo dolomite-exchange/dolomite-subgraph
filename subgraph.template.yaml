@@ -5,11 +5,11 @@ schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum/contract
-    name: UniswapV2Factory
+    name: DolomiteAmmFactory
     network: {{network}}
     source:
-      address: '{{uniswapV2FactoryAddress}}'
-      abi: UniswapV2Factory
+      address: '{{dolomiteAmmFactoryAddress}}'
+      abi: DolomiteAmmFactory
       startBlock: {{startBlock}}
     mapping:
       kind: ethereum/events
@@ -20,16 +20,16 @@ dataSources:
         - AmmPair
         - Token
       abis:
-        - name: UniswapV2Factory
-          file: ./abis/uniswap-v2-factory.json
+        - name: DolomiteAmmFactory
+          file: ./abis/dolomite-amm-factory.json
         - name: ERC20
           file: ./abis/erc20.json
         - name: ERC20SymbolBytes
           file: ./abis/erc20-symbol-bytes.json
         - name: ERC20NameBytes
           file: ./abis/erc20-name-bytes.json
-        - name: DyDx
-          file: ./abis/dydx.json
+        - name: DolomiteMargin
+          file: ./abis/dolomite-margin.json
       eventHandlers:
         - event: PairCreated(indexed address,indexed address,address,uint256)
           handler: handleNewPair
@@ -37,20 +37,20 @@ dataSources:
     name: MarginTrade
     network: {{network}}
     source:
-      address: '{{dyDxAddress}}'
-      abi: DyDx
+      address: '{{dolomiteMarginAddress}}'
+      abi: DolomiteMargin
       startBlock: {{startBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
       language: wasm/assemblyscript
-      file: ./src/mappings/dydx.ts
+      file: ./src/mappings/dolomite-margin.ts
       entities:
         - AmmPair
         - Token
       abis:
-        - name: DyDx
-          file: ./abis/dydx.json
+        - name: DolomiteMargin
+          file: ./abis/dolomite-margin.json
         - name: ERC20
           file: ./abis/erc20.json
         - name: ERC20SymbolBytes
@@ -94,14 +94,14 @@ dataSources:
     name: DolomiteAmmRouter
     network: {{network}}
     source:
-      address: '{{dolomiteMarginProxyAddress}}'
+      address: '{{dolomiteAmmRouterProxyAddress}}'
       abi: DolomiteAmmRouterProxy
       startBlock: {{startBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
       language: wasm/assemblyscript
-      file: ./src/mappings/dydx.ts
+      file: ./src/mappings/dolomite-margin.ts
       entities:
         - AmmPair
         - Token
@@ -114,29 +114,23 @@ dataSources:
         - event: MarginPositionClose(indexed address,indexed uint256,address,address,address,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
           handler: handleMarginPositionClose
   - kind: ethereum/contract
-    name: MarginTradeExpiryV2
+    name: MarginTradeExpiry
     network: {{network}}
     source:
       address: '{{expiryAddress}}'
-      abi: DyDx
+      abi: DolomiteMarginExpiry
       startBlock: {{startBlock}}
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
       language: wasm/assemblyscript
-      file: ./src/mappings/dydx.ts
+      file: ./src/mappings/dolomite-margin.ts
       entities:
         - AmmPair
         - Token
       abis:
-        - name: DyDx
-          file: ./abis/dydx.json
-        - name: ERC20
-          file: ./abis/erc20.json
-        - name: ERC20SymbolBytes
-          file: ./abis/erc20-symbol-bytes.json
-        - name: ERC20NameBytes
-          file: ./abis/erc20-name-bytes.json
+        - name: DolomiteMarginExpiry
+          file: ./abis/dolomite-margin-expiry.json
       eventHandlers:
         - event: ExpirySet(address,uint256,uint256,uint32)
           handler: handleSetExpiry
@@ -157,8 +151,6 @@ templates:
       abis:
         - name: AmmPair
           file: ./abis/amm-pair.json
-        - name: UniswapV2Factory
-          file: ./abis/uniswap-v2-factory.json
       eventHandlers:
         - event: Mint(indexed address,uint256,uint256)
           handler: handleMint

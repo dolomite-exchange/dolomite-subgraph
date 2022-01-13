@@ -1,24 +1,24 @@
 /* eslint-disable prefer-const */
 import { Address, BigDecimal, BigInt, Bytes, dataSource, ethereum } from '@graphprotocol/graph-ts'
-import { ERC20 } from '../types/UniswapV2Factory/ERC20'
-import { ERC20SymbolBytes } from '../types/UniswapV2Factory/ERC20SymbolBytes'
-import { ERC20NameBytes } from '../types/UniswapV2Factory/ERC20NameBytes'
+import { ERC20 } from '../types/DolomiteAmmFactory/ERC20'
+import { ERC20SymbolBytes } from '../types/DolomiteAmmFactory/ERC20SymbolBytes'
+import { ERC20NameBytes } from '../types/DolomiteAmmFactory/ERC20NameBytes'
 import {
   AmmLiquidityPosition,
   AmmLiquidityPositionSnapshot,
   AmmPair,
   Bundle,
-  DyDxSoloMargin,
+  DolomiteMargin,
   InterestIndex,
   Token,
   User
 } from '../types/schema'
-import { ValueStruct } from './dydx_types'
+import { ValueStruct } from './dolomite-margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
 import {
-  DyDx as DyDxProtocol,
-  DyDx__getMarketTotalParResultValue0Struct as DyDxMarketTotalParStruct
-} from '../types/MarginTrade/DyDx'
+  DolomiteMargin as DolomiteMarginProtocol,
+  DolomiteMargin__getMarketTotalParResultValue0Struct as DolomiteMarginMarketTotalParStruct
+} from '../types/MarginTrade/DolomiteMargin'
 import { TypedMap } from '@graphprotocol/graph-ts'
 
 const MAINNET_NETWORK = 'mainnet'
@@ -32,9 +32,9 @@ const FACTORY_ADDRESSES: TypedMap<string, string> = new TypedMap<string, string>
 FACTORY_ADDRESSES.set(MUMBAI_NETWORK, '0xaE3a05f33E2f358eB98c24F59f0E13f92D869160'.toLowerCase())
 export const FACTORY_ADDRESS = FACTORY_ADDRESSES.get(NETWORK) as string
 
-const SOLO_MARGIN_ADDRESSES: TypedMap<string, string> = new TypedMap<string, string>()
-SOLO_MARGIN_ADDRESSES.set(MUMBAI_NETWORK, '0x2099Ec20e4CDE118ceCa32D0357F3a7713514960'.toLowerCase())
-export const SOLO_MARGIN_ADDRESS = SOLO_MARGIN_ADDRESSES.get(NETWORK) as string
+const DOLOMITE_MARGIN_ADDRESSES: TypedMap<string, string> = new TypedMap<string, string>()
+DOLOMITE_MARGIN_ADDRESSES.set(MUMBAI_NETWORK, '0x2099Ec20e4CDE118ceCa32D0357F3a7713514960'.toLowerCase())
+export const DOLOMITE_MARGIN_ADDRESS = DOLOMITE_MARGIN_ADDRESSES.get(NETWORK) as string
 
 const DAI_ADDRESSES: TypedMap<string, string> = new TypedMap<string, string>()
 DAI_ADDRESSES.set(MAINNET_NETWORK, '0x6b175474e89094c44da98b954eedeac495271d0f'.toLowerCase())
@@ -345,7 +345,7 @@ function isRepaymentOfBorrowAmount(
 }
 
 function getMarketTotalBorrowWei(
-  value: DyDxMarketTotalParStruct,
+  value: DolomiteMarginMarketTotalParStruct,
   token: Token,
   index: InterestIndex
 ): BigDecimal {
@@ -354,7 +354,7 @@ function getMarketTotalBorrowWei(
 }
 
 function getMarketTotalSupplyWei(
-  value: DyDxMarketTotalParStruct,
+  value: DolomiteMarginMarketTotalParStruct,
   token: Token,
   index: InterestIndex
 ): BigDecimal {
@@ -368,8 +368,8 @@ export function changeProtocolBalance(
   deltaWeiStruct: ValueStruct,
   index: InterestIndex,
   isVirtualTransfer: boolean,
-  soloMargin: DyDxSoloMargin,
-  protocol: DyDxProtocol
+  dolomiteMargin: DolomiteMargin,
+  protocol: DolomiteMarginProtocol
 ): void {
   let tokenPriceUSD = getTokenOraclePriceUSD(token)
 
@@ -389,50 +389,50 @@ export function changeProtocolBalance(
     }
 
     // temporarily get rid of the old USD liquidity
-    soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
+    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
 
     token.borrowLiquidity = getMarketTotalBorrowWei(totalParStruct, token, index)
     token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
 
     // add the new liquidity back in
-    soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
-    soloMargin.totalBorrowVolumeUSD = soloMargin.totalBorrowVolumeUSD.plus(borrowVolumeToken.times(tokenPriceUSD))
+    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
+    dolomiteMargin.totalBorrowVolumeUSD = dolomiteMargin.totalBorrowVolumeUSD.plus(borrowVolumeToken.times(tokenPriceUSD))
   } else if (isRepaymentOfBorrowAmount(newPar, deltaWei, index)) {
     // temporarily get rid of the old USD liquidity
-    soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
+    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
 
     token.borrowLiquidity = getMarketTotalBorrowWei(totalParStruct, token, index)
     token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
 
     // add the new liquidity back in
-    soloMargin.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
+    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
   }
 
   if (!isVirtualTransfer) {
     // the balance change affected the ERC20.balanceOf(protocol)
     // temporarily get rid of the old USD liquidity
-    soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
+    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
 
     token.supplyLiquidity = getMarketTotalSupplyWei(totalParStruct, token, index)
     token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
 
     // add the new liquidity back in
-    soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
+    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
 
     if (deltaWei.gt(ZERO_BD)) {
       let deltaWeiUSD = deltaWei.times(tokenPriceUSD)
-      soloMargin.totalSupplyVolumeUSD = soloMargin.totalSupplyVolumeUSD.plus(deltaWeiUSD)
+      dolomiteMargin.totalSupplyVolumeUSD = dolomiteMargin.totalSupplyVolumeUSD.plus(deltaWeiUSD)
     }
   } else {
     // Adjust the liquidity of the protocol and token
-    soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
+    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
 
     token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
 
     // add the new liquidity back in
-    soloMargin.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
+    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
   }
 
-  soloMargin.save()
+  dolomiteMargin.save()
   token.save()
 }

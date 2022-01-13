@@ -19,7 +19,7 @@ type AmmFactory @entity {
   swapCount: BigInt!
 }
 
-type DyDxSoloMargin @entity {
+type DolomiteMargin @entity {
   # contract address
   id: ID!
 

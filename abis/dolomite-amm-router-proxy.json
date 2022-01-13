@@ -3,22 +3,17 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "soloMargin",
+        "name": "dolomiteMargin",
         "type": "address"
       },
       {
         "internalType": "address",
-        "name": "uniswapFactory",
+        "name": "dolomiteAmmFactory",
         "type": "address"
       },
       {
         "internalType": "address",
-        "name": "weth",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "expiryV2",
+        "name": "expiry",
         "type": "address"
       }
     ],
@@ -355,37 +350,7 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "EXPIRY_V2",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "SOLO_MARGIN",
-    "outputs": [
-      {
-        "internalType": "contract ISoloMargin",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "UNISWAP_FACTORY",
+    "name": "DOLOMITE_AMM_FACTORY",
     "outputs": [
       {
         "internalType": "contract IDolomiteAmmFactory",
@@ -400,7 +365,22 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "WETH",
+    "name": "DOLOMITE_MARGIN",
+    "outputs": [
+      {
+        "internalType": "contract IDolomiteMargin",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "EXPIRY",
     "outputs": [
       {
         "internalType": "address",
@@ -410,6 +390,21 @@
     ],
     "payable": false,
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "getPairInitCodeHash",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "pure",
     "type": "function"
   },
   {
@@ -481,6 +476,320 @@
     ],
     "payable": false,
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "accountNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountInWei",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountOutMinWei",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[]",
+        "name": "tokenPath",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deadline",
+        "type": "uint256"
+      }
+    ],
+    "name": "swapExactTokensForTokens",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "accountNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountInWei",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountOutMinWei",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[]",
+        "name": "tokenPath",
+        "type": "address[]"
+      }
+    ],
+    "name": "getParamsForSwapExactTokensForTokens",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "number",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct Account.Info[]",
+        "name": "",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "enum Actions.ActionType",
+            "name": "actionType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "accountId",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "enum Types.AssetDenomination",
+                "name": "denomination",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum Types.AssetReference",
+                "name": "ref",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct Types.AssetAmount",
+            "name": "amount",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "primaryMarketId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "secondaryMarketId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "otherAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "otherAccountId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct Actions.ActionArgs[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "accountNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountInMaxWei",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountOutWei",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[]",
+        "name": "tokenPath",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deadline",
+        "type": "uint256"
+      }
+    ],
+    "name": "swapTokensForExactTokens",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "accountNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountInMaxWei",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountOutWei",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[]",
+        "name": "tokenPath",
+        "type": "address[]"
+      }
+    ],
+    "name": "getParamsForSwapTokensForExactTokens",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "number",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct Account.Info[]",
+        "name": "",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "enum Actions.ActionType",
+            "name": "actionType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "accountId",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "enum Types.AssetDenomination",
+                "name": "denomination",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum Types.AssetReference",
+                "name": "ref",
+                "type": "uint8"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct Types.AssetAmount",
+            "name": "amount",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "primaryMarketId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "secondaryMarketId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "otherAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "otherAccountId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct Actions.ActionArgs[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -742,163 +1051,6 @@
     "constant": false,
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "accountNumber",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountInWei",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountOutMinWei",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address[]",
-        "name": "tokenPath",
-        "type": "address[]"
-      },
-      {
-        "internalType": "uint256",
-        "name": "deadline",
-        "type": "uint256"
-      }
-    ],
-    "name": "swapExactTokensForTokens",
-    "outputs": [],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "accountNumber",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountInWei",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountOutMinWei",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address[]",
-        "name": "tokenPath",
-        "type": "address[]"
-      }
-    ],
-    "name": "getParamsForSwapExactTokensForTokens",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "owner",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "number",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Account.Info[]",
-        "name": "",
-        "type": "tuple[]"
-      },
-      {
-        "components": [
-          {
-            "internalType": "enum Actions.ActionType",
-            "name": "actionType",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint256",
-            "name": "accountId",
-            "type": "uint256"
-          },
-          {
-            "components": [
-              {
-                "internalType": "bool",
-                "name": "sign",
-                "type": "bool"
-              },
-              {
-                "internalType": "enum Types.AssetDenomination",
-                "name": "denomination",
-                "type": "uint8"
-              },
-              {
-                "internalType": "enum Types.AssetReference",
-                "name": "ref",
-                "type": "uint8"
-              },
-              {
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Types.AssetAmount",
-            "name": "amount",
-            "type": "tuple"
-          },
-          {
-            "internalType": "uint256",
-            "name": "primaryMarketId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "secondaryMarketId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "otherAddress",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "otherAccountId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes",
-            "name": "data",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct Actions.ActionArgs[]",
-        "name": "",
-        "type": "tuple[]"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      {
         "components": [
           {
             "internalType": "uint256",
@@ -999,163 +1151,6 @@
     "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "accountNumber",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountInMaxWei",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountOutWei",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address[]",
-        "name": "tokenPath",
-        "type": "address[]"
-      },
-      {
-        "internalType": "uint256",
-        "name": "deadline",
-        "type": "uint256"
-      }
-    ],
-    "name": "swapTokensForExactTokens",
-    "outputs": [],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "accountNumber",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountInMaxWei",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amountOutWei",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address[]",
-        "name": "tokenPath",
-        "type": "address[]"
-      }
-    ],
-    "name": "getParamsForSwapTokensForExactTokens",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "owner",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "number",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Account.Info[]",
-        "name": "",
-        "type": "tuple[]"
-      },
-      {
-        "components": [
-          {
-            "internalType": "enum Actions.ActionType",
-            "name": "actionType",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint256",
-            "name": "accountId",
-            "type": "uint256"
-          },
-          {
-            "components": [
-              {
-                "internalType": "bool",
-                "name": "sign",
-                "type": "bool"
-              },
-              {
-                "internalType": "enum Types.AssetDenomination",
-                "name": "denomination",
-                "type": "uint8"
-              },
-              {
-                "internalType": "enum Types.AssetReference",
-                "name": "ref",
-                "type": "uint8"
-              },
-              {
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Types.AssetAmount",
-            "name": "amount",
-            "type": "tuple"
-          },
-          {
-            "internalType": "uint256",
-            "name": "primaryMarketId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "secondaryMarketId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "otherAddress",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "otherAccountId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes",
-            "name": "data",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct Actions.ActionArgs[]",
-        "name": "",
-        "type": "tuple[]"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
     "type": "function"
   }
 ]

@@ -1,7 +1,7 @@
 /* eslint-disable prefer-const */
 import { log, Address, BigInt } from '@graphprotocol/graph-ts'
 import { AmmFactory, AmmPair, Token, Bundle, AmmPairReverseLookup, TokenMarketIdReverseMap } from '../types/schema'
-import { PairCreated } from '../types/UniswapV2Factory/UniswapV2Factory'
+import { PairCreated } from '../types/DolomiteAmmFactory/DolomiteAmmFactory'
 import { AmmPair as PairTemplate } from '../types/templates'
 import {
   FACTORY_ADDRESS,
@@ -11,9 +11,9 @@ import {
   fetchTokenName,
   fetchTokenDecimals,
   fetchTokenTotalSupply,
-  SOLO_MARGIN_ADDRESS
+  DOLOMITE_MARGIN_ADDRESS
 } from './helpers'
-import { DyDx } from '../types/MarginTrade/DyDx'
+import { DolomiteMargin as DolomiteMarginProtocol } from '../types/MarginTrade/DolomiteMargin'
 
 export function initializeToken(token: Token, marketId: BigInt): void {
   let tokenAddress = Address.fromString(token.id)
@@ -76,20 +76,20 @@ export function handleNewPair(event: PairCreated): void {
   let token0 = Token.load(event.params.token0.toHexString())
   let token1 = Token.load(event.params.token1.toHexString())
 
-  let dydx = DyDx.bind(Address.fromString(SOLO_MARGIN_ADDRESS))
+  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
 
   // fetch info if null
   if (token0 === null) {
     let tokenAddress = event.params.token0.toHexString()
     token0 = new Token(tokenAddress)
-    initializeToken(token0 as Token, dydx.getMarketIdByTokenAddress(Address.fromString(tokenAddress)))
+    initializeToken(token0 as Token, marginProtocol.getMarketIdByTokenAddress(Address.fromString(tokenAddress)))
   }
 
   // fetch info if null
   if (token1 === null) {
     let tokenAddress = event.params.token1.toHexString()
     token1 = new Token(tokenAddress)
-    initializeToken(token1 as Token, dydx.getMarketIdByTokenAddress(Address.fromString(tokenAddress)))
+    initializeToken(token1 as Token, marginProtocol.getMarketIdByTokenAddress(Address.fromString(tokenAddress)))
   }
 
   let pair = new AmmPair(event.params.pair.toHexString())

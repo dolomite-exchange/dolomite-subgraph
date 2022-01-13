@@ -4,7 +4,7 @@ import {
   AmmPairDayData,
   AmmPairHourData,
   DolomiteDayData,
-  DyDxSoloMargin,
+  DolomiteMargin,
   Liquidation,
   Token,
   TokenDayData,
@@ -13,7 +13,7 @@ import {
   Vaporization
 } from '../types/schema'
 import { BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
-import { FACTORY_ADDRESS, ONE_BI, SOLO_MARGIN_ADDRESS, WETH_ADDRESS, ZERO_BD, ZERO_BI } from './helpers'
+import { FACTORY_ADDRESS, ONE_BI, DOLOMITE_MARGIN_ADDRESS, WETH_ADDRESS, ZERO_BD, ZERO_BI } from './helpers'
 import { getTokenOraclePriceUSD } from './pricing'
 
 function getDayId(timestamp: BigInt): string {
@@ -64,7 +64,7 @@ function setupDolomiteDayData(dolomiteDayData: DolomiteDayData): DolomiteDayData
 
 export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
   let factory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
-  let soloMargin = DyDxSoloMargin.load(SOLO_MARGIN_ADDRESS) as DyDxSoloMargin
+  let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
   let dayId = getDayId(event.block.timestamp)
 
   let dolomiteDayData = DolomiteDayData.load(dayId)
@@ -75,15 +75,15 @@ export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
 
   // ## Daily Liquidity
   dolomiteDayData.ammLiquidityUSD = factory.ammLiquidityUSD
-  dolomiteDayData.borrowLiquidityUSD = soloMargin.borrowLiquidityUSD
-  dolomiteDayData.supplyLiquidityUSD = soloMargin.supplyLiquidityUSD
+  dolomiteDayData.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD
+  dolomiteDayData.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD
 
   // ## Total Counts
-  dolomiteDayData.totalAllTransactionCount = soloMargin.transactionCount
+  dolomiteDayData.totalAllTransactionCount = dolomiteMargin.transactionCount
   dolomiteDayData.totalAmmSwapCount = factory.transactionCount
-  dolomiteDayData.totalLiquidationCount = soloMargin.liquidationCount
-  dolomiteDayData.totalTradeCount = soloMargin.tradeCount
-  dolomiteDayData.totalVaporizationCount = soloMargin.vaporizationCount
+  dolomiteDayData.totalLiquidationCount = dolomiteMargin.liquidationCount
+  dolomiteDayData.totalTradeCount = dolomiteMargin.tradeCount
+  dolomiteDayData.totalVaporizationCount = dolomiteMargin.vaporizationCount
 
   dolomiteDayData.save()
 
@@ -287,7 +287,7 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Even
   return tokenDayData as TokenDayData
 }
 
-export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: ethereum.Event): TokenHourData {
+export function updateAndReturnTokenHourDataForMarginEvent(token: Token, event: ethereum.Event): TokenHourData {
   let hourId = getHourId(event.block.timestamp)
   let tokenHourID = token.id + '-' + hourId
 
@@ -310,7 +310,7 @@ export function updateAndReturnTokenHourDataForDyDxEvent(token: Token, event: et
   return tokenHourData as TokenHourData
 }
 
-export function updateAndReturnTokenDayDataForDyDxEvent(token: Token, event: ethereum.Event): TokenDayData {
+export function updateAndReturnTokenDayDataForMarginEvent(token: Token, event: ethereum.Event): TokenDayData {
   let dayId = getDayId(event.block.timestamp)
   let tokenDayID = token.id + '-' + dayId.toString()
 
