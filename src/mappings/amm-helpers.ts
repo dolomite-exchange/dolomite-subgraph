@@ -1,22 +1,16 @@
 /* eslint-disable prefer-const */
 import { Address, BigDecimal, BigInt, Bytes, ethereum, log } from '@graphprotocol/graph-ts'
-import { DolomiteMarginERC20 } from '../types/DolomiteMargin/DolomiteMarginERC20'
+import { DolomiteMarginERC20 } from '../types/MarginAdmin/DolomiteMarginERC20'
 import {
   AmmLiquidityPosition,
   AmmLiquidityPositionSnapshot,
   AmmPair,
   Bundle,
-  DolomiteMargin,
-  InterestIndex,
-  Token, TokenMarketIdReverseMap,
+  Token,
+  TokenMarketIdReverseMap,
   User
 } from '../types/schema'
-import { ValueStruct } from './dolomite-margin-types'
-import { getTokenOraclePriceUSD } from './pricing'
-import {
-  DolomiteMargin as DolomiteMarginProtocol,
-  DolomiteMargin__getMarketTotalParResultValue0Struct as DolomiteMarginMarketTotalParStruct
-} from '../types/DolomiteMargin/DolomiteMargin'
+import { ValueStruct } from './margin-types'
 
 export let ZERO_BYTES = new Bytes(0)
 export let ZERO_BI = BigInt.fromI32(0)
@@ -250,126 +244,4 @@ export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: e
   snapshot.liquidityPosition = position.id
   snapshot.save()
   position.save()
-}
-
-export function weiToPar(wei: BigDecimal, index: InterestIndex, decimals: BigInt): BigDecimal {
-  if (wei.ge(ZERO_BD)) {
-    return wei.div(index.supplyIndex).truncate(decimals.toI32())
-  } else {
-    let smallestUnit = BigDecimal.fromString('1').div(new BigDecimal(BigInt.fromI32(10).pow(decimals.toI32() as u8)))
-    return wei.div(index.borrowIndex).truncate(decimals.toI32()).minus(smallestUnit)
-  }
-}
-
-export function parToWei(par: BigDecimal, index: InterestIndex): BigDecimal {
-  let decimals: u8 = par.exp.lt(BigInt.fromI32(0)) ? par.exp.neg().toI32() as u8 : 0
-  if (par.ge(ZERO_BD)) {
-    return par.times(index.supplyIndex).truncate(decimals)
-  } else {
-    let oneWei = BigDecimal.fromString('1').div(new BigDecimal(BigInt.fromI32(10).pow(decimals)))
-    return par.times(index.borrowIndex).truncate(decimals).minus(oneWei)
-  }
-}
-
-function isRepaymentOfBorrowAmount(
-  newPar: BigDecimal,
-  deltaWei: BigDecimal,
-  index: InterestIndex
-): boolean {
-  let newWei = parToWei(newPar, index)
-  let oldWei = newWei.minus(deltaWei)
-  return deltaWei.gt(ZERO_BD) && oldWei.lt(ZERO_BD) // the user added to the negative balance (decreasing it)
-}
-
-function getMarketTotalBorrowWei(
-  value: DolomiteMarginMarketTotalParStruct,
-  token: Token,
-  index: InterestIndex
-): BigDecimal {
-  let decimals = token.decimals.toI32()
-  return parToWei(convertTokenToDecimal(value.borrow.neg(), token.decimals), index).neg().truncate(decimals)
-}
-
-function getMarketTotalSupplyWei(
-  value: DolomiteMarginMarketTotalParStruct,
-  token: Token,
-  index: InterestIndex
-): BigDecimal {
-  let decimals = token.decimals.toI32()
-  return parToWei(convertTokenToDecimal(value.supply, token.decimals), index).truncate(decimals)
-}
-
-export function changeProtocolBalance(
-  token: Token,
-  newParStruct: ValueStruct,
-  deltaWeiStruct: ValueStruct,
-  index: InterestIndex,
-  isVirtualTransfer: boolean,
-  dolomiteMargin: DolomiteMargin,
-  protocol: DolomiteMarginProtocol
-): void {
-  let tokenPriceUSD = getTokenOraclePriceUSD(token)
-
-  let newPar = convertStructToDecimal(newParStruct, token.decimals)
-  let newWei = parToWei(newPar, index)
-  let deltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
-
-  let totalParStruct = protocol.getMarketTotalPar(token.marketId)
-
-  if (newPar.lt(ZERO_BD) && deltaWei.lt(ZERO_BD)) {
-    // the user borrowed funds
-
-    let borrowVolumeToken = absBD(deltaWei)
-    if (absBD(newWei) < absBD(deltaWei)) {
-      // the user withdrew from a positive balance to a negative one. Range cap it by newWei for borrow volume
-      borrowVolumeToken = absBD(newWei)
-    }
-
-    // temporarily get rid of the old USD liquidity
-    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
-
-    token.borrowLiquidity = getMarketTotalBorrowWei(totalParStruct, token, index)
-    token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
-
-    // add the new liquidity back in
-    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
-    dolomiteMargin.totalBorrowVolumeUSD = dolomiteMargin.totalBorrowVolumeUSD.plus(borrowVolumeToken.times(tokenPriceUSD))
-  } else if (isRepaymentOfBorrowAmount(newPar, deltaWei, index)) {
-    // temporarily get rid of the old USD liquidity
-    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
-
-    token.borrowLiquidity = getMarketTotalBorrowWei(totalParStruct, token, index)
-    token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
-
-    // add the new liquidity back in
-    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
-  }
-
-  if (!isVirtualTransfer) {
-    // the balance change affected the ERC20.balanceOf(protocol)
-    // temporarily get rid of the old USD liquidity
-    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
-
-    token.supplyLiquidity = getMarketTotalSupplyWei(totalParStruct, token, index)
-    token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
-
-    // add the new liquidity back in
-    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
-
-    if (deltaWei.gt(ZERO_BD)) {
-      let deltaWeiUSD = deltaWei.times(tokenPriceUSD)
-      dolomiteMargin.totalSupplyVolumeUSD = dolomiteMargin.totalSupplyVolumeUSD.plus(deltaWeiUSD)
-    }
-  } else {
-    // Adjust the liquidity of the protocol and token
-    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
-
-    token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
-
-    // add the new liquidity back in
-    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
-  }
-
-  dolomiteMargin.save()
-  token.save()
 }

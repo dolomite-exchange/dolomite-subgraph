@@ -20,7 +20,7 @@ import {
   getEthPriceInUSD,
   getTokenOraclePriceUSD,
   getTrackedLiquidityUSD,
-} from './pricing'
+} from './amm-pricing'
 import {
   BI_18,
   convertTokenToDecimal,
@@ -29,7 +29,7 @@ import {
   createUserIfNecessary,
   ONE_BI,
   ZERO_BD,
-} from './helpers'
+} from './amm-helpers'
 import {
   ADDRESS_ZERO,
   FACTORY_ADDRESS,

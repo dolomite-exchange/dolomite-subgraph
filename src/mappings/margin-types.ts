@@ -1,6 +1,11 @@
 import { Address, BigDecimal, BigInt, Bytes, ethereum } from '@graphprotocol/graph-ts'
-import { convertTokenToDecimal } from './helpers'
+import { convertTokenToDecimal } from './amm-helpers'
 import { MarginPosition, Token } from '../types/schema'
+
+export enum ProtocolType {
+  Core,
+  Admin,
+}
 
 export class PositionChangeEvent {
 

@@ -1,6 +1,6 @@
 import { AmmPair, AmmPairReverseLookup, Bundle, OraclePrice, Token, Trade } from '../types/schema'
 import { BigDecimal, BigInt } from '@graphprotocol/graph-ts'
-import { ONE_BD, ZERO_BD } from './helpers'
+import { ONE_BD, ZERO_BD } from './amm-helpers'
 import { DAI_WETH_PAIR, USDT_WETH_PAIR, WETH_ADDRESS, WETH_USDC_ADDRESS, WHITELIST } from './generated/constants'
 
 export function getEthPriceInUSD(): BigDecimal {

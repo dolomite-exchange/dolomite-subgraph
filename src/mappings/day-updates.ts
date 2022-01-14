@@ -13,9 +13,9 @@ import {
   Vaporization
 } from '../types/schema'
 import { BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
-import { ONE_BI, ZERO_BD, ZERO_BI } from './helpers'
+import { ONE_BI, ZERO_BD, ZERO_BI } from './amm-helpers'
 import { DOLOMITE_MARGIN_ADDRESS, FACTORY_ADDRESS, WETH_ADDRESS } from './generated/constants'
-import { getTokenOraclePriceUSD } from './pricing'
+import { getTokenOraclePriceUSD } from './amm-pricing'
 
 function getDayId(timestamp: BigInt): string {
   let _86400 = BigInt.fromI32(86400)

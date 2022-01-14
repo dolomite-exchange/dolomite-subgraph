@@ -5,7 +5,7 @@ schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum/contract
-    name: DolomiteAmmFactory
+    name: AmmFactory
     network: {{network}}
     source:
       address: '{{dolomiteAmmFactoryAddress}}'
@@ -15,7 +15,7 @@ dataSources:
       kind: ethereum/events
       apiVersion: 0.0.5
       language: wasm/assemblyscript
-      file: ./src/mappings/factory.ts
+      file: ./src/mappings/amm-factory.ts
       entities:
         - AmmFactory
         - AmmPair
@@ -30,7 +30,7 @@ dataSources:
         - event: PairCreated(indexed address,indexed address,address,uint256)
           handler: handleNewPair
   - kind: ethereum/contract
-    name: DolomiteMargin
+    name: MarginCore
     network: {{network}}
     source:
       address: '{{dolomiteMarginAddress}}'
@@ -40,7 +40,47 @@ dataSources:
       kind: ethereum/events
       apiVersion: 0.0.5
       language: wasm/assemblyscript
-      file: ./src/mappings/dolomite-margin.ts
+      file: ./src/mappings/margin-core.ts
+      entities:
+        - MarginPosition
+        - Token
+        - Transaction
+      abis:
+        - name: DolomiteMargin
+          file: ./abis/dolomite-margin.json
+      eventHandlers:
+        - event: LogOperation(address)
+          handler: handleOperation
+        - event: LogIndexUpdate(indexed uint256,(uint96,uint96,uint32))
+          handler: handleIndexUpdate
+        - event: LogDeposit(indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),address)
+          handler: handleDeposit
+        - event: LogWithdraw(indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),address)
+          handler: handleWithdraw
+        - event: LogTransfer(indexed address,uint256,indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
+          handler: handleTransfer
+        - event: LogBuy(indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),address)
+          handler: handleBuy
+        - event: LogSell(indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),address)
+          handler: handleSell
+        - event: LogTrade(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),address)
+          handler: handleTrade
+        - event: LogLiquidate(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
+          handler: handleLiquidate
+        - event: LogVaporize(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
+          handler: handleVaporize
+  - kind: ethereum/contract
+    name: MarginAdmin
+    network: {{network}}
+    source:
+      address: '{{dolomiteMarginAddress}}'
+      abi: DolomiteMargin
+      startBlock: {{startBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.5
+      language: wasm/assemblyscript
+      file: ./src/mappings/margin-admin.ts
       entities:
         - MarginPosition
         - Token
@@ -63,26 +103,6 @@ dataSources:
           handler: handleSetLiquidationSpreadPremium
         - event: LogSetIsClosing(uint256,bool)
           handler: handleSetIsMarketClosing
-        - event: LogOperation(address)
-          handler: handleOperation
-        - event: LogIndexUpdate(indexed uint256,(uint96,uint96,uint32))
-          handler: handleIndexUpdate
-        - event: LogDeposit(indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),address)
-          handler: handleDeposit
-        - event: LogWithdraw(indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),address)
-          handler: handleWithdraw
-        - event: LogTransfer(indexed address,uint256,indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
-          handler: handleTransfer
-        - event: LogBuy(indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),address)
-          handler: handleBuy
-        - event: LogSell(indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),address)
-          handler: handleSell
-        - event: LogTrade(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),address)
-          handler: handleTrade
-        - event: LogLiquidate(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
-          handler: handleLiquidate
-        - event: LogVaporize(indexed address,uint256,indexed address,uint256,uint256,uint256,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
-          handler: handleVaporize
   - kind: ethereum/contract
     name: DolomiteAmmRouter
     network: {{network}}
@@ -94,20 +114,22 @@ dataSources:
       kind: ethereum/events
       apiVersion: 0.0.5
       language: wasm/assemblyscript
-      file: ./src/mappings/dolomite-margin.ts
+      file: ./src/mappings/margin-position.ts
       entities:
         - MarginPosition
         - Transaction
       abis:
         - name: DolomiteAmmRouterProxy
           file: ./abis/dolomite-amm-router-proxy.json
+        - name: DolomiteMargin
+          file: ./abis/dolomite-margin.json
       eventHandlers:
         - event: MarginPositionOpen(indexed address,indexed uint256,address,address,address,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
           handler: handleMarginPositionOpen
         - event: MarginPositionClose(indexed address,indexed uint256,address,address,address,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
           handler: handleMarginPositionClose
   - kind: ethereum/contract
-    name: DolomiteMarginExpiry
+    name: MarginExpiry
     network: {{network}}
     source:
       address: '{{expiryAddress}}'
@@ -117,13 +139,15 @@ dataSources:
       kind: ethereum/events
       apiVersion: 0.0.5
       language: wasm/assemblyscript
-      file: ./src/mappings/dolomite-margin.ts
+      file: ./src/mappings/margin-expiration.ts
       entities:
         - MarginPosition
         - Transaction
       abis:
         - name: DolomiteMarginExpiry
           file: ./abis/dolomite-margin-expiry.json
+        - name: DolomiteMargin
+          file: ./abis/dolomite-margin.json
       eventHandlers:
         - event: ExpirySet(address,uint256,uint256,uint32)
           handler: handleSetExpiry
@@ -137,7 +161,7 @@ templates:
       kind: ethereum/events
       apiVersion: 0.0.5
       language: wasm/assemblyscript
-      file: ./src/mappings/core.ts
+      file: ./src/mappings/amm-core.ts
       entities:
         - AmmPair
         - Token

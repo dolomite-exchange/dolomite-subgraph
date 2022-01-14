@@ -1,12 +1,12 @@
 /* eslint-disable prefer-const */
 import { log } from '@graphprotocol/graph-ts'
 import { AmmFactory, AmmPair, Token, Bundle, AmmPairReverseLookup } from '../types/schema'
-import { PairCreated } from '../types/DolomiteAmmFactory/DolomiteAmmFactory'
+import { PairCreated } from '../types/AmmFactory/DolomiteAmmFactory'
 import { AmmPair as PairTemplate } from '../types/templates'
 import {
   ZERO_BD,
   ZERO_BI,
-} from './helpers'
+} from './amm-helpers'
 import {
   FACTORY_ADDRESS,
 } from './generated/constants'
