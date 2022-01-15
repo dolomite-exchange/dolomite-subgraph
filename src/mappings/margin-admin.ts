@@ -9,12 +9,13 @@ import {
   LogSetMarginRatio as MarginRatioUpdateEvent,
   LogSetMinBorrowedValue as MinBorrowedValueUpdateEvent,
   LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent
-} from '../types/DolomiteMarginAdmin/DolomiteMargin'
+} from '../types/MarginAdmin/DolomiteMargin'
 import { Address, BigDecimal, log } from '@graphprotocol/graph-ts/index'
 import { DOLOMITE_MARGIN_ADDRESS } from './generated/constants'
 import { InterestIndex, InterestRate, MarketRiskInfo, OraclePrice, Token } from '../types/schema'
 import { BD_ONE_ETH, initializeToken, ONE_BD, ZERO_BD } from './amm-helpers'
 import { getOrCreateDolomiteMarginForCall } from './margin-helpers'
+import { ProtocolType } from './margin-types'
 
 export function handleMarketAdded(event: AddMarketEvent): void {
   log.info(
@@ -23,7 +24,7 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   )
 
   let dolomiteMarginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
   dolomiteMargin.numberOfMarkets = dolomiteMarginProtocol.getNumMarkets().toI32()
   dolomiteMargin.save()
 
@@ -62,7 +63,7 @@ export function handleMarketRemoved(event: RemoveMarketEvent): void {
     [event.params.marketId.toString(), event.params.token.toHexString(), event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
   dolomiteMargin.numberOfMarkets = dolomiteMargin.numberOfMarkets + 1
   dolomiteMargin.save()
 
@@ -102,7 +103,7 @@ export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
   )
 
   let earningsRateBD = new BigDecimal(event.params.earningsRate.value)
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
   dolomiteMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH) // it's a ratio where ONE_ETH is 100%
   dolomiteMargin.save()
 
@@ -123,7 +124,7 @@ export function handleSetLiquidationReward(event: LiquidationSpreadUpdateEvent):
 
   let liquidationPremiumBD = new BigDecimal(event.params.liquidationSpread.value)
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
   dolomiteMargin.liquidationReward = liquidationPremiumBD.div(BD_ONE_ETH).plus(ONE_BD)
   dolomiteMargin.save()
 }
@@ -136,7 +137,7 @@ export function handleSetLiquidationRatio(event: MarginRatioUpdateEvent): void {
 
   let liquidationRatioBD = new BigDecimal(event.params.marginRatio.value)
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
   dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH).plus(ONE_BD)
   dolomiteMargin.save()
 }
@@ -149,7 +150,7 @@ export function handleSetMinBorrowedValue(event: MinBorrowedValueUpdateEvent): v
 
   let minBorrowedValueBD = new BigDecimal(event.params.minBorrowedValue.value)
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
   dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH).div(BD_ONE_ETH)
   dolomiteMargin.save()
 }

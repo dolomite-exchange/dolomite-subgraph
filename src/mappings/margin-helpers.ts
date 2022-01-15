@@ -1,4 +1,13 @@
 import {
+  Address,
+  BigDecimal,
+  BigInt,
+  ethereum,
+  log
+} from '@graphprotocol/graph-ts/index'
+import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../types/MarginAdmin/DolomiteMargin'
+import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../types/MarginCore/DolomiteMargin'
+import {
   DolomiteMargin,
   InterestIndex,
   MarginAccount,
@@ -7,19 +16,25 @@ import {
   Token
 } from '../types/schema'
 import {
-  absBD, BD_ONE_ETH,
+  absBD,
+  BD_ONE_ETH,
   convertStructToDecimal,
   convertTokenToDecimal,
-  createUserIfNecessary, ONE_BD,
+  createUserIfNecessary,
+  ONE_BD,
   ONE_BI,
   ZERO_BD,
   ZERO_BI,
   ZERO_BYTES
 } from './amm-helpers'
-import { Address, BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts/index'
-import { MarginPositionStatus, PositionChangeEvent, ProtocolType, ValueStruct } from './margin-types'
-import { DOLOMITE_MARGIN_ADDRESS } from './generated/constants'
 import { getTokenOraclePriceUSD } from './amm-pricing'
+import { DOLOMITE_MARGIN_ADDRESS } from './generated/constants'
+import {
+  MarginPositionStatus,
+  PositionChangeEvent,
+  ProtocolType,
+  ValueStruct
+} from './margin-types'
 
 export function getOrCreateTokenValue(
   marginAccount: MarginAccount,
@@ -106,7 +121,7 @@ export function getOrCreateDolomiteMarginForCall(
     dolomiteMargin.numberOfMarkets = 0
 
     if (protocolType === ProtocolType.Core) {
-      let marginProtocol = Protocol
+      let marginProtocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
       let riskParams = marginProtocol.getRiskParams()
 
       let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
@@ -114,11 +129,15 @@ export function getOrCreateDolomiteMarginForCall(
       let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
       let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
 
-      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH).plus(ONE_BD)
-      dolomiteMargin.liquidationReward = liquidationRewardBD.div(BD_ONE_ETH).plus(ONE_BD)
+      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH)
+        .plus(ONE_BD)
+      dolomiteMargin.liquidationReward = liquidationRewardBD.div(BD_ONE_ETH)
+        .plus(ONE_BD)
       dolomiteMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH)
-      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH).div(BD_ONE_ETH)
+      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH)
+        .div(BD_ONE_ETH)
     } else {
+      let marginProtocol = DolomiteMarginAdminProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
       let riskParams = marginProtocol.getRiskParams()
 
       let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
@@ -126,10 +145,13 @@ export function getOrCreateDolomiteMarginForCall(
       let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
       let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
 
-      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH).plus(ONE_BD)
-      dolomiteMargin.liquidationReward = liquidationRewardBD.div(BD_ONE_ETH).plus(ONE_BD)
+      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH)
+        .plus(ONE_BD)
+      dolomiteMargin.liquidationReward = liquidationRewardBD.div(BD_ONE_ETH)
+        .plus(ONE_BD)
       dolomiteMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH)
-      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH).div(BD_ONE_ETH)
+      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH)
+        .div(BD_ONE_ETH)
     }
 
     dolomiteMargin.totalBorrowVolumeUSD = ZERO_BD
@@ -162,20 +184,31 @@ export function getOrCreateDolomiteMarginForCall(
 
 export function weiToPar(wei: BigDecimal, index: InterestIndex, decimals: BigInt): BigDecimal {
   if (wei.ge(ZERO_BD)) {
-    return wei.div(index.supplyIndex).truncate(decimals.toI32())
+    return wei.div(index.supplyIndex)
+      .truncate(decimals.toI32())
   } else {
-    let smallestUnit = BigDecimal.fromString('1').div(new BigDecimal(BigInt.fromI32(10).pow(decimals.toI32() as u8)))
-    return wei.div(index.borrowIndex).truncate(decimals.toI32()).minus(smallestUnit)
+    let smallestUnit = BigDecimal.fromString('1')
+      .div(new BigDecimal(BigInt.fromI32(10)
+        .pow(decimals.toI32() as u8)))
+    return wei.div(index.borrowIndex)
+      .truncate(decimals.toI32())
+      .minus(smallestUnit)
   }
 }
 
 export function parToWei(par: BigDecimal, index: InterestIndex): BigDecimal {
-  let decimals = par.exp.lt(BigInt.fromI32(0)) ? par.exp.neg().toI32() as u8 : 0
+  let decimals = par.exp.lt(BigInt.fromI32(0)) ? par.exp.neg()
+    .toI32() as u8 : 0
   if (par.ge(ZERO_BD)) {
-    return par.times(index.supplyIndex).truncate(decimals)
+    return par.times(index.supplyIndex)
+      .truncate(decimals)
   } else {
-    let oneWei = BigDecimal.fromString('1').div(new BigDecimal(BigInt.fromI32(10).pow(decimals)))
-    return par.times(index.borrowIndex).truncate(decimals).minus(oneWei)
+    let oneWei = BigDecimal.fromString('1')
+      .div(new BigDecimal(BigInt.fromI32(10)
+        .pow(decimals)))
+    return par.times(index.borrowIndex)
+      .truncate(decimals)
+      .minus(oneWei)
   }
 }
 
@@ -195,7 +228,9 @@ function getMarketTotalBorrowWei(
   index: InterestIndex
 ): BigDecimal {
   let decimals = token.decimals.toI32()
-  return parToWei(convertTokenToDecimal(borrowPar.neg(), token.decimals), index).neg().truncate(decimals)
+  return parToWei(convertTokenToDecimal(borrowPar.neg(), token.decimals), index)
+    .neg()
+    .truncate(decimals)
 }
 
 function getMarketTotalSupplyWei(
@@ -204,7 +239,8 @@ function getMarketTotalSupplyWei(
   index: InterestIndex
 ): BigDecimal {
   let decimals = token.decimals.toI32()
-  return parToWei(convertTokenToDecimal(supplyPar, token.decimals), index).truncate(decimals)
+  return parToWei(convertTokenToDecimal(supplyPar, token.decimals), index)
+    .truncate(decimals)
 }
 
 export function changeProtocolBalance(
@@ -213,8 +249,7 @@ export function changeProtocolBalance(
   deltaWeiStruct: ValueStruct,
   index: InterestIndex,
   isVirtualTransfer: boolean,
-  totalBorrowPar: BigInt,
-  totalSupplyPar: BigInt,
+  protocolType: ProtocolType,
   dolomiteMargin: DolomiteMargin
 ): void {
   let tokenPriceUSD = getTokenOraclePriceUSD(token)
@@ -222,6 +257,23 @@ export function changeProtocolBalance(
   let newPar = convertStructToDecimal(newParStruct, token.decimals)
   let newWei = parToWei(newPar, index)
   let deltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
+
+  let totalSupplyPar: BigInt
+  let totalBorrowPar: BigInt
+  if (protocolType == ProtocolType.Core) {
+    let protocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+    let totalPar = protocol.getMarketTotalPar(token.marketId)
+    totalSupplyPar = totalPar.supply
+    totalBorrowPar = totalPar.borrow
+  } else if (protocolType == ProtocolType.Admin) {
+    let protocol = DolomiteMarginAdminProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+    let totalPar = protocol.getMarketTotalPar(token.marketId)
+    totalSupplyPar = totalPar.supply
+    totalBorrowPar = totalPar.borrow
+  } else {
+    log.error('Could not find protocol type: {}', [protocolType.toString()])
+    return
+  }
 
   if (newPar.lt(ZERO_BD) && deltaWei.lt(ZERO_BD)) {
     // the user borrowed funds

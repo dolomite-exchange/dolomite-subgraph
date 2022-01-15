@@ -1,5 +1,12 @@
 /* eslint-disable */
 import {
+  Address,
+  BigDecimal,
+  BigInt,
+  ethereum,
+  log
+} from '@graphprotocol/graph-ts'
+import {
   DolomiteMargin as DolomiteMarginProtocol,
   LogBuy as BuyEvent,
   LogDeposit as DepositEvent,
@@ -27,6 +34,7 @@ import {
   Vaporization,
   Withdrawal
 } from '../types/schema'
+import { getOrCreateTransaction } from './amm-core'
 import {
   absBD,
   BI_18,
@@ -39,10 +47,7 @@ import {
   ZERO_BD,
   ZERO_BI
 } from './amm-helpers'
-import { DOLOMITE_MARGIN_ADDRESS } from './generated/constants'
-import { getOrCreateTransaction } from './amm-core'
-import { BalanceUpdate, MarginPositionStatus, ValueStruct } from './margin-types'
-import { Address, BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts'
+import { getTokenOraclePriceUSD } from './amm-pricing'
 import {
   updateAndReturnTokenDayDataForMarginEvent,
   updateAndReturnTokenHourDataForMarginEvent,
@@ -51,7 +56,7 @@ import {
   updateTimeDataForTrade,
   updateTimeDataForVaporization
 } from './day-updates'
-import { getTokenOraclePriceUSD } from './amm-pricing'
+import { DOLOMITE_MARGIN_ADDRESS } from './generated/constants'
 import {
   changeProtocolBalance,
   getOrCreateDolomiteMarginForCall,
@@ -60,6 +65,12 @@ import {
   getOrCreateTokenValue,
   parToWei
 } from './margin-helpers'
+import {
+  BalanceUpdate,
+  MarginPositionStatus,
+  ProtocolType,
+  ValueStruct
+} from './margin-types'
 
 export function handleOperation(event: OperationEvent): void {
   let bundle = Bundle.load('1') as Bundle
@@ -150,7 +161,7 @@ export function handleDeposit(event: DepositEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let marginProtocol = DolomiteMarginProtocol.bind(event.address)
+  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let token = Token.load(marginProtocol.getMarketTokenAddress(event.params.market).toHexString()) as Token
 
   let balanceUpdate = new BalanceUpdate(
@@ -164,7 +175,7 @@ export function handleDeposit(event: DepositEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, marginProtocol)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
 
   let depositID = getIDForEvent(event)
   let deposit = Deposit.load(depositID)
@@ -188,15 +199,13 @@ export function handleDeposit(event: DepositEvent): void {
 
   let marketIndex = InterestIndex.load(event.params.market.toString()) as InterestIndex
   let isVirtualTransfer = false
-  let totalParStruct = marginProtocol.getMarketTotalPar(token.marketId)
   changeProtocolBalance(
     token,
     newParStruct,
     deltaWeiStruct,
     marketIndex,
     isVirtualTransfer,
-    totalParStruct.borrow,
-    totalParStruct.supply,
+    ProtocolType.Core,
     dolomiteMargin,
   )
 
@@ -214,7 +223,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let marginProtocol = DolomiteMarginProtocol.bind(event.address)
+  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let token = Token.load(marginProtocol.getMarketTokenAddress(event.params.market).toHexString()) as Token
 
   let balanceUpdate = new BalanceUpdate(
@@ -228,7 +237,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, marginProtocol)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
 
   let withdrawalID = getIDForEvent(event)
   let withdrawal = Withdrawal.load(withdrawalID)
@@ -257,15 +266,13 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
   let marketIndex = InterestIndex.load(event.params.market.toString()) as InterestIndex
   let isVirtualTransfer = false
-  let totalParStruct = marginProtocol.getMarketTotalPar(token.marketId)
   changeProtocolBalance(
     token,
     newParStruct,
     deltaWeiStruct,
     marketIndex,
     isVirtualTransfer,
-    totalParStruct.borrow,
-    totalParStruct.supply,
+    ProtocolType.Core,
     dolomiteMargin,
   )
 
@@ -279,7 +286,6 @@ export function handleTransfer(event: TransferEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let marginProtocol = DolomiteMarginProtocol.bind(event.address)
   let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.tokenAddress) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
@@ -302,7 +308,7 @@ export function handleTransfer(event: TransferEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, marginProtocol)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
 
   let transferID = getIDForEvent(event)
   let transfer = Transfer.load(transferID)
@@ -333,15 +339,13 @@ export function handleTransfer(event: TransferEvent): void {
 
   let marketIndex = InterestIndex.load(token.marketId.toString()) as InterestIndex
   let isVirtualTransfer = true
-  let totalParStruct = marginProtocol.getMarketTotalPar(token.marketId)
   changeProtocolBalance(
     token,
     new ValueStruct(event.params.updateOne.newPar),
     new ValueStruct(event.params.updateOne.deltaWei),
     marketIndex,
     isVirtualTransfer,
-    totalParStruct.borrow,
-    totalParStruct.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
   changeProtocolBalance(
@@ -350,8 +354,7 @@ export function handleTransfer(event: TransferEvent): void {
     new ValueStruct(event.params.updateTwo.deltaWei),
     marketIndex,
     isVirtualTransfer,
-    totalParStruct.borrow,
-    totalParStruct.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
@@ -393,7 +396,7 @@ export function handleBuy(event: BuyEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let marginProtocol = DolomiteMarginProtocol.bind(event.address)
+  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let makerToken = Token.load(TokenMarketIdReverseMap.load(event.params.makerMarket.toString())!.tokenAddress) as Token
   let takerToken = Token.load(TokenMarketIdReverseMap.load(event.params.takerMarket.toString())!.tokenAddress) as Token
 
@@ -418,7 +421,7 @@ export function handleBuy(event: BuyEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, marginProtocol)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
 
   let tradeID = getIDForEvent(event)
   let trade = Trade.load(tradeID)
@@ -460,28 +463,24 @@ export function handleBuy(event: BuyEvent): void {
   let isVirtualTransfer = false
 
   let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
-  let makerTotalParStruct = marginProtocol.getMarketTotalPar(makerToken.marketId)
   changeProtocolBalance(
     makerToken,
     takerNewParStruct,
     takerDeltaWeiStruct,
     makerIndex,
     isVirtualTransfer,
-    makerTotalParStruct.borrow,
-    makerTotalParStruct.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
   let makerNewParStruct = new ValueStruct(event.params.makerUpdate.newPar)
-  let takerTotalParStruct = marginProtocol.getMarketTotalPar(takerToken.marketId)
   changeProtocolBalance(
     takerToken,
     makerNewParStruct,
     makerDeltaWeiStruct,
     takerIndex,
     isVirtualTransfer,
-    takerTotalParStruct.borrow,
-    takerTotalParStruct.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
@@ -500,7 +499,7 @@ export function handleSell(event: SellEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let marginProtocol = DolomiteMarginProtocol.bind(event.address)
+  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let makerToken = Token.load(TokenMarketIdReverseMap.load(event.params.makerMarket.toString())!.tokenAddress) as Token
   let takerToken = Token.load(TokenMarketIdReverseMap.load(event.params.takerMarket.toString())!.tokenAddress) as Token
 
@@ -525,7 +524,7 @@ export function handleSell(event: SellEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, marginProtocol)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
 
   let tradeID = getIDForEvent(event)
   let trade = Trade.load(tradeID)
@@ -567,28 +566,24 @@ export function handleSell(event: SellEvent): void {
   let isVirtualTransfer = false
 
   let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
-  let makerTotalPar = marginProtocol.getMarketTotalPar(makerToken.decimals)
   changeProtocolBalance(
     makerToken,
     takerNewParStruct,
     takerDeltaWeiStruct,
     makerIndex,
     isVirtualTransfer,
-    makerTotalPar.borrow,
-    makerTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
   let makerNewParStruct = new ValueStruct(event.params.makerUpdate.newPar)
-  let takerTotalPar = marginProtocol.getMarketTotalPar(takerToken.decimals)
   changeProtocolBalance(
     takerToken,
     makerNewParStruct,
     makerDeltaWeiStruct,
     takerIndex,
     isVirtualTransfer,
-    takerTotalPar.borrow,
-    takerTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
@@ -607,7 +602,7 @@ export function handleTrade(event: TradeEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let marginProtocol = DolomiteMarginProtocol.bind(event.address)
+  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let takerToken = Token.load(TokenMarketIdReverseMap.load(event.params.inputMarket.toString())!.tokenAddress) as Token
   let makerToken = Token.load(TokenMarketIdReverseMap.load(event.params.outputMarket.toString())!.tokenAddress) as Token
 
@@ -649,7 +644,7 @@ export function handleTrade(event: TradeEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, marginProtocol)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
 
   let tradeID = getIDForEvent(event)
   let trade = Trade.load(tradeID)
@@ -692,28 +687,25 @@ export function handleTrade(event: TradeEvent): void {
   let isVirtualTransfer = true
 
   let takerInputNewParStruct = new ValueStruct(event.params.takerInputUpdate.newPar)
-  let takerTotalPar = marginProtocol.getMarketTotalPar(takerToken.decimals)
+  let takerTotalPar = marginProtocol.getMarketTotalPar(takerToken.marketId)
   changeProtocolBalance(
     takerToken,
     takerInputNewParStruct,
     takerInputDeltaWeiStruct,
     takerIndex,
     isVirtualTransfer,
-    takerTotalPar.borrow,
-    takerTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
   let takerOutputNewParStruct = new ValueStruct(event.params.takerOutputUpdate.newPar)
-  let makerTotalPar = marginProtocol.getMarketTotalPar(makerToken.decimals)
   changeProtocolBalance(
     makerToken,
     takerOutputNewParStruct,
     takerOutputDeltaWeiStruct,
     makerIndex,
     isVirtualTransfer,
-    makerTotalPar.borrow,
-    makerTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
@@ -725,8 +717,7 @@ export function handleTrade(event: TradeEvent): void {
     makerInputDeltaWeiStruct,
     takerIndex,
     isVirtualTransfer,
-    makerTotalPar.borrow,
-    makerTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
@@ -738,8 +729,7 @@ export function handleTrade(event: TradeEvent): void {
     makerOutputDeltaWeiStruct,
     makerIndex,
     isVirtualTransfer,
-    takerTotalPar.borrow,
-    takerTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
@@ -758,7 +748,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let marginProtocol = DolomiteMarginProtocol.bind(event.address)
+  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let heldToken = Token.load(TokenMarketIdReverseMap.load(event.params.heldMarket.toString())!.tokenAddress) as Token
   let owedToken = Token.load(TokenMarketIdReverseMap.load(event.params.owedMarket.toString())!.tokenAddress) as Token
 
@@ -800,7 +790,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
 
   let transaction = getOrCreateTransaction(event)
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, marginProtocol)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
 
   let liquidationID = getIDForEvent(event)
   let liquidation = Liquidation.load(liquidationID)
@@ -859,27 +849,23 @@ export function handleLiquidate(event: LiquidationEvent): void {
   let heldIndex = InterestIndex.load(event.params.heldMarket.toString()) as InterestIndex
   let owedIndex = InterestIndex.load(event.params.owedMarket.toString()) as InterestIndex
   let isVirtualTransfer = true
-  let heldTotalPar = marginProtocol.getMarketTotalPar(heldToken.marketId)
   changeProtocolBalance(
     heldToken,
     solidHeldNewParStruct,
     solidHeldDeltaWeiStruct,
     heldIndex,
     isVirtualTransfer,
-    heldTotalPar.borrow,
-    heldTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
-  let owedTotalPar = marginProtocol.getMarketTotalPar(owedToken.marketId)
   changeProtocolBalance(
     owedToken,
     solidOwedNewParStruct,
     solidOwedDeltaWeiStruct,
     owedIndex,
     isVirtualTransfer,
-    owedTotalPar.borrow,
-    owedTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
@@ -889,8 +875,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     liquidHeldDeltaWeiStruct,
     heldIndex,
     isVirtualTransfer,
-    heldTotalPar.borrow,
-    heldTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
   changeProtocolBalance(
@@ -899,8 +884,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     liquidOwedDeltaWeiStruct,
     owedIndex,
     isVirtualTransfer,
-    owedTotalPar.borrow,
-    owedTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
@@ -970,7 +954,6 @@ export function handleVaporize(event: VaporizationEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let marginProtocol = DolomiteMarginProtocol.bind(event.address)
   let heldToken = Token.load(TokenMarketIdReverseMap.load(event.params.heldMarket.toString())!.tokenAddress) as Token
   let owedToken = Token.load(TokenMarketIdReverseMap.load(event.params.owedMarket.toString())!.tokenAddress) as Token
 
@@ -1012,7 +995,7 @@ export function handleVaporize(event: VaporizationEvent): void {
   let solidOwedNewParStruct = new ValueStruct(event.params.solidOwedUpdate.newPar)
   let solidOwedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, marginProtocol)
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
 
   let vaporizationID = getIDForEvent(event)
   let vaporization = Vaporization.load(vaporizationID)
@@ -1048,27 +1031,23 @@ export function handleVaporize(event: VaporizationEvent): void {
   let heldIndex = InterestIndex.load(event.params.heldMarket.toString()) as InterestIndex
   let owedIndex = InterestIndex.load(event.params.owedMarket.toString()) as InterestIndex
   let isVirtualTransfer = true
-  let heldTotalPar = marginProtocol.getMarketTotalPar(heldToken.marketId)
   changeProtocolBalance(
     heldToken,
     solidHeldNewParStruct,
     solidHeldDeltaWeiStruct,
     heldIndex,
     isVirtualTransfer,
-    heldTotalPar.borrow,
-    heldTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
-  let owedTotalPar = marginProtocol.getMarketTotalPar(owedToken.marketId)
   changeProtocolBalance(
     owedToken,
     solidOwedNewParStruct,
     solidOwedDeltaWeiStruct,
     owedIndex,
     isVirtualTransfer,
-    owedTotalPar.borrow,
-    owedTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
   changeProtocolBalance(
@@ -1077,8 +1056,7 @@ export function handleVaporize(event: VaporizationEvent): void {
     vaporOwedDeltaWeiStruct,
     owedIndex,
     isVirtualTransfer,
-    owedTotalPar.borrow,
-    owedTotalPar.supply,
+    ProtocolType.Core,
     dolomiteMargin
   )
 
