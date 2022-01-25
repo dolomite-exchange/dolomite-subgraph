@@ -1,15 +1,15 @@
 {
   "network": "mumbai",
-  "startBlock": "23834828",
+  "startBlock": "24239468",
   "daiAddress": "0x8ac8ae0a208bef466512cd26142ac5a3ddb5b99e",
-  "dolomiteAmmFactoryAddress": "0x2bA6532E2F88773A0e58aA177e4A9Cc4225281f1",
-  "dolomiteAmmRouterProxyAddress": "0x01A6Eec2f65c4350a728014f5a34aCeeB1a7fE12",
-  "dolomiteMarginAddress": "0x7f3A1bED810efeB54189e87C9e1838CB4E3AD44e",
-  "expiryAddress": "0x9C8488c8441d0845626beBc1c91E9812f0b74026",
+  "dolomiteAmmFactoryAddress": "0x790C61eA35C6480f46EBCFff390e2dB5745B4Dd1",
+  "dolomiteAmmRouterProxyAddress": "0x705DD555603dbdf8593Ec9d3176d2ebCa839b8e1",
+  "dolomiteMarginAddress": "0x2548CB005F16c7dFc711ace901b0C2f144DCd90B",
+  "expiryAddress": "0xb1DD89690E86754d58204fEE6551b45ae1Dd6D30",
   "maticAddress": "0xbee8c17b7449fa0cc54d857d774ce523a7a35d00",
   "usdcAddress": "0xade692c9b8c36e6b04bcfd01f0e91c7ebee0a160",
   "wethAddress": "0xa38ef095d071ebbafea5e7d1ce02be79fc376793",
-  "wethDaiAddress": "0xAcB26CD3b6589f02623685D39786c31b7C8687e2",
-  "wethUsdcAddress": "0xA2419102138022915D00e2e5316654B6C129C287",
+  "wethDaiAddress": "0x3b4cD18b10880B06aF6E9f9eD8cAF418b9C53719",
+  "wethUsdcAddress": "0xe33f1f1B0E167AF70F7Ee1E357c519A387EDd841",
   "wethUsdtAddress": ""
 }
