@@ -1,10 +1,4 @@
-import {
-  Address,
-  BigDecimal,
-  BigInt,
-  ethereum,
-  log
-} from '@graphprotocol/graph-ts/index'
+import { Address, BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts/index'
 import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../types/MarginAdmin/DolomiteMargin'
 import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../types/MarginCore/DolomiteMargin'
 import {
@@ -29,12 +23,7 @@ import {
 } from './amm-helpers'
 import { getTokenOraclePriceUSD } from './amm-pricing'
 import { DOLOMITE_MARGIN_ADDRESS } from './generated/constants'
-import {
-  MarginPositionStatus,
-  PositionChangeEvent,
-  ProtocolType,
-  ValueStruct
-} from './margin-types'
+import { MarginPositionStatus, PositionChangeEvent, ProtocolType, ValueStruct } from './margin-types'
 
 export function getOrCreateTokenValue(
   marginAccount: MarginAccount,
@@ -182,42 +171,41 @@ export function getOrCreateDolomiteMarginForCall(
   return dolomiteMargin as DolomiteMargin
 }
 
-export function weiToPar(wei: BigDecimal, index: InterestIndex, decimals: BigInt): BigDecimal {
-  if (wei.ge(ZERO_BD)) {
-    return wei.div(index.supplyIndex)
-      .truncate(decimals.toI32())
+export function roundHalfUp(bd: BigDecimal, decimals: BigInt): BigDecimal {
+  // Add 0.5 to the number being truncated off. This allows us to effectively round up
+  let amountToAdd = BigDecimal.fromString('5')
+    .div(new BigDecimal(BigInt.fromString('10').pow(decimals.plus(ONE_BI).toI32() as u8)))
+
+  if (bd.lt(ZERO_BD)) {
+    return bd.minus(amountToAdd).truncate(decimals.toI32())
   } else {
-    let smallestUnit = BigDecimal.fromString('1')
-      .div(new BigDecimal(BigInt.fromI32(10)
-        .pow(decimals.toI32() as u8)))
-    return wei.div(index.borrowIndex)
-      .truncate(decimals.toI32())
-      .minus(smallestUnit)
+    return bd.plus(amountToAdd).truncate(decimals.toI32())
   }
 }
 
-export function parToWei(par: BigDecimal, index: InterestIndex): BigDecimal {
-  let decimals = par.exp.lt(BigInt.fromI32(0)) ? par.exp.neg()
-    .toI32() as u8 : 0
-  if (par.ge(ZERO_BD)) {
-    return par.times(index.supplyIndex)
-      .truncate(decimals)
+export function weiToPar(wei: BigDecimal, index: InterestIndex, decimals: BigInt): BigDecimal {
+  if (wei.ge(ZERO_BD)) {
+    return roundHalfUp(wei.div(index.supplyIndex), decimals)
   } else {
-    let oneWei = BigDecimal.fromString('1')
-      .div(new BigDecimal(BigInt.fromI32(10)
-        .pow(decimals)))
-    return par.times(index.borrowIndex)
-      .truncate(decimals)
-      .minus(oneWei)
+    return roundHalfUp(wei.div(index.borrowIndex), decimals)
+  }
+}
+
+export function parToWei(par: BigDecimal, index: InterestIndex, decimals: BigInt): BigDecimal {
+  if (par.ge(ZERO_BD)) {
+    return roundHalfUp(par.times(index.supplyIndex), decimals)
+  } else {
+    return roundHalfUp(par.times(index.borrowIndex), decimals)
   }
 }
 
 function isRepaymentOfBorrowAmount(
   newPar: BigDecimal,
   deltaWei: BigDecimal,
-  index: InterestIndex
+  index: InterestIndex,
+  decimals: BigInt,
 ): boolean {
-  let newWei = parToWei(newPar, index)
+  let newWei = parToWei(newPar, index, decimals)
   let oldWei = newWei.minus(deltaWei)
   return deltaWei.gt(ZERO_BD) && oldWei.lt(ZERO_BD) // the user added to the negative balance (decreasing it)
 }
@@ -225,12 +213,12 @@ function isRepaymentOfBorrowAmount(
 function getMarketTotalBorrowWei(
   borrowPar: BigInt,
   token: Token,
-  index: InterestIndex
+  index: InterestIndex,
 ): BigDecimal {
-  let decimals = token.decimals.toI32()
-  return parToWei(convertTokenToDecimal(borrowPar.neg(), token.decimals), index)
+  let decimals = token.decimals
+  return parToWei(convertTokenToDecimal(borrowPar.neg(), token.decimals), index, token.decimals)
     .neg()
-    .truncate(decimals)
+    .truncate(decimals.toI32())
 }
 
 function getMarketTotalSupplyWei(
@@ -238,9 +226,9 @@ function getMarketTotalSupplyWei(
   token: Token,
   index: InterestIndex
 ): BigDecimal {
-  let decimals = token.decimals.toI32()
-  return parToWei(convertTokenToDecimal(supplyPar, token.decimals), index)
-    .truncate(decimals)
+  let decimals = token.decimals
+  return parToWei(convertTokenToDecimal(supplyPar, token.decimals), index, decimals)
+    .truncate(decimals.toI32())
 }
 
 export function changeProtocolBalance(
@@ -255,7 +243,7 @@ export function changeProtocolBalance(
   let tokenPriceUSD = getTokenOraclePriceUSD(token)
 
   let newPar = convertStructToDecimal(newParStruct, token.decimals)
-  let newWei = parToWei(newPar, index)
+  let newWei = parToWei(newPar, index, token.decimals)
   let deltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
 
   let totalSupplyPar: BigInt
@@ -293,7 +281,7 @@ export function changeProtocolBalance(
     // add the new liquidity back in
     dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
     dolomiteMargin.totalBorrowVolumeUSD = dolomiteMargin.totalBorrowVolumeUSD.plus(borrowVolumeToken.times(tokenPriceUSD))
-  } else if (isRepaymentOfBorrowAmount(newPar, deltaWei, index)) {
+  } else if (isRepaymentOfBorrowAmount(newPar, deltaWei, index, token.decimals)) {
     // temporarily get rid of the old USD liquidity
     dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
 

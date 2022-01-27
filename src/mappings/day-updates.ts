@@ -13,7 +13,7 @@ import {
   Vaporization
 } from '../types/schema'
 import { BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
-import { ONE_BI, ZERO_BD, ZERO_BI } from './amm-helpers'
+import { absBD, ONE_BI, ZERO_BD, ZERO_BI } from './amm-helpers'
 import { DOLOMITE_MARGIN_ADDRESS, FACTORY_ADDRESS, WETH_ADDRESS } from './generated/constants'
 import { getTokenOraclePriceUSD } from './amm-pricing'
 
@@ -437,10 +437,6 @@ export function updateTimeDataForLiquidation(
 ): void {
   if (liquidation.borrowedToken == token.id) {
     let liquidationVolumeToken = liquidation.borrowedTokenAmountDeltaWei
-    if (liquidationVolumeToken.lt(ZERO_BD)) {
-      // This should always be positive but just to be sure
-      liquidationVolumeToken = ZERO_BD.minus(liquidationVolumeToken)
-    }
 
     let tokenPriceUSD = getTokenOraclePriceUSD(token)
     let liquidationVolumeUSD = liquidationVolumeToken.times(tokenPriceUSD).truncate(18)
@@ -470,12 +466,7 @@ export function updateTimeDataForVaporization(
   vaporization: Vaporization
 ): void {
   if (vaporization.borrowedToken == token.id) {
-
-    let vaporizationVolumeToken = vaporization.borrowedTokenAmountDeltaWei
-    if (vaporizationVolumeToken.lt(ZERO_BD)) {
-      // This should always be positive but just to be sure
-      vaporizationVolumeToken = ZERO_BD.minus(vaporizationVolumeToken)
-    }
+    let vaporizationVolumeToken = absBD(vaporization.borrowedTokenAmountDeltaWei)
 
     let tokenPriceUSD = getTokenOraclePriceUSD(token)
     let vaporizationVolumeUSD = vaporizationVolumeToken.times(tokenPriceUSD).truncate(18)

@@ -39,9 +39,9 @@ import {
   absBD,
   BI_18,
   BI_ONE_ETH,
-  bigDecimalExp18,
+  bigDecimalExp18, convertEthToDecimal,
   convertStructToDecimal,
-  convertTokenToDecimal,
+  convertTokenToDecimal, ONE_BD,
   ONE_BI,
   SECONDS_IN_YEAR,
   ZERO_BD,
@@ -63,7 +63,7 @@ import {
   getOrCreateMarginAccount,
   getOrCreateMarginPosition,
   getOrCreateTokenValue,
-  parToWei
+  parToWei, roundHalfUp
 } from './margin-helpers'
 import {
   BalanceUpdate,
@@ -375,7 +375,7 @@ export function handleTransfer(event: TransferEvent): void {
       let marginPosition = getOrCreateMarginPosition(event, marginAccount1)
       if (marginPosition.marginDeposit.notEqual(ZERO_BD)) {
         // The user is removing collateral
-        if (marginPosition.status == MarginPositionStatus.Open && token.id == marginPosition.heldToken) {
+        if (token.id == marginPosition.heldToken) {
           marginPosition.heldAmountPar = balanceUpdateOne.valuePar
         } else if (marginPosition.status == MarginPositionStatus.Open && token.id == marginPosition.owedToken) {
           marginPosition.owedAmountPar = absBD(balanceUpdateOne.valuePar)
@@ -825,25 +825,26 @@ export function handleLiquidate(event: LiquidationEvent): void {
   let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
   let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
 
-  let liquidationSpread = marginProtocol.getLiquidationSpreadForPair(
-    event.params.heldMarket,
-    event.params.owedMarket
-  ).value
-  let heldDeltaWei = event.params.solidHeldUpdate.deltaWei.value
-  let heldTokenLiquidationRewardWei = heldDeltaWei.minus(heldDeltaWei.times(BI_ONE_ETH).div(liquidationSpread))
-  liquidation.heldTokenLiquidationRewardWei = convertTokenToDecimal(heldTokenLiquidationRewardWei, heldToken.decimals)
+  let liquidationSpread = convertEthToDecimal(
+    marginProtocol.getLiquidationSpreadForPair(event.params.heldMarket, event.params.owedMarket).value
+  )
+  let owedPriceAdj = owedPriceUSD.times(liquidationSpread).truncate(36)
 
-  let liquidOwedDeltaWeiBD = convertStructToDecimal(liquidOwedDeltaWeiStruct, owedToken.decimals)
-  liquidation.debtUSDLiquidated = liquidOwedDeltaWeiBD.times(owedPriceUSD).truncate(18)
+  liquidation.heldTokenLiquidationRewardWei = roundHalfUp(
+    liquidation.borrowedTokenAmountDeltaWei.times(owedPriceAdj).div(heldPriceUSD),
+    heldToken.decimals,
+  )
 
-  let liquidHeldDeltaWeiBD = convertStructToDecimal(liquidHeldDeltaWeiStruct, heldToken.decimals)
-  liquidation.collateralUSDLiquidated = liquidHeldDeltaWeiBD.times(heldPriceUSD).truncate(18)
+  liquidation.borrowedTokenAmountUSD = liquidation.borrowedTokenAmountDeltaWei.times(owedPriceUSD).truncate(18)
 
-  let heldTokenLiquidationRewardWeiBD = convertTokenToDecimal(heldTokenLiquidationRewardWei, heldToken.decimals)
-  liquidation.collateralUSDLiquidationReward = heldTokenLiquidationRewardWeiBD.times(heldPriceUSD).truncate(18)
+  liquidation.heldTokenAmountUSD = liquidation.heldTokenAmountDeltaWei.times(heldPriceUSD).truncate(18)
+
+  liquidation.heldTokenLiquidationRewardUSD =
+    liquidation.heldTokenLiquidationRewardWei.times(heldPriceUSD).truncate(18)
 
   dolomiteMargin.liquidationCount = dolomiteMargin.liquidationCount.plus(ONE_BI)
-  dolomiteMargin.totalLiquidationVolumeUSD = dolomiteMargin.totalLiquidationVolumeUSD.plus(liquidation.debtUSDLiquidated)
+  dolomiteMargin.totalLiquidationVolumeUSD =
+    dolomiteMargin.totalLiquidationVolumeUSD.plus(liquidation.borrowedTokenAmountUSD)
   dolomiteMargin.save()
 
   let heldIndex = InterestIndex.load(event.params.heldMarket.toString()) as InterestIndex
@@ -888,20 +889,10 @@ export function handleLiquidate(event: LiquidationEvent): void {
     dolomiteMargin
   )
 
-  let heldTokenHourData = updateAndReturnTokenHourDataForMarginEvent(heldToken, event)
   let owedTokenHourData = updateAndReturnTokenHourDataForMarginEvent(owedToken, event)
-  let heldTokenDayData = updateAndReturnTokenDayDataForMarginEvent(heldToken, event)
   let owedTokenDayData = updateAndReturnTokenDayDataForMarginEvent(owedToken, event)
-
   let dolomiteDayData = updateDolomiteDayData(event)
 
-  updateTimeDataForLiquidation(
-    dolomiteDayData,
-    heldTokenDayData,
-    heldTokenHourData,
-    heldToken,
-    liquidation as Liquidation
-  )
   updateTimeDataForLiquidation(
     dolomiteDayData,
     owedTokenDayData,
@@ -931,16 +922,23 @@ export function handleLiquidate(event: LiquidationEvent): void {
         let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
         let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
 
-        let closeHeldAmountWei = parToWei(marginPosition.initialHeldAmountPar, heldIndex)
-        let closeOwedAmountWei = parToWei(marginPosition.initialOwedAmountPar.neg(), owedIndex).neg()
+        let closeHeldAmountWei = parToWei(marginPosition.initialHeldAmountPar, heldIndex, heldToken.decimals)
+        let closeOwedAmountWei = parToWei(marginPosition.initialOwedAmountPar.neg(), owedIndex, owedToken.decimals).neg()
 
-        marginPosition.closeHeldPriceUSD = closeHeldAmountWei.div(closeOwedAmountWei).times(owedPriceUSD).truncate(36)
+        marginPosition.closeHeldPrice = heldPriceUSD.div(owedPriceUSD).truncate(18)
+        marginPosition.closeHeldPriceUSD = heldPriceUSD.truncate(36)
         marginPosition.closeHeldAmountWei = closeHeldAmountWei
-        marginPosition.closeHeldAmountUSD = closeHeldAmountWei.times(heldPriceUSD).truncate(18)
-
-        marginPosition.closeOwedPriceUSD = closeOwedAmountWei.div(closeHeldAmountWei).times(heldPriceUSD).truncate(36)
+        marginPosition.closeHeldAmountUSD = closeHeldAmountWei.times(heldPriceUSD).truncate(36)
+        marginPosition.closeHeldAmountSeized = liquidation.heldTokenLiquidationRewardWei
+        marginPosition.closeHeldAmountSeizedUSD = liquidation.heldTokenLiquidationRewardUSD
+        // 2765720959194952447876
+        // 2765720959194952447876
+        //
+        // 138.286528 - 131.701455 == 6.585073
+        marginPosition.closeOwedPrice = owedPriceUSD.div(heldPriceUSD).truncate(18)
+        marginPosition.closeOwedPriceUSD = owedPriceUSD.truncate(36)
         marginPosition.closeOwedAmountWei = closeOwedAmountWei
-        marginPosition.closeOwedAmountUSD = closeOwedAmountWei.times(owedPriceUSD).truncate(18)
+        marginPosition.closeOwedAmountUSD = closeOwedAmountWei.times(owedPriceUSD).truncate(36)
       }
 
       marginPosition.save()
@@ -1060,20 +1058,10 @@ export function handleVaporize(event: VaporizationEvent): void {
     dolomiteMargin
   )
 
-  let heldTokenHourData = updateAndReturnTokenHourDataForMarginEvent(heldToken, event)
   let owedTokenHourData = updateAndReturnTokenHourDataForMarginEvent(owedToken, event)
-  let heldTokenDayData = updateAndReturnTokenDayDataForMarginEvent(heldToken, event)
   let owedTokenDayData = updateAndReturnTokenDayDataForMarginEvent(owedToken, event)
-
   let dolomiteDayData = updateDolomiteDayData(event)
 
-  updateTimeDataForVaporization(
-    dolomiteDayData,
-    heldTokenDayData,
-    heldTokenHourData,
-    heldToken,
-    vaporization as Vaporization
-  )
   updateTimeDataForVaporization(
     dolomiteDayData,
     owedTokenDayData,

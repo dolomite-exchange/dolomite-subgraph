@@ -586,9 +586,9 @@ type Liquidation @entity {
   heldTokenLiquidationRewardWei: BigDecimal!
 
   # derived info
-  debtUSDLiquidated: BigDecimal! # The amount of borrowedTokenAMount liquidated
-  collateralUSDLiquidated: BigDecimal! # The amount of heldTokenAmount liquidated to recover `borrowAmount`
-  collateralUSDLiquidationReward: BigDecimal! # The amount of heldTokenAmount given as a reward to the liquidator
+  borrowedTokenAmountUSD: BigDecimal! # The amount of borrowedTokenAmount liquidated
+  heldTokenAmountUSD: BigDecimal! # The amount of heldTokenAmount liquidated to recover `borrowAmount`
+  heldTokenLiquidationRewardUSD: BigDecimal! # The amount of heldTokenAmount given as a reward to the liquidator
 }
 
 type Vaporization @entity {
@@ -653,6 +653,8 @@ type MarginPosition @entity {
   closeHeldPriceUSD: BigDecimal
   closeHeldAmountWei: BigDecimal
   closeHeldAmountUSD: BigDecimal
+  closeHeldAmountSeized: BigDecimal # the liquidation reward that's taken from liquid accounts and given to liquidators
+  closeHeldAmountSeizedUSD: BigDecimal
 
   heldAmountPar: BigDecimal!
 
