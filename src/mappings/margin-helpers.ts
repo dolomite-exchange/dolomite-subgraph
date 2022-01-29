@@ -47,7 +47,7 @@ export function getOrCreateTokenValue(
   marginAccount: MarginAccount,
   token: Token
 ): MarginAccountTokenValue {
-  let id = marginAccount.user + '-' + marginAccount.accountNumber.toString() + '-' + token.marketId.toString()
+  let id = `${marginAccount.user}-${marginAccount.accountNumber.toString()}-${token.marketId.toString()}`
   let tokenValue = MarginAccountTokenValue.load(id)
   if (tokenValue === null) {
     tokenValue = new MarginAccountTokenValue(id)
@@ -68,9 +68,9 @@ export function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, 
     marginAccount = new MarginAccount(id)
     marginAccount.user = owner.toHexString()
     marginAccount.accountNumber = accountNumber
-    marginAccount.borrowedMarketIds = []
+    marginAccount.borrowMarketIds = []
     marginAccount.expirationMarketIds = []
-    marginAccount.hasBorrowedValue = false
+    marginAccount.hasBorrowValue = false
     marginAccount.hasExpiration = false
   }
 

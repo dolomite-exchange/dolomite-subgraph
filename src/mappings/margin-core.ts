@@ -119,17 +119,15 @@ function handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate: BalanceUpdat
 
   if (tokenValue.valuePar.lt(ZERO_BD) && balanceUpdate.valuePar.ge(ZERO_BD)) {
     // The user is going from a negative balance to a positive one. Remove from the list
-    let index = marginAccount.borrowedMarketIds.indexOf(tokenValue.id)
+    let index = marginAccount.borrowMarketIds.indexOf(balanceUpdate.token.marketId)
     if (index != -1) {
-      let arrayCopy = marginAccount.borrowedMarketIds
-      arrayCopy.splice(index, 1)
-      marginAccount.borrowedMarketIds = arrayCopy
+      marginAccount.borrowMarketIds = marginAccount.borrowMarketIds.splice(index, 1)
     }
   } else if (tokenValue.valuePar.ge(ZERO_BD) && balanceUpdate.valuePar.lt(ZERO_BD)) {
     // The user is going from a positive balance to a negative one, add it to the list
-    marginAccount.borrowedMarketIds = marginAccount.borrowedMarketIds.concat([tokenValue.id])
+    marginAccount.borrowMarketIds = marginAccount.borrowMarketIds.concat([balanceUpdate.token.marketId])
   }
-  marginAccount.hasBorrowedValue = marginAccount.borrowedMarketIds.length > 0
+  marginAccount.hasBorrowValue = marginAccount.borrowMarketIds.length > 0
 
   tokenValue.valuePar = balanceUpdate.valuePar
   log.info(

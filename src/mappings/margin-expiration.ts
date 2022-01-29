@@ -33,6 +33,21 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
 
   let params = event.params
   let marginAccount = getOrCreateMarginAccount(event.params.owner, event.params.number, event.block)
+  if (event.params.time.equals(ZERO_BI)) {
+    // remove the market ID
+    let index = marginAccount.expirationMarketIds.indexOf(event.params.marketId)
+    if (index != -1) {
+      marginAccount.expirationMarketIds = marginAccount.expirationMarketIds.splice(index, 1)
+    }
+    marginAccount.hasExpiration = marginAccount.expirationMarketIds.length > 0
+  } else {
+    // add the market ID, if necessary
+    let index = marginAccount.expirationMarketIds.indexOf(event.params.marketId)
+    if (index == -1) {
+      marginAccount.expirationMarketIds = marginAccount.expirationMarketIds.concat([event.params.marketId])
+    }
+    marginAccount.hasExpiration = true
+  }
   marginAccount.save()
 
   let marginPosition = getOrCreateMarginPosition(event, marginAccount)
@@ -51,20 +66,6 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
   let token = Token.load(tokenAddress) as Token
 
   let tokenValue = getOrCreateTokenValue(marginAccount, token)
-  if (tokenValue.expirationTimestamp !== null && event.params.time.equals(ZERO_BI)) {
-    // The user is going from having an expiration to not having one, remove
-    let index = marginAccount.expirationMarketIds.indexOf(tokenValue.id)
-    if (index != -1) {
-      let arrayCopy = marginAccount.expirationMarketIds
-      arrayCopy.splice(index, 1)
-      marginAccount.expirationMarketIds = arrayCopy
-    }
-  } else if (tokenValue.expirationTimestamp === null && event.params.time.gt(ZERO_BI)) {
-    // The user is going from having no expiration to having one, add it to the list
-    marginAccount.expirationMarketIds = marginAccount.expirationMarketIds.concat([tokenValue.id])
-  }
-  marginAccount.hasExpiration = marginAccount.expirationMarketIds.length > 0
-
   tokenValue.expirationTimestamp = event.params.time.gt(ZERO_BI) ? event.params.time : null
   tokenValue.expiryAddress = event.params.time.gt(ZERO_BI) ? event.address.toHexString() : null
   tokenValue.save()
