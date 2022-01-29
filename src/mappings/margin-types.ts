@@ -1,10 +1,27 @@
-import { Address, BigDecimal, BigInt, Bytes, ethereum } from '@graphprotocol/graph-ts'
+import {
+  Address,
+  BigDecimal,
+  BigInt,
+  Bytes,
+  ethereum
+} from '@graphprotocol/graph-ts'
+import {
+  MarginPosition,
+  Token
+} from '../types/schema'
 import { convertTokenToDecimal } from './amm-helpers'
-import { MarginPosition, Token } from '../types/schema'
 
-export enum ProtocolType {
-  Core,
-  Admin,
+export class ProtocolType {
+  // eslint-disable-next-line
+  static Core: string = 'CORE'
+  // eslint-disable-next-line
+  static Admin: string = 'ADMIN'
+  // eslint-disable-next-line
+  static Expiry: string = 'EXPIRY'
+  // eslint-disable-next-line
+  static Amm: string = 'AMM'
+  // eslint-disable-next-line
+  static Position: string = 'POSITION'
 }
 
 export class PositionChangeEvent {

@@ -1,12 +1,30 @@
-import { ExpirySet as ExpirySetEvent } from '../types/MarginExpiry/DolomiteMarginExpiry'
-import { Address, log } from '@graphprotocol/graph-ts/index'
-import { getOrCreateMarginAccount, getOrCreateMarginPosition, getOrCreateTokenValue } from './margin-helpers'
-import { ZERO_BD, ZERO_BI } from './amm-helpers'
-import { MarginPositionStatus } from './margin-types'
+import {
+  Address,
+  log
+} from '@graphprotocol/graph-ts/index'
 import { DolomiteMargin as DolomiteMarginProtocol } from '../types/MarginExpiry/DolomiteMargin'
-import { DOLOMITE_MARGIN_ADDRESS } from './generated/constants'
+import {
+  ExpirySet as ExpirySetEvent,
+  LogExpiryRampTimeSet as ExpiryRampTimeSetEvent,
+} from '../types/MarginExpiry/DolomiteMarginExpiry'
 import { Token } from '../types/schema'
+import {
+  DOLOMITE_MARGIN_ADDRESS,
+  ZERO_BD,
+  ZERO_BI
+} from './generated/constants'
+import {
+  getOrCreateDolomiteMarginForCall,
+  getOrCreateMarginAccount,
+  getOrCreateMarginPosition,
+  getOrCreateTokenValue
+} from './margin-helpers'
+import {
+  MarginPositionStatus,
+  ProtocolType
+} from './margin-types'
 
+// noinspection JSUnusedGlobalSymbols
 export function handleSetExpiry(event: ExpirySetEvent): void {
   log.info(
     'Handling expiration set for hash and index: {}-{}',
@@ -28,7 +46,8 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
   }
 
   let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-  let tokenAddress = marginProtocol.getMarketTokenAddress(event.params.marketId).toHexString()
+  let tokenAddress = marginProtocol.getMarketTokenAddress(event.params.marketId)
+    .toHexString()
   let token = Token.load(tokenAddress) as Token
 
   let tokenValue = getOrCreateTokenValue(marginAccount, token)
@@ -49,4 +68,16 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
   tokenValue.expirationTimestamp = event.params.time.gt(ZERO_BI) ? event.params.time : null
   tokenValue.expiryAddress = event.params.time.gt(ZERO_BI) ? event.address.toHexString() : null
   tokenValue.save()
+}
+
+// noinspection JSUnusedGlobalSymbols
+export function handleSetExpiryRampTime(event: ExpiryRampTimeSetEvent): void {
+  log.info(
+    'Handling expiration ramp time set for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Expiry)
+  dolomiteMargin.expiryRampTime = event.params.expiryRampTime
+  dolomiteMargin.save()
 }

@@ -48,9 +48,11 @@ dataSources:
       abis:
         - name: DolomiteMargin
           file: ./abis/dolomite-margin.json
+        - name: DolomiteMarginExpiry
+          file: ./abis/dolomite-margin-expiry.json
       eventHandlers:
-        - event: LogOperation(address)
-          handler: handleOperation
+#        - event: LogOperation(address)
+#          handler: handleOperation
         - event: LogIndexUpdate(indexed uint256,(uint96,uint96,uint32))
           handler: handleIndexUpdate
         - event: LogDeposit(indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),address)
@@ -88,6 +90,8 @@ dataSources:
       abis:
         - name: DolomiteMargin
           file: ./abis/dolomite-margin.json
+        - name: DolomiteMarginExpiry
+          file: ./abis/dolomite-margin-expiry.json
         - name: DolomiteMarginERC20
           file: ./abis/erc20.json
       eventHandlers:
@@ -151,6 +155,8 @@ dataSources:
       eventHandlers:
         - event: ExpirySet(address,uint256,uint256,uint32)
           handler: handleSetExpiry
+        - event: LogExpiryRampTimeSet(uint256)
+          handler: handleSetExpiryRampTime
 templates:
   - kind: ethereum/contract
     name: AmmPair
@@ -169,6 +175,8 @@ templates:
       abis:
         - name: AmmPair
           file: ./abis/amm-pair.json
+        - name: DolomiteMargin
+          file: ./abis/dolomite-margin.json
       eventHandlers:
         - event: Mint(indexed address,uint256,uint256)
           handler: handleMint

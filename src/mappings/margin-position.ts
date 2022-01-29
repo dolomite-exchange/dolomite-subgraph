@@ -1,24 +1,42 @@
+import { ethereum } from '@graphprotocol/graph-ts'
+import {
+  Address,
+  BigDecimal
+} from '@graphprotocol/graph-ts/index'
 import {
   MarginPositionClose as MarginPositionCloseEvent,
   MarginPositionOpen as MarginPositionOpenEvent
 } from '../types/DolomiteAmmRouter/DolomiteAmmRouterProxy'
 import { DolomiteMargin as DolomiteMarginProtocol } from '../types/DolomiteAmmRouter/DolomiteMargin'
-import { MarginPositionStatus, PositionChangeEvent, ValueStruct } from './margin-types'
-import { InterestIndex, MarginAccount, MarginPosition, Token } from '../types/schema'
-import { Address, BigDecimal } from '@graphprotocol/graph-ts/index'
-import { DOLOMITE_MARGIN_ADDRESS } from './generated/constants'
-import { absBD, convertStructToDecimal, ZERO_BD } from './amm-helpers'
+import {
+  InterestIndex,
+  MarginAccount,
+  MarginPosition,
+  Token
+} from '../types/schema'
+import { convertStructToDecimal } from './amm-helpers'
 import { getTokenOraclePriceUSD } from './amm-pricing'
+import {
+  DOLOMITE_MARGIN_ADDRESS,
+  ZERO_BD
+} from './generated/constants'
+import { absBD } from './helpers'
 import {
   getOrCreateMarginAccount,
   getOrCreateMarginPosition,
   getOrCreateTokenValue,
-  isMarginPositionExpired
 } from './margin-helpers'
+import {
+  MarginPositionStatus,
+  PositionChangeEvent,
+  ProtocolType,
+  ValueStruct
+} from './margin-types'
 
 function updateMarginPositionForTrade(
   marginPosition: MarginPosition,
-  event: PositionChangeEvent,
+  event: ethereum.Event,
+  positionChangeEvent: PositionChangeEvent,
   dolomiteMarginProtocol: DolomiteMarginProtocol,
   inputTokenNewPar: ValueStruct,
   outputTokenNewPar: ValueStruct,
@@ -29,17 +47,17 @@ function updateMarginPositionForTrade(
   if (marginPosition.owedToken === null || marginPosition.heldToken === null) {
     // the position is being opened
     isPositionBeingOpened = true
-    marginPosition.owedToken = event.inputToken.id
-    marginPosition.heldToken = event.outputToken.id
+    marginPosition.owedToken = positionChangeEvent.inputToken.id
+    marginPosition.heldToken = positionChangeEvent.outputToken.id
   }
 
   if (!isPositionBeingOpened) {
     let tokens = [marginPosition.heldToken, marginPosition.owedToken]
     if (
       marginPosition.status == MarginPositionStatus.Unknown ||
-      !tokens.includes(event.inputToken.id) ||
-      !tokens.includes(event.outputToken.id) ||
-      !tokens.includes(event.depositToken.id)
+      !tokens.includes(positionChangeEvent.inputToken.id) ||
+      !tokens.includes(positionChangeEvent.outputToken.id) ||
+      !tokens.includes(positionChangeEvent.depositToken.id)
     ) {
       // the position is invalidated
       marginPosition.status = MarginPositionStatus.Unknown
@@ -51,70 +69,84 @@ function updateMarginPositionForTrade(
   let heldToken: Token = Token.load(marginPosition.heldToken as string) as Token
   let owedToken: Token = Token.load(marginPosition.owedToken as string) as Token
 
-  const heldTokenNewPar = marginPosition.heldToken == event.inputToken.id ?
+  const heldTokenNewPar = marginPosition.heldToken == positionChangeEvent.inputToken.id ?
     absBD(convertStructToDecimal(inputTokenNewPar, heldToken.decimals)) :
     absBD(convertStructToDecimal(outputTokenNewPar, heldToken.decimals))
 
-  const owedTokenNewPar = marginPosition.owedToken == event.inputToken.id ?
+  const owedTokenNewPar = marginPosition.owedToken == positionChangeEvent.inputToken.id ?
     absBD(convertStructToDecimal(inputTokenNewPar, owedToken.decimals)) :
     absBD(convertStructToDecimal(outputTokenNewPar, owedToken.decimals))
 
-  let heldTokenIndex = marginPosition.heldToken == event.inputToken.id ? inputTokenIndex : outputTokenIndex
-  let owedTokenIndex = marginPosition.owedToken == event.inputToken.id ? inputTokenIndex : outputTokenIndex
+  let heldTokenIndex = marginPosition.heldToken == positionChangeEvent.inputToken.id ? inputTokenIndex : outputTokenIndex
+  let owedTokenIndex = marginPosition.owedToken == positionChangeEvent.inputToken.id ? inputTokenIndex : outputTokenIndex
 
   // if the trader is closing the position, they are sizing down the collateral and debt
-  let inputAmountWei = !event.isOpen ? event.inputWei.neg() : event.inputWei
-  let outputAmountWei = !event.isOpen ? event.outputWei.neg() : event.outputWei
+  let inputAmountWei = !positionChangeEvent.isOpen ? positionChangeEvent.inputWei.neg() : positionChangeEvent.inputWei
+  let outputAmountWei = !positionChangeEvent.isOpen ? positionChangeEvent.outputWei.neg() : positionChangeEvent.outputWei
 
-  let heldAmountWei = marginPosition.heldToken == event.inputToken.id ? inputAmountWei : outputAmountWei
-  let owedAmountWei = marginPosition.owedToken == event.inputToken.id ? inputAmountWei : outputAmountWei
+  let heldAmountWei = marginPosition.heldToken == positionChangeEvent.inputToken.id ? inputAmountWei : outputAmountWei
+  let owedAmountWei = marginPosition.owedToken == positionChangeEvent.inputToken.id ? inputAmountWei : outputAmountWei
 
   marginPosition.owedAmountPar = owedTokenNewPar
   marginPosition.heldAmountPar = heldTokenNewPar
 
   if (isPositionBeingOpened) {
-    let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
-    let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
+    let owedPriceUSD = getTokenOraclePriceUSD(owedToken, event, ProtocolType.Position)
+    let heldPriceUSD = getTokenOraclePriceUSD(heldToken, event, ProtocolType.Position)
 
     marginPosition.initialOwedAmountPar = owedTokenNewPar
     marginPosition.initialOwedAmountWei = owedAmountWei
-    marginPosition.initialOwedPrice = absBD(heldAmountWei).div(absBD(owedAmountWei)).truncate(36)
-    marginPosition.initialOwedPriceUSD = marginPosition.initialOwedPrice.times(heldPriceUSD).truncate(36)
-    marginPosition.initialOwedAmountUSD = owedAmountWei.times(marginPosition.initialOwedPriceUSD).truncate(36)
+    marginPosition.initialOwedPrice = absBD(heldAmountWei)
+      .div(absBD(owedAmountWei))
+      .truncate(36)
+    marginPosition.initialOwedPriceUSD = marginPosition.initialOwedPrice.times(heldPriceUSD)
+      .truncate(36)
+    marginPosition.initialOwedAmountUSD = owedAmountWei.times(marginPosition.initialOwedPriceUSD)
+      .truncate(36)
 
     marginPosition.initialHeldAmountPar = heldTokenNewPar
     marginPosition.initialHeldAmountWei = heldAmountWei
-    if (marginPosition.heldToken == event.depositToken.id) {
-      marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(event.depositWei)
+    if (marginPosition.heldToken == positionChangeEvent.depositToken.id) {
+      marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(positionChangeEvent.depositWei)
     }
-    marginPosition.initialHeldPrice = absBD(owedAmountWei).div(absBD(heldAmountWei)).truncate(36)
-    marginPosition.initialHeldPriceUSD = marginPosition.initialHeldPrice.times(owedPriceUSD).truncate(36)
-    marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountWei.times(marginPosition.initialHeldPriceUSD).truncate(36)
+    marginPosition.initialHeldPrice = absBD(owedAmountWei)
+      .div(absBD(heldAmountWei))
+      .truncate(36)
+    marginPosition.initialHeldPriceUSD = marginPosition.initialHeldPrice.times(owedPriceUSD)
+      .truncate(36)
+    marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountWei.times(marginPosition.initialHeldPriceUSD)
+      .truncate(36)
 
-    marginPosition.marginDeposit = event.depositWei
-    marginPosition.marginDepositUSD = event.depositWei.times(marginPosition.initialHeldPriceUSD)
+    marginPosition.marginDeposit = positionChangeEvent.depositWei
+    marginPosition.marginDepositUSD = positionChangeEvent.depositWei.times(marginPosition.initialHeldPriceUSD)
   }
 
 
   if (marginPosition.owedAmountPar.equals(ZERO_BD)) {
-    marginPosition.status = isMarginPositionExpired(marginPosition, event) ? MarginPositionStatus.Expired : MarginPositionStatus.Closed
-    marginPosition.closeTimestamp = event.timestamp
-    marginPosition.closeTransaction = event.hash.toHexString()
+    marginPosition.status = MarginPositionStatus.Closed
+    marginPosition.closeTimestamp = positionChangeEvent.timestamp
+    marginPosition.closeTransaction = positionChangeEvent.hash.toHexString()
 
-    let heldPriceUSD = getTokenOraclePriceUSD(heldToken)
-    let owedPriceUSD = getTokenOraclePriceUSD(owedToken)
+    let heldPriceUSD = getTokenOraclePriceUSD(heldToken, event, ProtocolType.Position)
+    let owedPriceUSD = getTokenOraclePriceUSD(owedToken, event, ProtocolType.Position)
 
-    marginPosition.closeHeldPrice = owedAmountWei.div(heldAmountWei).truncate(18)
-    marginPosition.closeHeldPriceUSD = (marginPosition.closeHeldPrice as BigDecimal).times(owedPriceUSD).truncate(36)
+    marginPosition.closeHeldPrice = owedAmountWei.div(heldAmountWei)
+      .truncate(18)
+    marginPosition.closeHeldPriceUSD = (marginPosition.closeHeldPrice as BigDecimal).times(owedPriceUSD)
+      .truncate(36)
     marginPosition.closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(heldTokenIndex.supplyIndex)
-    marginPosition.closeHeldAmountUSD = (marginPosition.closeHeldAmountWei as BigDecimal).times(heldPriceUSD).truncate(36)
+    marginPosition.closeHeldAmountUSD = (marginPosition.closeHeldAmountWei as BigDecimal).times(heldPriceUSD)
+      .truncate(36)
     marginPosition.closeHeldAmountSeized = ZERO_BD
     marginPosition.closeHeldAmountSeizedUSD = ZERO_BD
 
-    marginPosition.closeOwedPrice = heldAmountWei.div(owedAmountWei).truncate(18)
-    marginPosition.closeOwedPriceUSD = (marginPosition.closeOwedPrice as BigDecimal).times(heldPriceUSD).truncate(36)
+    marginPosition.closeOwedPrice = heldAmountWei.div(owedAmountWei)
+      .truncate(18)
+    marginPosition.closeOwedPriceUSD = (marginPosition.closeOwedPrice as BigDecimal).times(heldPriceUSD)
+      .truncate(36)
     marginPosition.closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedTokenIndex.borrowIndex)
-    marginPosition.closeOwedAmountUSD = (marginPosition.closeOwedAmountWei as BigDecimal).times(owedPriceUSD).truncate(36)
+    marginPosition.closeOwedAmountUSD = (marginPosition.closeOwedAmountWei as BigDecimal).times(owedPriceUSD)
+      .truncate(36)
   }
 
   let tokenValue = getOrCreateTokenValue(MarginAccount.load(marginPosition.marginAccount) as MarginAccount, owedToken)
@@ -125,6 +157,7 @@ function updateMarginPositionForTrade(
   marginPosition.save()
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
   let marginAccount = getOrCreateMarginAccount(event.params.user, event.params.accountIndex, event.block)
   let marginPosition = getOrCreateMarginPosition(event, marginAccount)
@@ -148,10 +181,20 @@ export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
   let inputIndex = InterestIndex.load(positionChangeEvent.inputToken.marketId.toString()) as InterestIndex
   let outputIndex = InterestIndex.load(positionChangeEvent.outputToken.marketId.toString()) as InterestIndex
 
-  updateMarginPositionForTrade(marginPosition, positionChangeEvent, marginProtocol, inputBalanceUpdate, outputBalanceUpdate, inputIndex, outputIndex)
+  updateMarginPositionForTrade(
+    marginPosition,
+    event,
+    positionChangeEvent,
+    marginProtocol,
+    inputBalanceUpdate,
+    outputBalanceUpdate,
+    inputIndex,
+    outputIndex
+  )
   marginPosition.save()
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleMarginPositionClose(event: MarginPositionCloseEvent): void {
   let marginAccount = getOrCreateMarginAccount(event.params.user, event.params.accountIndex, event.block)
   let marginPosition = getOrCreateMarginPosition(event, marginAccount)
@@ -175,6 +218,15 @@ export function handleMarginPositionClose(event: MarginPositionCloseEvent): void
   let inputIndex = InterestIndex.load(positionChangeEvent.inputToken.marketId.toString()) as InterestIndex
   let outputIndex = InterestIndex.load(positionChangeEvent.outputToken.marketId.toString()) as InterestIndex
 
-  updateMarginPositionForTrade(marginPosition, positionChangeEvent, marginProtocol, inputBalanceUpdate, outputBalanceUpdate, inputIndex, outputIndex)
+  updateMarginPositionForTrade(
+    marginPosition,
+    event,
+    positionChangeEvent,
+    marginProtocol,
+    inputBalanceUpdate,
+    outputBalanceUpdate,
+    inputIndex,
+    outputIndex
+  )
   marginPosition.save()
 }

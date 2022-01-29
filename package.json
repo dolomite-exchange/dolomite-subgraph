@@ -5,7 +5,7 @@
   "license": "GPL-3.0-or-later",
   "scripts": {
     "mustache-template:mumbai":  "mustache config/mumbai.json subgraph.template.yaml > subgraph.yaml",
-    "mustache-constants:mumbai": "mkdir -p src/mappings/generated && mustache config/mumbai.json src/mappings/constants.template.ts > src/mappings/generated/constants.ts",
+    "mustache-constants:mumbai": "mkdir -p src/mappings/generated && mustache config/mumbai.json src/templates/constants.template.ts > src/mappings/generated/constants.ts",
     "prepare:mumbai": "yarn mustache-template:mumbai && yarn mustache-constants:mumbai",
     "codegen:mumbai": "yarn prepare:mumbai && rm -rf src/types && graph codegen --output-dir src/types/",
     "build:mumbai": "yarn prepare:mumbai && graph build",

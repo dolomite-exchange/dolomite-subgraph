@@ -1,5 +1,5 @@
 /* eslint-disable prefer-const */
-import { Address, BigDecimal, BigInt, Bytes, ethereum, log } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts'
 import { DolomiteMarginERC20 } from '../types/MarginAdmin/DolomiteMarginERC20'
 import {
   AmmLiquidityPosition,
@@ -11,25 +11,11 @@ import {
   User
 } from '../types/schema'
 import { ValueStruct } from './margin-types'
-
-export let ZERO_BYTES = new Bytes(0)
-export let ZERO_BI = BigInt.fromI32(0)
-export let ONE_BI = BigInt.fromI32(1)
-export let ZERO_BD = BigDecimal.fromString('0')
-export let ONE_BD = BigDecimal.fromString('1')
-export let BI_10 = BigInt.fromI32(10)
-export let BI_18 = BigInt.fromI32(18)
-export let BI_ONE_ETH = BI_10.pow(18)
-export let BD_ONE_ETH = new BigDecimal(BI_ONE_ETH)
-export let SECONDS_IN_YEAR = BigInt.fromI32(31536000)
-
-export function bigDecimalAbs(bd: BigDecimal): BigDecimal {
-  if (bd.lt(ZERO_BD)) {
-    return ZERO_BD.minus(bd)
-  } else {
-    return bd
-  }
-}
+import {
+  ZERO_BI,
+  ZERO_BD,
+  ONE_BI
+} from './generated/constants'
 
 export function exponentToBigDecimal(decimals: BigInt): BigDecimal {
   let bd = BigDecimal.fromString('1')
@@ -37,14 +23,6 @@ export function exponentToBigDecimal(decimals: BigInt): BigDecimal {
     bd = bd.times(BigDecimal.fromString('10'))
   }
   return bd
-}
-
-export function bigDecimalExp18(): BigDecimal {
-  return BigDecimal.fromString('1000000000000000000')
-}
-
-export function convertEthToDecimal(eth: BigInt): BigDecimal {
-  return eth.toBigDecimal().div(exponentToBigDecimal(BigInt.fromI32(18)))
 }
 
 export function convertTokenToDecimal(tokenAmount: BigInt, exchangeDecimals: BigInt): BigDecimal {
@@ -62,12 +40,6 @@ export function convertStructToDecimal(struct: ValueStruct, exchangeDecimals: Bi
   } else {
     return value.toBigDecimal().div(exponentToBigDecimal(exchangeDecimals))
   }
-}
-
-export function equalToZero(value: BigDecimal): boolean {
-  const formattedVal = parseFloat(value.toString())
-  const zero = parseFloat(ZERO_BD.toString())
-  return zero == formattedVal
 }
 
 export function isNullEthValue(value: string): boolean {
@@ -201,22 +173,6 @@ export function createUserIfNecessary(address: Address): void {
     user.totalUsdSwapped = ZERO_BD
     user.totalUsdTraded = ZERO_BD
     user.save()
-  }
-}
-
-export function absBD(bd: BigDecimal): BigDecimal {
-  if (bd.lt(ZERO_BD)) {
-    return bd.neg()
-  } else {
-    return bd
-  }
-}
-
-export function absBI(bi: BigInt): BigInt {
-  if (bi.lt(ZERO_BI)) {
-    return bi.neg()
-  } else {
-    return bi
   }
 }
 

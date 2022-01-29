@@ -1,29 +1,47 @@
-import { Address, BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts/index'
+import {
+  Address,
+  BigDecimal,
+  BigInt,
+  ethereum,
+  log
+} from '@graphprotocol/graph-ts/index'
 import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../types/MarginAdmin/DolomiteMargin'
+import { DolomiteMarginExpiry as DolomiteMarginExpiryAdminProtocol } from '../types/MarginAdmin/DolomiteMarginExpiry'
 import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../types/MarginCore/DolomiteMargin'
+import { DolomiteMarginExpiry as DolomiteMarginExpiryCoreProtocol } from '../types/MarginCore/DolomiteMarginExpiry'
+import { DolomiteMargin as DolomiteMarginExpiryProtocol } from '../types/MarginExpiry/DolomiteMargin'
+import { DolomiteMarginExpiry as DolomiteMarginExpiryExpiryProtocol } from '../types/MarginExpiry/DolomiteMarginExpiry'
 import {
   DolomiteMargin,
   InterestIndex,
   MarginAccount,
   MarginAccountTokenValue,
   MarginPosition,
+  MarketRiskInfo,
   Token
 } from '../types/schema'
 import {
-  absBD,
-  BD_ONE_ETH,
   convertStructToDecimal,
   convertTokenToDecimal,
-  createUserIfNecessary,
+  createUserIfNecessary
+} from './amm-helpers'
+import { getTokenOraclePriceUSD } from './amm-pricing'
+import {
+  BD_ONE_ETH,
+  DOLOMITE_MARGIN_ADDRESS,
+  EXPIRY_ADDRESS,
   ONE_BD,
   ONE_BI,
   ZERO_BD,
   ZERO_BI,
   ZERO_BYTES
-} from './amm-helpers'
-import { getTokenOraclePriceUSD } from './amm-pricing'
-import { DOLOMITE_MARGIN_ADDRESS } from './generated/constants'
-import { MarginPositionStatus, PositionChangeEvent, ProtocolType, ValueStruct } from './margin-types'
+} from './generated/constants'
+import { absBD } from './helpers'
+import {
+  MarginPositionStatus,
+  ProtocolType,
+  ValueStruct
+} from './margin-types'
 
 export function getOrCreateTokenValue(
   marginAccount: MarginAccount,
@@ -91,14 +109,10 @@ export function getOrCreateMarginPosition(event: ethereum.Event, account: Margin
   return marginPosition as MarginPosition
 }
 
-export function isMarginPositionExpired(marginPosition: MarginPosition, event: PositionChangeEvent): boolean {
-  return marginPosition.expirationTimestamp !== null && (marginPosition.expirationTimestamp as BigInt).lt(event.timestamp)
-}
-
 export function getOrCreateDolomiteMarginForCall(
   event: ethereum.Event,
   isAction: boolean,
-  protocolType: ProtocolType
+  protocolType: string
 ): DolomiteMargin {
   let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS)
   if (dolomiteMargin === null) {
@@ -111,6 +125,7 @@ export function getOrCreateDolomiteMarginForCall(
 
     if (protocolType === ProtocolType.Core) {
       let marginProtocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+      let expiryProtocol = DolomiteMarginExpiryCoreProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
       let riskParams = marginProtocol.getRiskParams()
 
       let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
@@ -125,8 +140,10 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH)
         .div(BD_ONE_ETH)
-    } else {
+      dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
+    } else if (protocolType == ProtocolType.Admin) {
       let marginProtocol = DolomiteMarginAdminProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+      let expiryProtocol = DolomiteMarginExpiryAdminProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
       let riskParams = marginProtocol.getRiskParams()
 
       let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
@@ -141,6 +158,25 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH)
         .div(BD_ONE_ETH)
+      dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
+    } else {
+      let marginProtocol = DolomiteMarginExpiryProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+      let expiryProtocol = DolomiteMarginExpiryExpiryProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
+      let riskParams = marginProtocol.getRiskParams()
+
+      let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
+      let liquidationRewardBD = new BigDecimal(riskParams.liquidationSpread.value)
+      let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
+      let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
+
+      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH)
+        .plus(ONE_BD)
+      dolomiteMargin.liquidationReward = liquidationRewardBD.div(BD_ONE_ETH)
+        .plus(ONE_BD)
+      dolomiteMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH)
+      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH)
+        .div(BD_ONE_ETH)
+      dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     }
 
     dolomiteMargin.totalBorrowVolumeUSD = ZERO_BD
@@ -174,15 +210,20 @@ export function getOrCreateDolomiteMarginForCall(
 export function roundHalfUp(bd: BigDecimal, decimals: BigInt): BigDecimal {
   // Add 0.5 to the number being truncated off. This allows us to effectively round up
   let amountToAdd = BigDecimal.fromString('5')
-    .div(new BigDecimal(BigInt.fromString('10').pow(decimals.plus(ONE_BI).toI32() as u8)))
+    .div(new BigDecimal(BigInt.fromString('10')
+      .pow(decimals.plus(ONE_BI)
+        .toI32() as u8)))
 
   if (bd.lt(ZERO_BD)) {
-    return bd.minus(amountToAdd).truncate(decimals.toI32())
+    return bd.minus(amountToAdd)
+      .truncate(decimals.toI32())
   } else {
-    return bd.plus(amountToAdd).truncate(decimals.toI32())
+    return bd.plus(amountToAdd)
+      .truncate(decimals.toI32())
   }
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function weiToPar(wei: BigDecimal, index: InterestIndex, decimals: BigInt): BigDecimal {
   if (wei.ge(ZERO_BD)) {
     return roundHalfUp(wei.div(index.supplyIndex), decimals)
@@ -203,7 +244,7 @@ function isRepaymentOfBorrowAmount(
   newPar: BigDecimal,
   deltaWei: BigDecimal,
   index: InterestIndex,
-  decimals: BigInt,
+  decimals: BigInt
 ): boolean {
   let newWei = parToWei(newPar, index, decimals)
   let oldWei = newWei.minus(deltaWei)
@@ -213,7 +254,7 @@ function isRepaymentOfBorrowAmount(
 function getMarketTotalBorrowWei(
   borrowPar: BigInt,
   token: Token,
-  index: InterestIndex,
+  index: InterestIndex
 ): BigDecimal {
   let decimals = token.decimals
   return parToWei(convertTokenToDecimal(borrowPar.neg(), token.decimals), index, token.decimals)
@@ -232,15 +273,16 @@ function getMarketTotalSupplyWei(
 }
 
 export function changeProtocolBalance(
+  event: ethereum.Event,
   token: Token,
   newParStruct: ValueStruct,
   deltaWeiStruct: ValueStruct,
   index: InterestIndex,
   isVirtualTransfer: boolean,
-  protocolType: ProtocolType,
+  protocolType: string,
   dolomiteMargin: DolomiteMargin
 ): void {
-  let tokenPriceUSD = getTokenOraclePriceUSD(token)
+  let tokenPriceUSD = getTokenOraclePriceUSD(token, event, protocolType)
 
   let newPar = convertStructToDecimal(newParStruct, token.decimals)
   let newWei = parToWei(newPar, index, token.decimals)
@@ -259,7 +301,7 @@ export function changeProtocolBalance(
     totalSupplyPar = totalPar.supply
     totalBorrowPar = totalPar.borrow
   } else {
-    log.error('Could not find protocol type: {}', [protocolType.toString()])
+    log.error('Could not find protocol type: {}', [protocolType])
     return
   }
 
@@ -319,4 +361,29 @@ export function changeProtocolBalance(
 
   dolomiteMargin.save()
   token.save()
+}
+
+export function invalidateMarginPosition(marginAccount: MarginAccount): void {
+  if (marginAccount.accountNumber.notEqual(ZERO_BI)) {
+    let position = MarginPosition.load(marginAccount.id)
+    if (position !== null) {
+      position.status = MarginPositionStatus.Unknown
+      position.save()
+    }
+  }
+}
+
+export function getLiquidationSpreadForPair(
+  heldToken: Token,
+  owedToken: Token,
+  dolomiteMargin: DolomiteMargin
+): BigDecimal {
+  let heldRiskInfo = MarketRiskInfo.load(heldToken.marketId.toString()) as MarketRiskInfo
+  let owedRiskInfo = MarketRiskInfo.load(owedToken.marketId.toString()) as MarketRiskInfo
+
+  let liquidationSpread = dolomiteMargin.liquidationReward.minus(ONE_BD)
+  liquidationSpread = liquidationSpread.times(ONE_BD.plus(heldRiskInfo.liquidationRewardPremium))
+  liquidationSpread = liquidationSpread.times(ONE_BD.plus(owedRiskInfo.liquidationRewardPremium))
+
+  return liquidationSpread
 }

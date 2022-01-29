@@ -1,3 +1,9 @@
+import { BigInt } from '@graphprotocol/graph-ts'
+import {
+  Address,
+  BigDecimal,
+  log
+} from '@graphprotocol/graph-ts/index'
 import {
   DolomiteMargin as DolomiteMarginProtocol,
   LogAddMarket as AddMarketEvent,
@@ -10,22 +16,40 @@ import {
   LogSetMinBorrowedValue as MinBorrowedValueUpdateEvent,
   LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent
 } from '../types/MarginAdmin/DolomiteMargin'
-import { Address, BigDecimal, log } from '@graphprotocol/graph-ts/index'
-import { DOLOMITE_MARGIN_ADDRESS } from './generated/constants'
-import { InterestIndex, InterestRate, MarketRiskInfo, OraclePrice, Token } from '../types/schema'
-import { BD_ONE_ETH, initializeToken, ONE_BD, ZERO_BD } from './amm-helpers'
+import {
+  InterestIndex,
+  InterestRate,
+  MarketRiskInfo,
+  OraclePrice,
+  Token
+} from '../types/schema'
+import {
+  convertTokenToDecimal,
+  initializeToken
+} from './amm-helpers'
+import {
+  BD_ONE_ETH,
+  DOLOMITE_MARGIN_ADDRESS,
+  ONE_BD,
+  ZERO_BD,
+  ZERO_BI
+} from './generated/constants'
 import { getOrCreateDolomiteMarginForCall } from './margin-helpers'
 import { ProtocolType } from './margin-types'
 
+// TODO handle withdraw excess changing balance?
+
+// noinspection JSUnusedGlobalSymbols
 export function handleMarketAdded(event: AddMarketEvent): void {
   log.info(
     'Adding market[{}] for token {} for hash and index: {}-{}',
     [event.params.marketId.toString(), event.params.token.toHexString(), event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let dolomiteMarginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.numberOfMarkets = dolomiteMarginProtocol.getNumMarkets().toI32()
+  dolomiteMargin.numberOfMarkets = marginProtocol.getNumMarkets()
+    .toI32()
   dolomiteMargin.save()
 
   let id = event.params.marketId.toString()
@@ -53,10 +77,15 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   interestRate.save()
 
   let oraclePrice = new OraclePrice(id)
-  oraclePrice.price = ZERO_BD
+  oraclePrice.price = convertTokenToDecimal(
+    marginProtocol.getMarketPrice(event.params.marketId).value,
+    BigInt.fromI32(36 - token.decimals.toI32())
+  )
+  oraclePrice.blockNumber = event.block.number
   oraclePrice.save()
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleMarketRemoved(event: RemoveMarketEvent): void {
   log.info(
     'Removing market[{}] for token {} for hash and index: {}-{}',
@@ -93,9 +122,11 @@ export function handleMarketRemoved(event: RemoveMarketEvent): void {
 
   let oraclePrice = new OraclePrice(id)
   oraclePrice.price = ZERO_BD
+  oraclePrice.blockNumber = ZERO_BI
   oraclePrice.save()
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
   log.info(
     'Handling earnings rate change for hash and index: {}-{}',
@@ -111,11 +142,13 @@ export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
 
   for (let i = 0; i < numMarkets; i++) {
     let interestRate = InterestRate.load(i.toString()) as InterestRate
-    interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(dolomiteMargin.earningsRate).truncate(18)
+    interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(dolomiteMargin.earningsRate)
+      .truncate(18)
     interestRate.save()
   }
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleSetLiquidationReward(event: LiquidationSpreadUpdateEvent): void {
   log.info(
     'Handling liquidation ratio change for hash and index: {}-{}',
@@ -125,10 +158,12 @@ export function handleSetLiquidationReward(event: LiquidationSpreadUpdateEvent):
   let liquidationPremiumBD = new BigDecimal(event.params.liquidationSpread.value)
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.liquidationReward = liquidationPremiumBD.div(BD_ONE_ETH).plus(ONE_BD)
+  dolomiteMargin.liquidationReward = liquidationPremiumBD.div(BD_ONE_ETH)
+    .plus(ONE_BD)
   dolomiteMargin.save()
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleSetLiquidationRatio(event: MarginRatioUpdateEvent): void {
   log.info(
     'Handling liquidation ratio change for hash and index: {}-{}',
@@ -138,10 +173,12 @@ export function handleSetLiquidationRatio(event: MarginRatioUpdateEvent): void {
   let liquidationRatioBD = new BigDecimal(event.params.marginRatio.value)
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH).plus(ONE_BD)
+  dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH)
+    .plus(ONE_BD)
   dolomiteMargin.save()
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleSetMinBorrowedValue(event: MinBorrowedValueUpdateEvent): void {
   log.info(
     'Handling min borrowed value change for hash and index: {}-{}',
@@ -151,10 +188,12 @@ export function handleSetMinBorrowedValue(event: MinBorrowedValueUpdateEvent): v
   let minBorrowedValueBD = new BigDecimal(event.params.minBorrowedValue.value)
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH).div(BD_ONE_ETH)
+  dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH)
+    .div(BD_ONE_ETH)
   dolomiteMargin.save()
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
   log.info(
     'Handling margin premium change for hash and index: {}-{}',
@@ -165,7 +204,8 @@ export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
   let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
   if (marketInfo === null) {
     marketInfo = new MarketRiskInfo(event.params.marketId.toString())
-    marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId).toHexString()
+    marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId)
+      .toHexString()
     marketInfo.liquidationRewardPremium = ZERO_BD
     marketInfo.isBorrowingDisabled = false
   }
@@ -174,6 +214,7 @@ export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
   marketInfo.save()
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpdateEvent): void {
   log.info(
     'Handling liquidation spread premium change for hash and index: {}-{}',
@@ -184,7 +225,8 @@ export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpda
   let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
   if (marketInfo === null) {
     marketInfo = new MarketRiskInfo(event.params.marketId.toString())
-    marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId).toHexString()
+    marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId)
+      .toHexString()
     marketInfo.marginPremium = ZERO_BD
     marketInfo.isBorrowingDisabled = false
   }
@@ -193,6 +235,7 @@ export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpda
   marketInfo.save()
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
   log.info(
     'Handling set_market_closing for hash and index: {}-{}',
@@ -203,7 +246,8 @@ export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
   let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
   if (marketInfo === null) {
     marketInfo = new MarketRiskInfo(event.params.marketId.toString())
-    marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId).toHexString()
+    marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId)
+      .toHexString()
     marketInfo.marginPremium = ZERO_BD
     marketInfo.liquidationRewardPremium = ZERO_BD
     marketInfo.isBorrowingDisabled = false

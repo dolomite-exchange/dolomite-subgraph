@@ -13,9 +13,10 @@ import {
   Vaporization
 } from '../types/schema'
 import { BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
-import { absBD, ONE_BI, ZERO_BD, ZERO_BI } from './amm-helpers'
-import { DOLOMITE_MARGIN_ADDRESS, FACTORY_ADDRESS, WETH_ADDRESS } from './generated/constants'
+import { DOLOMITE_MARGIN_ADDRESS, FACTORY_ADDRESS, WETH_ADDRESS, ONE_BI, ZERO_BD, ZERO_BI } from './generated/constants'
+import { absBD } from './helpers'
 import { getTokenOraclePriceUSD } from './amm-pricing'
+import { ProtocolType } from './margin-types'
 
 function getDayId(timestamp: BigInt): string {
   let _86400 = BigInt.fromI32(86400)
@@ -193,9 +194,9 @@ function setupTokenHourData(tokenHourData: TokenHourData, hourId: i32, token: To
 }
 
 export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Event): TokenHourData {
-  let ethToken = Token.load(WETH_ADDRESS)
-  let ethPriceUSD = getTokenOraclePriceUSD(ethToken as Token)
-  let tokenPriceUSD = getTokenOraclePriceUSD(token)
+  let ethToken = Token.load(WETH_ADDRESS) as Token
+  let ethPriceUSD = getTokenOraclePriceUSD(ethToken, event, ProtocolType.Amm)
+  let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Amm)
   let hourId = getHourId(event.block.timestamp)
   let tokenHourID = token.id + '-' + hourId
 
@@ -267,9 +268,9 @@ function setupTokenDayData(tokenDayData: TokenDayData, dayId: i32, token: Token)
 }
 
 export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Event): TokenDayData {
-  let ethToken = Token.load(WETH_ADDRESS)
-  let ethPriceUSD = getTokenOraclePriceUSD(ethToken as Token)
-  let tokenPriceUSD = getTokenOraclePriceUSD(token)
+  let ethToken = Token.load(WETH_ADDRESS) as Token
+  let ethPriceUSD = getTokenOraclePriceUSD(ethToken, event, ProtocolType.Amm)
+  let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Amm)
   let dayId = getDayId(event.block.timestamp)
   let tokenDayID = token.id + '-' + dayId
 
@@ -339,6 +340,7 @@ export function updateTimeDataForTrade(
   tokenDayData: TokenDayData,
   tokenHourData: TokenHourData,
   token: Token,
+  event: ethereum.Event,
   trade: Trade
 ): void {
   let dayId = tokenDayData.dayStartUnix
@@ -349,10 +351,11 @@ export function updateTimeDataForTrade(
     : Token.load(trade.takerToken) as Token
 
   // Using the below examples of buying / selling, token == USD || token == ETH
-  let oraclePriceUSD = getTokenOraclePriceUSD(token)
+  let oraclePriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
+  let otherPriceUSD = getTokenOraclePriceUSD(otherToken, event, ProtocolType.Core)
   let closePriceUSD = token.id == trade.takerToken
-    ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).div(getTokenOraclePriceUSD(otherToken)).truncate(36)
-    : trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei).times(getTokenOraclePriceUSD(otherToken)).truncate(36)
+    ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).div(otherPriceUSD).truncate(36)
+    : trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei).times(otherPriceUSD).truncate(36)
 
   // IE: BUY 4 ETH @ $300 --> outputDeltaWei = $1200; inputDeltaWei = 4 ETH; takerToken = USD; makerToken = ETH
   // IE: SELL 4 ETH @ $300 --> outputDeltaWei = 4 ETH; inputDeltaWei = $1200; takerToken = ETH; makerToken = USD
@@ -433,12 +436,13 @@ export function updateTimeDataForLiquidation(
   tokenDayData: TokenDayData,
   tokenHourData: TokenHourData,
   token: Token,
+  event: ethereum.Event,
   liquidation: Liquidation
 ): void {
   if (liquidation.borrowedToken == token.id) {
     let liquidationVolumeToken = liquidation.borrowedTokenAmountDeltaWei
 
-    let tokenPriceUSD = getTokenOraclePriceUSD(token)
+    let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
     let liquidationVolumeUSD = liquidationVolumeToken.times(tokenPriceUSD).truncate(18)
 
     tokenDayData.dailyLiquidationVolumeToken = tokenDayData.dailyLiquidationVolumeToken.plus(liquidationVolumeToken)
@@ -463,12 +467,13 @@ export function updateTimeDataForVaporization(
   tokenDayData: TokenDayData,
   tokenHourData: TokenHourData,
   token: Token,
+  event: ethereum.Event,
   vaporization: Vaporization
 ): void {
   if (vaporization.borrowedToken == token.id) {
     let vaporizationVolumeToken = absBD(vaporization.borrowedTokenAmountDeltaWei)
 
-    let tokenPriceUSD = getTokenOraclePriceUSD(token)
+    let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
     let vaporizationVolumeUSD = vaporizationVolumeToken.times(tokenPriceUSD).truncate(18)
 
     tokenDayData.dailyVaporizationVolumeToken = tokenDayData.dailyVaporizationVolumeToken.plus(vaporizationVolumeToken)

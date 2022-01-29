@@ -1,16 +1,21 @@
 /* eslint-disable prefer-const */
 import { log } from '@graphprotocol/graph-ts'
-import { AmmFactory, AmmPair, Token, Bundle, AmmPairReverseLookup } from '../types/schema'
 import { PairCreated } from '../types/AmmFactory/DolomiteAmmFactory'
+import {
+  AmmFactory,
+  AmmPair,
+  AmmPairReverseLookup,
+  Bundle,
+  Token
+} from '../types/schema'
 import { AmmPair as PairTemplate } from '../types/templates'
 import {
-  ZERO_BD,
-  ZERO_BI,
-} from './amm-helpers'
-import {
   FACTORY_ADDRESS,
+  ZERO_BD,
+  ZERO_BI
 } from './generated/constants'
 
+// noinspection JSUnusedGlobalSymbols
 export function handleNewPair(event: PairCreated): void {
   let factoryAddress = FACTORY_ADDRESS
   if (event.address.toHexString() != factoryAddress) {
@@ -32,7 +37,6 @@ export function handleNewPair(event: PairCreated): void {
     // create new bundle
     let bundle = new Bundle('1')
     bundle.ethPrice = ZERO_BD
-    bundle.priceOracleLastUpdatedBlockHash = event.block.hash.toHexString()
     bundle.save()
   }
   factory.pairCount = factory.pairCount + 1
@@ -65,10 +69,12 @@ export function handleNewPair(event: PairCreated): void {
   // create the tracked contract based on the template
   PairTemplate.create(event.params.pair)
 
-  let reverseLookup1 = new AmmPairReverseLookup(token0.id.concat('-').concat(token1.id))
+  let reverseLookup1 = new AmmPairReverseLookup(token0.id.concat('-')
+    .concat(token1.id))
   reverseLookup1.pair = pair.id
 
-  let reverseLookup2 = new AmmPairReverseLookup(token1.id.concat('-').concat(token0.id))
+  let reverseLookup2 = new AmmPairReverseLookup(token1.id.concat('-')
+    .concat(token0.id))
   reverseLookup2.pair = pair.id
 
   // save updated values

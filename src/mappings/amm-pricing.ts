@@ -1,7 +1,36 @@
-import { AmmPair, AmmPairReverseLookup, Bundle, OraclePrice, Token, Trade } from '../types/schema'
-import { BigDecimal, BigInt } from '@graphprotocol/graph-ts'
-import { ONE_BD, ZERO_BD } from './amm-helpers'
-import { DAI_WETH_PAIR, USDT_WETH_PAIR, WETH_ADDRESS, WETH_USDC_ADDRESS, WHITELIST } from './generated/constants'
+import {
+  Address,
+  BigDecimal,
+  BigInt,
+  ethereum,
+  log
+} from '@graphprotocol/graph-ts'
+import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../types/MarginAdmin/DolomiteMargin'
+import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../types/MarginCore/DolomiteMargin'
+import { DolomiteMargin as DolomiteMarginExpiryProtocol } from '../types/MarginExpiry/DolomiteMargin'
+import { DolomiteMargin as DolomiteMarginPositionProtocol } from '../types/DolomiteAmmRouter/DolomiteMargin'
+import {
+  AmmPair,
+  AmmPairReverseLookup,
+  Bundle,
+  OraclePrice,
+  Token,
+  Trade
+} from '../types/schema'
+import { DolomiteMargin as DolomiteMarginAmmProtocol } from '../types/templates/AmmPair/DolomiteMargin'
+import { convertTokenToDecimal } from './amm-helpers'
+import {
+  DAI_WETH_PAIR,
+  DOLOMITE_MARGIN_ADDRESS,
+  ONE_BD,
+  USDT_WETH_PAIR,
+  WETH_ADDRESS,
+  WETH_USDC_ADDRESS,
+  WHITELIST,
+  ZERO_BD,
+  ZERO_BI
+} from './generated/constants'
+import { ProtocolType } from './margin-types'
 
 export function getEthPriceInUSD(): BigDecimal {
   // fetch eth prices for each stablecoin
@@ -16,7 +45,8 @@ export function getEthPriceInUSD(): BigDecimal {
     let daiReserveETH = daiPair.token0 == wethAddress ? daiPair.reserve0 : daiPair.reserve1
     let usdcReserveETH = usdcPair.token0 == wethAddress ? usdcPair.reserve0 : usdcPair.reserve1
     let usdtReserveETH = usdtPair.token0 == wethAddress ? usdtPair.reserve0 : usdtPair.reserve1
-    let totalLiquidityETH = daiReserveETH.plus(usdcReserveETH).plus(usdtReserveETH)
+    let totalLiquidityETH = daiReserveETH.plus(usdcReserveETH)
+      .plus(usdtReserveETH)
 
     let daiReserveStable = daiPair.token0 == wethAddress ? daiPair.reserve1 : daiPair.reserve0
     let usdcReserveStable = usdcPair.token0 == wethAddress ? usdcPair.reserve1 : usdcPair.reserve0
@@ -61,8 +91,37 @@ let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('10000')
 // minimum liquidity for price to get tracked
 let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
 
-export function getTokenOraclePriceUSD(token: Token): BigDecimal {
-  return (OraclePrice.load(token.marketId.toString()) as OraclePrice).price
+export function getTokenOraclePriceUSD(token: Token, event: ethereum.Event, protocolType: string): BigDecimal {
+  let oraclePrice = OraclePrice.load(token.marketId.toString()) as OraclePrice
+  if (oraclePrice.blockHash.equals(event.block.hash)) {
+    return oraclePrice.price
+  } else {
+    let tokenAmountBI: BigInt
+    if (protocolType == ProtocolType.Core) {
+      let marginProtocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+    } else if (protocolType == ProtocolType.Admin) {
+      let marginProtocol = DolomiteMarginAdminProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+    } else if (protocolType == ProtocolType.Expiry) {
+      let marginProtocol = DolomiteMarginExpiryProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+    } else if (protocolType == ProtocolType.Amm) {
+      let marginProtocol = DolomiteMarginAmmProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+    } else if (protocolType == ProtocolType.Position) {
+      let marginProtocol = DolomiteMarginPositionProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+    } else {
+      log.error('Invalid protocol type, found {}', [protocolType])
+      tokenAmountBI = ZERO_BI
+    }
+    oraclePrice.price = convertTokenToDecimal(tokenAmountBI, BigInt.fromI32(36 - token.decimals.toI32()))
+    oraclePrice.blockHash = event.block.hash
+    oraclePrice.blockNumber = event.block.number
+    oraclePrice.save()
+    return oraclePrice.price
+  }
 }
 
 /**
@@ -76,7 +135,8 @@ export function findEthPerToken(token: Token): BigDecimal {
 
   // loop through whitelist and check if paired with any
   for (let i = 0; i < WHITELIST.length; i += 1) {
-    let reverseLookup = AmmPairReverseLookup.load(token.id.concat('-').concat(WHITELIST[i]))
+    let reverseLookup = AmmPairReverseLookup.load(token.id.concat('-')
+      .concat(WHITELIST[i]))
     if (reverseLookup !== null) {
       let pair = AmmPair.load(reverseLookup.pair) as AmmPair
       if (pair.token0 == token.id && pair.reserveETH.gt(MINIMUM_LIQUIDITY_THRESHOLD_ETH)) {
@@ -125,17 +185,20 @@ export function getTrackedVolumeUSD(
     let reserve0USD = pair.reserve0.times(price0)
     let reserve1USD = pair.reserve1.times(price1)
     if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
-      if (reserve0USD.plus(reserve1USD).lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
+      if (reserve0USD.plus(reserve1USD)
+        .lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
         return ZERO_BD
       }
     }
     if (WHITELIST.includes(token0.id) && !WHITELIST.includes(token1.id)) {
-      if (reserve0USD.times(BigDecimal.fromString('2')).lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
+      if (reserve0USD.times(BigDecimal.fromString('2'))
+        .lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
         return ZERO_BD
       }
     }
     if (!WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
-      if (reserve1USD.times(BigDecimal.fromString('2')).lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
+      if (reserve1USD.times(BigDecimal.fromString('2'))
+        .lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
         return ZERO_BD
       }
     }
@@ -181,17 +244,20 @@ export function getTrackedLiquidityUSD(
 
   // both are whitelist tokens, take average of both amounts
   if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
-    return tokenAmount0.times(price0).plus(tokenAmount1.times(price1))
+    return tokenAmount0.times(price0)
+      .plus(tokenAmount1.times(price1))
   }
 
   // take double value of the whitelisted token amount
   if (WHITELIST.includes(token0.id) && !WHITELIST.includes(token1.id)) {
-    return tokenAmount0.times(price0).times(BigDecimal.fromString('2'))
+    return tokenAmount0.times(price0)
+      .times(BigDecimal.fromString('2'))
   }
 
   // take double value of the whitelisted token amount
   if (!WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
-    return tokenAmount1.times(price1).times(BigDecimal.fromString('2'))
+    return tokenAmount1.times(price1)
+      .times(BigDecimal.fromString('2'))
   }
 
   // neither token is on white list, tracked volume is 0

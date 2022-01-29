@@ -30,6 +30,7 @@ type DolomiteMargin @entity {
   liquidationReward: BigDecimal!
   earningsRate: BigDecimal!
   minBorrowedValue: BigDecimal!
+  expiryRampTime: BigInt!
 
   # current liquidity across all markets
   supplyLiquidityUSD: BigDecimal!
@@ -277,12 +278,13 @@ type AmmSwap @entity {
 type Bundle @entity {
   id: ID! # always '1'
   ethPrice: BigDecimal! # AMM price of ETH/USD
-  priceOracleLastUpdatedBlockHash: String!
 }
 
 type OraclePrice @entity {
   id: ID! # marketID
   price: BigDecimal! # oracle price of ETH/USD. Updated every DolomiteMargin call
+  blockNumber: BigInt! # block number at which it was last updated
+  blockHash: Bytes!
 }
 
 type TokenHourData @entity {
@@ -616,6 +618,7 @@ type Trade @entity {
   transaction: Transaction!
   logIndex: BigInt!
   serialId: BigInt!
+  traderAddress: Bytes!
 
   takerMarginAccount: MarginAccount!
   makerMarginAccount: MarginAccount # NULLABLE

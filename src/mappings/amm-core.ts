@@ -1,13 +1,41 @@
-import { BigDecimal, BigInt, ethereum, store, Address, Bytes } from '@graphprotocol/graph-ts'
-import { AmmBurn, AmmFactory, AmmMint, AmmPair, AmmSwap, Bundle, Token, Transaction } from '../types/schema'
 import {
+  Address,
+  BigDecimal,
+  BigInt,
+  Bytes,
+  ethereum,
+  store
+} from '@graphprotocol/graph-ts'
+import {
+  AmmBurn,
+  AmmFactory,
+  AmmMint,
+  AmmPair,
+  AmmSwap,
+  Bundle,
+  Token,
+  Transaction
+} from '../types/schema'
+import {
+  AmmPair as AmmPairContract,
   Burn as BurnEvent,
   Mint as MintEvent,
-  AmmPair as AmmPairContract,
   Swap as SwapEvent,
   Sync as SyncEvent,
   Transfer as TransferEvent
 } from '../types/templates/AmmPair/AmmPair'
+import {
+  convertTokenToDecimal,
+  createLiquidityPosition,
+  createLiquiditySnapshot,
+  createUserIfNecessary
+} from './amm-helpers'
+import {
+  findEthPerToken,
+  getEthPriceInUSD,
+  getTokenOraclePriceUSD,
+  getTrackedLiquidityUSD
+} from './amm-pricing'
 import {
   updateDolomiteDayData,
   updatePairDayData,
@@ -16,24 +44,13 @@ import {
   updateTokenHourDataForAmmEvent
 } from './day-updates'
 import {
-  findEthPerToken,
-  getEthPriceInUSD,
-  getTokenOraclePriceUSD,
-  getTrackedLiquidityUSD,
-} from './amm-pricing'
-import {
-  BI_18,
-  convertTokenToDecimal,
-  createLiquidityPosition,
-  createLiquiditySnapshot,
-  createUserIfNecessary,
-  ONE_BI,
-  ZERO_BD,
-} from './amm-helpers'
-import {
   ADDRESS_ZERO,
+  BI_18,
   FACTORY_ADDRESS,
+  ONE_BI,
+  ZERO_BD
 } from './generated/constants'
+import { ProtocolType } from './margin-types'
 
 function isCompleteMint(mintId: string): boolean {
   return (AmmMint.load(mintId) as AmmMint).sender !== null // sufficient checks
@@ -55,9 +72,13 @@ export function getOrCreateTransaction(event: ethereum.Event): Transaction {
 }
 
 function getAmmEventID(event: ethereum.Event, allEvents: Array<string>): string {
-  return event.transaction.hash.toHexString().concat('-').concat(BigInt.fromI32(allEvents.length).toString())
+  return event.transaction.hash.toHexString()
+    .concat('-')
+    .concat(BigInt.fromI32(allEvents.length)
+      .toString())
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleERC20Transfer(event: TransferEvent): void {
   // ignore initial transfers for first adds
   if (event.params.to.toHexString() == ADDRESS_ZERO && event.params.value.equals(BigInt.fromI32(1000))) {
@@ -174,7 +195,8 @@ export function handleERC20Transfer(event: TransferEvent): void {
 
     if (burn.needsComplete) {
       // if accessing last one, replace it
-      transaction.intermitentBurns = burns.slice(0, burns.length - 1).concat([burn.id])
+      transaction.intermitentBurns = burns.slice(0, burns.length - 1)
+        .concat([burn.id])
     } else {
       // else add new one
       transaction.intermitentBurns = burns.concat([burn.id])
@@ -199,6 +221,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
   transaction.save()
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleSync(event: SyncEvent): void {
   let ammPair = AmmPair.load(event.address.toHex()) as AmmPair
   let token0 = Token.load(ammPair.token0) as Token
@@ -242,7 +265,8 @@ export function handleSync(event: SyncEvent): void {
   // get tracked liquidity - if neither token is in whitelist, this will be 0
   let trackedLiquidityETH: BigDecimal
   if (bundle.ethPrice.notEqual(ZERO_BD)) {
-    trackedLiquidityETH = getTrackedLiquidityUSD(ammPair.reserve0, token0, ammPair.reserve1, token1).div(bundle.ethPrice)
+    trackedLiquidityETH = getTrackedLiquidityUSD(ammPair.reserve0, token0, ammPair.reserve1, token1)
+      .div(bundle.ethPrice)
   } else {
     trackedLiquidityETH = ZERO_BD
   }
@@ -266,6 +290,7 @@ export function handleSync(event: SyncEvent): void {
   token1.save()
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleMint(event: MintEvent): void {
   let transaction = Transaction.load(event.transaction.hash.toHexString()) as Transaction
   let mints = transaction.intermitentMints
@@ -286,8 +311,10 @@ export function handleMint(event: MintEvent): void {
   token1.transactionCount = token1.transactionCount.plus(ONE_BI)
 
   // get new amounts of USD and ETH for tracking
-  let amountTotalUSD = getTokenOraclePriceUSD(token0).times(token0Amount)
-    .plus(getTokenOraclePriceUSD(token1).times(token1Amount))
+  let amountTotalUSD = getTokenOraclePriceUSD(token0, event, ProtocolType.Amm)
+    .times(token0Amount)
+    .plus(getTokenOraclePriceUSD(token1, event, ProtocolType.Amm)
+      .times(token1Amount))
 
   // update txn counts
   pair.transactionCount = pair.transactionCount.plus(ONE_BI)
@@ -320,6 +347,7 @@ export function handleMint(event: MintEvent): void {
   updateTokenDayDataForAmmEvent(token1, event)
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleBurn(event: BurnEvent): void {
   let transaction = Transaction.load(event.transaction.hash.toHexString())
 
@@ -345,8 +373,10 @@ export function handleBurn(event: BurnEvent): void {
   token1.transactionCount = token1.transactionCount.plus(ONE_BI)
 
   // get new amounts of USD and ETH for tracking
-  let amountTotalUSD = getTokenOraclePriceUSD(token0).times(token0Amount)
-    .plus(getTokenOraclePriceUSD(token1).times(token1Amount))
+  let amountTotalUSD = getTokenOraclePriceUSD(token0, event, ProtocolType.Amm)
+    .times(token0Amount)
+    .plus(getTokenOraclePriceUSD(token1, event, ProtocolType.Amm)
+      .times(token1Amount))
 
   // update txn counts
   ammFactory.transactionCount = ammFactory.transactionCount.plus(ONE_BI)
@@ -379,6 +409,7 @@ export function handleBurn(event: BurnEvent): void {
   updateTokenDayDataForAmmEvent(token1, event)
 }
 
+// noinspection JSUnusedGlobalSymbols
 export function handleSwap(event: SwapEvent): void {
   let pair = AmmPair.load(event.address.toHexString()) as AmmPair
   let token0 = Token.load(pair.token0) as Token
@@ -403,8 +434,8 @@ export function handleSwap(event: SwapEvent): void {
 
   let derivedAmountUSD = derivedAmountETH.times(bundle.ethPrice)
 
-  let token0PriceUSD = getTokenOraclePriceUSD(token0)
-  let token1PriceUSD = getTokenOraclePriceUSD(token1)
+  let token0PriceUSD = getTokenOraclePriceUSD(token0, event, ProtocolType.Amm)
+  let token1PriceUSD = getTokenOraclePriceUSD(token1, event, ProtocolType.Amm)
 
   // only accounts for volume through white listed tokens
   let trackedAmountUSD = amount0Total.times(token0PriceUSD)
