@@ -13,25 +13,27 @@ import {
 const MAINNET_NETWORK = 'mainnet'
 const MUMBAI_NETWORK = 'mumbai'
 
-export let ZERO_BYTES = new Bytes(0)
+export const ZERO_BYTES = new Bytes(0)
 
-export let ZERO_BI = BigInt.fromI32(0)
+export const ZERO_BI = BigInt.fromI32(0)
 
-export let ONE_BI = BigInt.fromI32(1)
+export const ONE_BI = BigInt.fromI32(1)
 
-export let ZERO_BD = BigDecimal.fromString('0')
+export const ZERO_BD = BigDecimal.fromString('0')
 
-export let ONE_BD = BigDecimal.fromString('1')
+export const ONE_BD = BigDecimal.fromString('1')
 
-export let BI_10 = BigInt.fromI32(10)
+export const FIVE_BD = BigDecimal.fromString('5')
 
-export let BI_18 = BigInt.fromI32(18)
+export const TEN_BI = BigInt.fromI32(10)
 
-export let BI_ONE_ETH = BI_10.pow(18)
+export const _18_BI = BigInt.fromI32(18)
 
-export let BD_ONE_ETH = new BigDecimal(BI_ONE_ETH)
+export const ONE_ETH_BI = TEN_BI.pow(18)
 
-export let SECONDS_IN_YEAR = BigInt.fromI32(31536000)
+export const ONE_ETH_BD = new BigDecimal(ONE_ETH_BI)
+
+export const SECONDS_IN_YEAR = BigInt.fromI32(31536000)
 
 export const NETWORK = dataSource.network()
 

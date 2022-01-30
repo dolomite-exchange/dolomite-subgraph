@@ -1,15 +1,14 @@
-import {
-  Address,
-  log
-} from '@graphprotocol/graph-ts/index'
-import { DolomiteMargin as DolomiteMarginProtocol } from '../types/MarginExpiry/DolomiteMargin'
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+import { log } from '@graphprotocol/graph-ts'
 import {
   ExpirySet as ExpirySetEvent,
-  LogExpiryRampTimeSet as ExpiryRampTimeSetEvent,
+  LogExpiryRampTimeSet as ExpiryRampTimeSetEvent
 } from '../types/MarginExpiry/DolomiteMarginExpiry'
-import { Token } from '../types/schema'
 import {
-  DOLOMITE_MARGIN_ADDRESS,
+  Token,
+  TokenMarketIdReverseMap
+} from '../types/schema'
+import {
   ZERO_BD,
   ZERO_BI
 } from './generated/constants'
@@ -31,20 +30,26 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let params = event.params
+  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+
   let marginAccount = getOrCreateMarginAccount(event.params.owner, event.params.number, event.block)
   if (event.params.time.equals(ZERO_BI)) {
     // remove the market ID
-    let index = marginAccount.expirationMarketIds.indexOf(event.params.marketId)
+    let index = marginAccount.expirationTokens.indexOf(token.id)
     if (index != -1) {
-      marginAccount.expirationMarketIds = marginAccount.expirationMarketIds.splice(index, 1)
+      let copy = marginAccount.expirationTokens
+      copy.splice(index, 1)
+      // NOTE we must use the copy here because the return value of #splice isn't the new array. Rather, it returns the
+      // DELETED element only
+      marginAccount.expirationTokens = copy
     }
-    marginAccount.hasExpiration = marginAccount.expirationMarketIds.length > 0
+    marginAccount.hasExpiration = marginAccount.expirationTokens.length > 0
   } else {
     // add the market ID, if necessary
-    let index = marginAccount.expirationMarketIds.indexOf(event.params.marketId)
+    let index = marginAccount.expirationTokens.indexOf(token.id)
     if (index == -1) {
-      marginAccount.expirationMarketIds = marginAccount.expirationMarketIds.concat([event.params.marketId])
+      marginAccount.expirationTokens = marginAccount.expirationTokens.concat([token.id])
     }
     marginAccount.hasExpiration = true
   }
@@ -52,18 +57,13 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
 
   let marginPosition = getOrCreateMarginPosition(event, marginAccount)
   if (marginPosition.marginDeposit.notEqual(ZERO_BD) && marginPosition.status == MarginPositionStatus.Open) {
-    if (params.time.equals(ZERO_BI)) {
+    if (event.params.time.equals(ZERO_BI)) {
       marginPosition.expirationTimestamp = null
     } else {
-      marginPosition.expirationTimestamp = params.time
+      marginPosition.expirationTimestamp = event.params.time
     }
     marginPosition.save()
   }
-
-  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-  let tokenAddress = marginProtocol.getMarketTokenAddress(event.params.marketId)
-    .toHexString()
-  let token = Token.load(tokenAddress) as Token
 
   let tokenValue = getOrCreateTokenValue(marginAccount, token)
   tokenValue.expirationTimestamp = event.params.time.gt(ZERO_BI) ? event.params.time : null

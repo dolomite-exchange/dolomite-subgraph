@@ -97,7 +97,7 @@ type Token @entity {
 
 type TokenMarketIdReverseMap @entity {
   id: ID! # marketId.toString()
-  tokenAddress: String!
+  token: Token!
 }
 
 type AmmPairReverseLookup @entity {
@@ -281,10 +281,11 @@ type Bundle @entity {
 }
 
 type OraclePrice @entity {
-  id: ID! # marketID
+  id: ID! # token address
   price: BigDecimal! # oracle price of ETH/USD. Updated every DolomiteMargin call
+  token: Token!
   blockNumber: BigInt! # block number at which it was last updated
-  blockHash: Bytes!
+  blockHash: Bytes! # block hash at which it was last updated
 }
 
 type TokenHourData @entity {
@@ -460,7 +461,7 @@ type AmmPairDayData @entity {
 }
 
 type InterestIndex @entity {
-  id: ID! # Defined as marketId
+  id: ID! # Defined as token address
   token: Token!
   borrowIndex: BigDecimal!
   supplyIndex: BigDecimal!
@@ -468,18 +469,25 @@ type InterestIndex @entity {
 }
 
 type InterestRate @entity {
-  id: ID! # Defined as marketId
+  id: ID! # Defined as token address
   token: Token!
   borrowInterestRate: BigDecimal!
   supplyInterestRate: BigDecimal!
 }
 
 type MarketRiskInfo @entity {
-  id: ID! # Defined as marketId
+  id: ID! # Defined as token address
   token: Token!
   marginPremium: BigDecimal!
   liquidationRewardPremium: BigDecimal!
   isBorrowingDisabled: Boolean!
+}
+
+type TotalPar @entity {
+  id: ID! # defined as token address
+  token: Token!
+  borrowPar: BigDecimal!
+  supplyPar: BigDecimal!
 }
 
 type MarginAccount @entity {
@@ -489,8 +497,8 @@ type MarginAccount @entity {
   lastUpdatedTimestamp: BigInt! # Timestamp at which any token value was last updated
   lastUpdatedBlockNumber: BigInt!
   tokenValues: [MarginAccountTokenValue!]! @derivedFrom(field: "marginAccount")
-  borrowMarketIds: [BigInt!]!
-  expirationMarketIds: [BigInt!]!
+  borrowTokens: [Token!]!
+  expirationTokens: [Token!]!
   hasBorrowValue: Boolean!
   hasExpiration: Boolean!
 }

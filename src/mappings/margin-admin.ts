@@ -1,4 +1,8 @@
-import { BigInt } from '@graphprotocol/graph-ts'
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+import {
+  BigInt,
+  store
+} from '@graphprotocol/graph-ts'
 import {
   Address,
   BigDecimal,
@@ -21,23 +25,22 @@ import {
   InterestRate,
   MarketRiskInfo,
   OraclePrice,
-  Token
+  Token,
+  TokenMarketIdReverseMap,
+  TotalPar
 } from '../types/schema'
 import {
   convertTokenToDecimal,
   initializeToken
 } from './amm-helpers'
 import {
-  BD_ONE_ETH,
+  ONE_ETH_BD,
   DOLOMITE_MARGIN_ADDRESS,
   ONE_BD,
   ZERO_BD,
-  ZERO_BI
 } from './generated/constants'
 import { getOrCreateDolomiteMarginForCall } from './margin-helpers'
 import { ProtocolType } from './margin-types'
-
-// TODO handle withdraw excess changing balance?
 
 // noinspection JSUnusedGlobalSymbols
 export function handleMarketAdded(event: AddMarketEvent): void {
@@ -52,37 +55,48 @@ export function handleMarketAdded(event: AddMarketEvent): void {
     .toI32()
   dolomiteMargin.save()
 
-  let id = event.params.marketId.toString()
-
   let tokenAddress = event.params.token.toHexString()
   let token = Token.load(tokenAddress)
   if (token === null) {
-    log.info('Adding new token to store {}', [event.params.token.toHexString()])
+    log.info('Adding new token to store {}', [tokenAddress])
     token = new Token(tokenAddress)
-    initializeToken(token as Token, event.params.marketId)
-    token.save()
+    initializeToken(token, event.params.marketId)
   }
 
-  let index = new InterestIndex(id)
+  let index = new InterestIndex(token.id)
   index.borrowIndex = BigDecimal.fromString('1.0')
   index.supplyIndex = BigDecimal.fromString('1.0')
   index.lastUpdate = event.block.timestamp
   index.token = token.id
   index.save()
 
-  let interestRate = new InterestRate(id)
+  let interestRate = new InterestRate(token.id)
   interestRate.borrowInterestRate = ZERO_BD
   interestRate.supplyInterestRate = ZERO_BD
   interestRate.token = token.id
   interestRate.save()
 
-  let oraclePrice = new OraclePrice(id)
+  let riskInfo = new MarketRiskInfo(token.id)
+  riskInfo.token = token.id
+  riskInfo.liquidationRewardPremium = ZERO_BD
+  riskInfo.marginPremium = ZERO_BD
+  riskInfo.isBorrowingDisabled = false
+  riskInfo.save()
+
+  let oraclePrice = new OraclePrice(token.id)
   oraclePrice.price = convertTokenToDecimal(
     marginProtocol.getMarketPrice(event.params.marketId).value,
     BigInt.fromI32(36 - token.decimals.toI32())
   )
   oraclePrice.blockNumber = event.block.number
+  oraclePrice.token = token.id
   oraclePrice.save()
+
+  let totalPar = new TotalPar(token.id)
+  totalPar.token = token.id
+  totalPar.borrowPar = ZERO_BD
+  totalPar.supplyPar = ZERO_BD
+  totalPar.save()
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -96,34 +110,13 @@ export function handleMarketRemoved(event: RemoveMarketEvent): void {
   dolomiteMargin.numberOfMarkets = dolomiteMargin.numberOfMarkets + 1
   dolomiteMargin.save()
 
-  let id = event.params.marketId.toString()
-
-  let tokenAddress = event.params.token.toHexString()
-  let token = Token.load(tokenAddress)
-  if (token === null) {
-    log.info('Adding new token to store {}', [event.params.token.toHexString()])
-    token = new Token(tokenAddress)
-    initializeToken(token as Token, event.params.marketId)
-    token.save()
-  }
-
-  let index = new InterestIndex(id)
-  index.borrowIndex = BigDecimal.fromString('1.0')
-  index.supplyIndex = BigDecimal.fromString('1.0')
-  index.lastUpdate = event.block.timestamp
-  index.token = token.id
-  index.save()
-
-  let interestRate = new InterestRate(id)
-  interestRate.borrowInterestRate = ZERO_BD
-  interestRate.supplyInterestRate = ZERO_BD
-  interestRate.token = token.id
-  interestRate.save()
-
-  let oraclePrice = new OraclePrice(id)
-  oraclePrice.price = ZERO_BD
-  oraclePrice.blockNumber = ZERO_BI
-  oraclePrice.save()
+  let id = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  store.remove('TokenMarketIdReverseMap', id)
+  store.remove('InterestIndex', id)
+  store.remove('InterestRate', id)
+  store.remove('MarketRiskInfo', id)
+  store.remove('OraclePrice', id)
+  store.remove('TotalPar', id)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -133,18 +126,31 @@ export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let earningsRateBD = new BigDecimal(event.params.earningsRate.value)
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH) // it's a ratio where ONE_ETH is 100%
+  let adj = ONE_BD
+  let oldEarningsRate = dolomiteMargin.earningsRate
+  if (oldEarningsRate.gt(ZERO_BD)) {
+    adj = oldEarningsRate
+  }
+
+  let earningsRateBD = new BigDecimal(event.params.earningsRate.value)
+  dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD) // it's a ratio where ONE_ETH is 100%
   dolomiteMargin.save()
 
-  let numMarkets = dolomiteMargin.numberOfMarkets
-
-  for (let i = 0; i < numMarkets; i++) {
-    let interestRate = InterestRate.load(i.toString()) as InterestRate
-    interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(dolomiteMargin.earningsRate)
-      .truncate(18)
-    interestRate.save()
+  let numberOfMarkets = dolomiteMargin.numberOfMarkets
+  for (let i = 0; i < numberOfMarkets; i++) {
+    let map = TokenMarketIdReverseMap.load(i.toString()) // can be null for recycled markets
+    if (map !== null) {
+      let interestRate = InterestRate.load(map.token) as InterestRate
+      // First undo the OLD supply interest rate by dividing by the old earnings rate,
+      // THEN multiply by the new earnings rate to get the NEW supply rate
+      interestRate.supplyInterestRate = interestRate.supplyInterestRate
+        .div(adj)
+        .truncate(18)
+        .times(dolomiteMargin.earningsRate)
+        .truncate(18)
+      interestRate.save()
+    }
   }
 }
 
@@ -158,7 +164,7 @@ export function handleSetLiquidationReward(event: LiquidationSpreadUpdateEvent):
   let liquidationPremiumBD = new BigDecimal(event.params.liquidationSpread.value)
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.liquidationReward = liquidationPremiumBD.div(BD_ONE_ETH)
+  dolomiteMargin.liquidationReward = liquidationPremiumBD.div(ONE_ETH_BD)
     .plus(ONE_BD)
   dolomiteMargin.save()
 }
@@ -173,7 +179,7 @@ export function handleSetLiquidationRatio(event: MarginRatioUpdateEvent): void {
   let liquidationRatioBD = new BigDecimal(event.params.marginRatio.value)
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH)
+  dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
     .plus(ONE_BD)
   dolomiteMargin.save()
 }
@@ -188,8 +194,8 @@ export function handleSetMinBorrowedValue(event: MinBorrowedValueUpdateEvent): v
   let minBorrowedValueBD = new BigDecimal(event.params.minBorrowedValue.value)
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH)
-    .div(BD_ONE_ETH)
+  dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
+    .div(ONE_ETH_BD)
   dolomiteMargin.save()
 }
 
@@ -200,17 +206,11 @@ export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-  let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
-  if (marketInfo === null) {
-    marketInfo = new MarketRiskInfo(event.params.marketId.toString())
-    marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId)
-      .toHexString()
-    marketInfo.liquidationRewardPremium = ZERO_BD
-    marketInfo.isBorrowingDisabled = false
-  }
+  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   let marginPremium = new BigDecimal(event.params.marginPremium.value)
-  marketInfo.marginPremium = marginPremium.div(BD_ONE_ETH)
+  marketInfo.marginPremium = marginPremium.div(ONE_ETH_BD)
   marketInfo.save()
 }
 
@@ -221,17 +221,11 @@ export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpda
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-  let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
-  if (marketInfo === null) {
-    marketInfo = new MarketRiskInfo(event.params.marketId.toString())
-    marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId)
-      .toHexString()
-    marketInfo.marginPremium = ZERO_BD
-    marketInfo.isBorrowingDisabled = false
-  }
+  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   let spreadPremium = new BigDecimal(event.params.spreadPremium.value)
-  marketInfo.liquidationRewardPremium = spreadPremium.div(BD_ONE_ETH)
+  marketInfo.liquidationRewardPremium = spreadPremium.div(ONE_ETH_BD)
   marketInfo.save()
 }
 
@@ -242,16 +236,9 @@ export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-  let marketInfo = MarketRiskInfo.load(event.params.marketId.toString())
-  if (marketInfo === null) {
-    marketInfo = new MarketRiskInfo(event.params.marketId.toString())
-    marketInfo.token = marginProtocol.getMarketTokenAddress(event.params.marketId)
-      .toHexString()
-    marketInfo.marginPremium = ZERO_BD
-    marketInfo.liquidationRewardPremium = ZERO_BD
-    marketInfo.isBorrowingDisabled = false
-  }
+  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   marketInfo.isBorrowingDisabled = event.params.isClosing
   marketInfo.save()
 }

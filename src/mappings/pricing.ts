@@ -92,10 +92,14 @@ let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('10000')
 let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
 
 export function getTokenOraclePriceUSD(token: Token, event: ethereum.Event, protocolType: string): BigDecimal {
-  let oraclePrice = OraclePrice.load(token.marketId.toString()) as OraclePrice
+  let oraclePrice = OraclePrice.load(token.id) as OraclePrice
   if (oraclePrice.blockHash.equals(event.block.hash)) {
     return oraclePrice.price
   } else {
+    log.info(
+      'Getting oracle price for block number {} with hash {}',
+      [event.block.number.toString(), event.block.hash.toHexString()]
+    )
     let tokenAmountBI: BigInt
     if (protocolType == ProtocolType.Core) {
       let marginProtocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
@@ -120,6 +124,7 @@ export function getTokenOraclePriceUSD(token: Token, event: ethereum.Event, prot
     oraclePrice.blockHash = event.block.hash
     oraclePrice.blockNumber = event.block.number
     oraclePrice.save()
+
     return oraclePrice.price
   }
 }

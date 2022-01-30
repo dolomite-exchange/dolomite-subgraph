@@ -35,7 +35,7 @@ import {
   getEthPriceInUSD,
   getTokenOraclePriceUSD,
   getTrackedLiquidityUSD
-} from './amm-pricing'
+} from './pricing'
 import {
   updateDolomiteDayData,
   updatePairDayData,
@@ -45,7 +45,7 @@ import {
 } from './day-updates'
 import {
   ADDRESS_ZERO,
-  BI_18,
+  _18_BI,
   FACTORY_ADDRESS,
   ONE_BI,
   ZERO_BD
@@ -98,7 +98,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
   let pairContract = AmmPairContract.bind(event.address)
 
   // liquidity token amount being transferred
-  let value = convertTokenToDecimal(event.params.value, BI_18)
+  let value = convertTokenToDecimal(event.params.value, _18_BI)
 
   // get or create transaction
   let transaction = getOrCreateTransaction(event)
@@ -206,14 +206,14 @@ export function handleERC20Transfer(event: TransferEvent): void {
 
   if (from.toHexString() != ADDRESS_ZERO && from.toHexString() != pair.id) {
     let fromUserLiquidityPosition = createLiquidityPosition(event.address, from)
-    fromUserLiquidityPosition.liquidityTokenBalance = convertTokenToDecimal(pairContract.balanceOf(from), BI_18)
+    fromUserLiquidityPosition.liquidityTokenBalance = convertTokenToDecimal(pairContract.balanceOf(from), _18_BI)
     fromUserLiquidityPosition.save()
     createLiquiditySnapshot(fromUserLiquidityPosition, event)
   }
 
   if (event.params.to.toHexString() != ADDRESS_ZERO && to.toHexString() != pair.id) {
     let toUserLiquidityPosition = createLiquidityPosition(event.address, to)
-    toUserLiquidityPosition.liquidityTokenBalance = convertTokenToDecimal(pairContract.balanceOf(to), BI_18)
+    toUserLiquidityPosition.liquidityTokenBalance = convertTokenToDecimal(pairContract.balanceOf(to), _18_BI)
     toUserLiquidityPosition.save()
     createLiquiditySnapshot(toUserLiquidityPosition, event)
   }
@@ -438,18 +438,18 @@ export function handleSwap(event: SwapEvent): void {
   let token1PriceUSD = getTokenOraclePriceUSD(token1, event, ProtocolType.Amm)
 
   // only accounts for volume through white listed tokens
-  let trackedAmountUSD = amount0Total.times(token0PriceUSD)
+  let fairTokenVolume = amount0Total.times(token0PriceUSD)
     .plus(amount1Total.times(token1PriceUSD))
     .div(BigDecimal.fromString('2'))
 
   // update token0 global volume and token liquidity stats
   token0.tradeVolume = token0.tradeVolume.plus(amount0In.plus(amount0Out))
-  token0.tradeVolumeUSD = token0.tradeVolumeUSD.plus(trackedAmountUSD)
+  token0.tradeVolumeUSD = token0.tradeVolumeUSD.plus(fairTokenVolume)
   token0.untrackedVolumeUSD = token0.untrackedVolumeUSD.plus(derivedAmountUSD)
 
   // update token1 global volume and token liquidity stats
   token1.tradeVolume = token1.tradeVolume.plus(amount1In.plus(amount1Out))
-  token1.tradeVolumeUSD = token1.tradeVolumeUSD.plus(trackedAmountUSD)
+  token1.tradeVolumeUSD = token1.tradeVolumeUSD.plus(fairTokenVolume)
   token1.untrackedVolumeUSD = token1.untrackedVolumeUSD.plus(derivedAmountUSD)
 
   // update txn counts
@@ -457,7 +457,8 @@ export function handleSwap(event: SwapEvent): void {
   token1.transactionCount = token1.transactionCount.plus(ONE_BI)
 
   // update pair volume data, use tracked amount if we have it as its probably more accurate
-  pair.volumeUSD = pair.volumeUSD.plus(trackedAmountUSD)
+  let volumeUSD = amount0In.times(token0PriceUSD).plus(amount1In.times(token1PriceUSD))
+  pair.volumeUSD = pair.volumeUSD.plus(volumeUSD)
   pair.volumeToken0 = pair.volumeToken0.plus(amount0Total)
   pair.volumeToken1 = pair.volumeToken1.plus(amount1Total)
   pair.untrackedVolumeUSD = pair.untrackedVolumeUSD.plus(derivedAmountUSD)
@@ -466,7 +467,7 @@ export function handleSwap(event: SwapEvent): void {
 
   // update global values, only used tracked amounts for volume
   let ammFactory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
-  ammFactory.totalAmmVolumeUSD = ammFactory.totalAmmVolumeUSD.plus(trackedAmountUSD)
+  ammFactory.totalAmmVolumeUSD = ammFactory.totalAmmVolumeUSD.plus(volumeUSD)
   ammFactory.untrackedAmmVolumeUSD = ammFactory.untrackedAmmVolumeUSD.plus(derivedAmountUSD)
   ammFactory.transactionCount = ammFactory.transactionCount.plus(ONE_BI)
   ammFactory.swapCount = ammFactory.swapCount.plus(ONE_BI)
@@ -494,7 +495,7 @@ export function handleSwap(event: SwapEvent): void {
   swap.from = event.transaction.from
   swap.logIndex = event.logIndex
   // use the tracked amount if we have it
-  swap.amountUSD = trackedAmountUSD.equals(ZERO_BD) ? derivedAmountUSD : trackedAmountUSD
+  swap.amountUSD = volumeUSD
   swap.save()
 
   // update the transaction
@@ -509,7 +510,7 @@ export function handleSwap(event: SwapEvent): void {
   let token1DayData = updateTokenDayDataForAmmEvent(token1, event)
 
   // swap specific updating
-  dolomiteDayData.dailyAmmSwapVolumeUSD = dolomiteDayData.dailyAmmSwapVolumeUSD.plus(trackedAmountUSD)
+  dolomiteDayData.dailyAmmSwapVolumeUSD = dolomiteDayData.dailyAmmSwapVolumeUSD.plus(volumeUSD)
   dolomiteDayData.dailyAmmSwapVolumeUntracked = dolomiteDayData.dailyAmmSwapVolumeUntracked.plus(derivedAmountUSD)
   dolomiteDayData.dailyAmmSwapCount = dolomiteDayData.dailyAmmSwapCount.plus(ONE_BI)
   dolomiteDayData.save()
@@ -517,13 +518,13 @@ export function handleSwap(event: SwapEvent): void {
   // swap specific updating for pair
   ammPairDayData.dailyVolumeToken0 = ammPairDayData.dailyVolumeToken0.plus(amount0Total)
   ammPairDayData.dailyVolumeToken1 = ammPairDayData.dailyVolumeToken1.plus(amount1Total)
-  ammPairDayData.dailyVolumeUSD = ammPairDayData.dailyVolumeUSD.plus(trackedAmountUSD)
+  ammPairDayData.dailyVolumeUSD = ammPairDayData.dailyVolumeUSD.plus(volumeUSD)
   ammPairDayData.save()
 
   // update hourly pair data
   ammPairHourData.hourlyVolumeToken0 = ammPairHourData.hourlyVolumeToken0.plus(amount0Total)
   ammPairHourData.hourlyVolumeToken1 = ammPairHourData.hourlyVolumeToken1.plus(amount1Total)
-  ammPairHourData.hourlyVolumeUSD = ammPairHourData.hourlyVolumeUSD.plus(trackedAmountUSD)
+  ammPairHourData.hourlyVolumeUSD = ammPairHourData.hourlyVolumeUSD.plus(volumeUSD)
   ammPairHourData.save()
 
   // swap specific updating for token0

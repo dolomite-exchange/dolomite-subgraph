@@ -51,8 +51,6 @@ dataSources:
         - name: DolomiteMarginExpiry
           file: ./abis/dolomite-margin-expiry.json
       eventHandlers:
-#        - event: LogOperation(address)
-#          handler: handleOperation
         - event: LogIndexUpdate(indexed uint256,(uint96,uint96,uint32))
           handler: handleIndexUpdate
         - event: LogDeposit(indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),address)

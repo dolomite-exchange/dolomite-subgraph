@@ -4,7 +4,7 @@ import {
   BigInt,
   ethereum,
   log
-} from '@graphprotocol/graph-ts/index'
+} from '@graphprotocol/graph-ts'
 import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../types/MarginAdmin/DolomiteMargin'
 import { DolomiteMarginExpiry as DolomiteMarginExpiryAdminProtocol } from '../types/MarginAdmin/DolomiteMarginExpiry'
 import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../types/MarginCore/DolomiteMargin'
@@ -18,30 +18,37 @@ import {
   MarginAccountTokenValue,
   MarginPosition,
   MarketRiskInfo,
-  Token
+  Token,
+  TotalPar
 } from '../types/schema'
 import {
-  convertStructToDecimal,
-  convertTokenToDecimal,
+  convertStructToDecimalAppliedValue,
   createUserIfNecessary
 } from './amm-helpers'
-import { getTokenOraclePriceUSD } from './amm-pricing'
 import {
-  BD_ONE_ETH,
+  ONE_ETH_BD,
   DOLOMITE_MARGIN_ADDRESS,
   EXPIRY_ADDRESS,
+  FIVE_BD,
   ONE_BD,
   ONE_BI,
+  TEN_BI,
   ZERO_BD,
   ZERO_BI,
   ZERO_BYTES
 } from './generated/constants'
 import { absBD } from './helpers'
 import {
+  BalanceUpdate,
   MarginPositionStatus,
   ProtocolType,
   ValueStruct
 } from './margin-types'
+import { getTokenOraclePriceUSD } from './pricing'
+
+export function getIDForEvent(event: ethereum.Event): string {
+  return event.transaction.hash.toHexString() + '-' + event.logIndex.toString()
+}
 
 export function getOrCreateTokenValue(
   marginAccount: MarginAccount,
@@ -59,7 +66,11 @@ export function getOrCreateTokenValue(
   return tokenValue as MarginAccountTokenValue
 }
 
-export function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, block: ethereum.Block): MarginAccount {
+export function getOrCreateMarginAccount(
+  owner: Address,
+  accountNumber: BigInt,
+  block: ethereum.Block
+): MarginAccount {
   let id = owner.toHexString() + '-' + accountNumber.toString()
   let marginAccount = MarginAccount.load(id)
   if (marginAccount === null) {
@@ -68,8 +79,8 @@ export function getOrCreateMarginAccount(owner: Address, accountNumber: BigInt, 
     marginAccount = new MarginAccount(id)
     marginAccount.user = owner.toHexString()
     marginAccount.accountNumber = accountNumber
-    marginAccount.borrowMarketIds = []
-    marginAccount.expirationMarketIds = []
+    marginAccount.borrowTokens = []
+    marginAccount.expirationTokens = []
     marginAccount.hasBorrowValue = false
     marginAccount.hasExpiration = false
   }
@@ -133,13 +144,13 @@ export function getOrCreateDolomiteMarginForCall(
       let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
       let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
 
-      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH)
+      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
-      dolomiteMargin.liquidationReward = liquidationRewardBD.div(BD_ONE_ETH)
+      dolomiteMargin.liquidationReward = liquidationRewardBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
-      dolomiteMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH)
-      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH)
-        .div(BD_ONE_ETH)
+      dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
+      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
+        .div(ONE_ETH_BD)
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     } else if (protocolType == ProtocolType.Admin) {
       let marginProtocol = DolomiteMarginAdminProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
@@ -151,13 +162,13 @@ export function getOrCreateDolomiteMarginForCall(
       let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
       let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
 
-      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH)
+      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
-      dolomiteMargin.liquidationReward = liquidationRewardBD.div(BD_ONE_ETH)
+      dolomiteMargin.liquidationReward = liquidationRewardBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
-      dolomiteMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH)
-      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH)
-        .div(BD_ONE_ETH)
+      dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
+      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
+        .div(ONE_ETH_BD)
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     } else {
       let marginProtocol = DolomiteMarginExpiryProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
@@ -169,13 +180,13 @@ export function getOrCreateDolomiteMarginForCall(
       let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
       let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
 
-      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(BD_ONE_ETH)
+      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
-      dolomiteMargin.liquidationReward = liquidationRewardBD.div(BD_ONE_ETH)
+      dolomiteMargin.liquidationReward = liquidationRewardBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
-      dolomiteMargin.earningsRate = earningsRateBD.div(BD_ONE_ETH)
-      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(BD_ONE_ETH)
-        .div(BD_ONE_ETH)
+      dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
+      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
+        .div(ONE_ETH_BD)
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     }
 
@@ -207,24 +218,25 @@ export function getOrCreateDolomiteMarginForCall(
   return dolomiteMargin as DolomiteMargin
 }
 
-export function roundHalfUp(bd: BigDecimal, decimals: BigInt): BigDecimal {
+export function roundHalfUp(value: BigDecimal, decimals: BigInt): BigDecimal {
   // Add 0.5 to the number being truncated off. This allows us to effectively round up
-  let amountToAdd = BigDecimal.fromString('5')
-    .div(new BigDecimal(BigInt.fromString('10')
-      .pow(decimals.plus(ONE_BI)
-        .toI32() as u8)))
+  let amountToAdd = FIVE_BD.div(new BigDecimal(TEN_BI.pow((decimals.toI32() + 1) as u8)))
 
-  if (bd.lt(ZERO_BD)) {
-    return bd.minus(amountToAdd)
+  if (value.lt(ZERO_BD)) {
+    return value.minus(amountToAdd)
       .truncate(decimals.toI32())
   } else {
-    return bd.plus(amountToAdd)
+    return value.plus(amountToAdd)
       .truncate(decimals.toI32())
   }
 }
 
 // noinspection JSUnusedGlobalSymbols
-export function weiToPar(wei: BigDecimal, index: InterestIndex, decimals: BigInt): BigDecimal {
+export function weiToPar(
+  wei: BigDecimal,
+  index: InterestIndex,
+  decimals: BigInt
+): BigDecimal {
   if (wei.ge(ZERO_BD)) {
     return roundHalfUp(wei.div(index.supplyIndex), decimals)
   } else {
@@ -232,7 +244,11 @@ export function weiToPar(wei: BigDecimal, index: InterestIndex, decimals: BigInt
   }
 }
 
-export function parToWei(par: BigDecimal, index: InterestIndex, decimals: BigInt): BigDecimal {
+export function parToWei(
+  par: BigDecimal,
+  index: InterestIndex,
+  decimals: BigInt
+): BigDecimal {
   if (par.ge(ZERO_BD)) {
     return roundHalfUp(par.times(index.supplyIndex), decimals)
   } else {
@@ -240,36 +256,65 @@ export function parToWei(par: BigDecimal, index: InterestIndex, decimals: BigInt
   }
 }
 
-function isRepaymentOfBorrowAmount(
-  newPar: BigDecimal,
-  deltaWei: BigDecimal,
-  index: InterestIndex,
-  decimals: BigInt
-): boolean {
-  let newWei = parToWei(newPar, index, decimals)
-  let oldWei = newWei.minus(deltaWei)
-  return deltaWei.gt(ZERO_BD) && oldWei.lt(ZERO_BD) // the user added to the negative balance (decreasing it)
+function handleTotalParChange(
+  totalPar: TotalPar,
+  oldPar: BigDecimal,
+  newPar: BigDecimal
+): void {
+  // roll-back oldPar
+  if (oldPar.ge(ZERO_BD)) {
+    totalPar.supplyPar = totalPar.supplyPar.minus(oldPar)
+  } else {
+    totalPar.borrowPar = totalPar.borrowPar.minus(absBD(oldPar))
+  }
+
+  // roll-forward newPar
+  if (newPar.ge(ZERO_BD)) {
+    totalPar.supplyPar = totalPar.supplyPar.plus(newPar)
+  } else {
+    totalPar.borrowPar = totalPar.borrowPar.plus(absBD(newPar))
+  }
+
+  totalPar.save()
 }
 
-function getMarketTotalBorrowWei(
-  borrowPar: BigInt,
-  token: Token,
-  index: InterestIndex
-): BigDecimal {
-  let decimals = token.decimals
-  return parToWei(convertTokenToDecimal(borrowPar.neg(), token.decimals), index, token.decimals)
-    .neg()
-    .truncate(decimals.toI32())
-}
+export function handleDolomiteMarginBalanceUpdateForAccount(
+  balanceUpdate: BalanceUpdate,
+  block: ethereum.Block
+): MarginAccount {
+  let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, block)
+  let tokenValue = getOrCreateTokenValue(marginAccount, balanceUpdate.token)
+  let token = Token.load(tokenValue.token) as Token
 
-function getMarketTotalSupplyWei(
-  supplyPar: BigInt,
-  token: Token,
-  index: InterestIndex
-): BigDecimal {
-  let decimals = token.decimals
-  return parToWei(convertTokenToDecimal(supplyPar, token.decimals), index, decimals)
-    .truncate(decimals.toI32())
+  let totalPar = TotalPar.load(token.id) as TotalPar
+  handleTotalParChange(totalPar, tokenValue.valuePar, balanceUpdate.valuePar)
+
+  if (tokenValue.valuePar.lt(ZERO_BD) && balanceUpdate.valuePar.ge(ZERO_BD)) {
+    // The user is going from a negative balance to a positive one. Remove from the list
+    let index = marginAccount.borrowTokens.indexOf(balanceUpdate.token.id)
+    if (index != -1) {
+      let copy = marginAccount.borrowTokens
+      copy.splice(index, 1)
+      // NOTE we must use the copy here because the return value of #splice isn't the new array. Rather, it returns the
+      // DELETED element only
+      marginAccount.borrowTokens = copy
+    }
+  } else if (tokenValue.valuePar.ge(ZERO_BD) && balanceUpdate.valuePar.lt(ZERO_BD)) {
+    // The user is going from a positive balance to a negative one, add it to the list
+    marginAccount.borrowTokens = marginAccount.borrowTokens.concat([balanceUpdate.token.id])
+  }
+  marginAccount.hasBorrowValue = marginAccount.borrowTokens.length > 0
+
+  tokenValue.valuePar = balanceUpdate.valuePar
+  log.info(
+    'Balance changed for account {} to value {}',
+    [marginAccount.id, tokenValue.valuePar.toString()]
+  )
+
+  marginAccount.save()
+  tokenValue.save()
+
+  return marginAccount
 }
 
 export function changeProtocolBalance(
@@ -282,28 +327,18 @@ export function changeProtocolBalance(
   protocolType: string,
   dolomiteMargin: DolomiteMargin
 ): void {
+  if (token.id != index.token) {
+    log.error(
+      'Token with address {} does not match index {} for event with hash {} and log index {}',
+      [token.id, index.token, event.transaction.hash.toHexString(), event.logIndex.toString()]
+    )
+  }
+
   let tokenPriceUSD = getTokenOraclePriceUSD(token, event, protocolType)
 
-  let newPar = convertStructToDecimal(newParStruct, token.decimals)
+  let newPar = convertStructToDecimalAppliedValue(newParStruct, token.decimals)
   let newWei = parToWei(newPar, index, token.decimals)
-  let deltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
-
-  let totalSupplyPar: BigInt
-  let totalBorrowPar: BigInt
-  if (protocolType == ProtocolType.Core) {
-    let protocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-    let totalPar = protocol.getMarketTotalPar(token.marketId)
-    totalSupplyPar = totalPar.supply
-    totalBorrowPar = totalPar.borrow
-  } else if (protocolType == ProtocolType.Admin) {
-    let protocol = DolomiteMarginAdminProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-    let totalPar = protocol.getMarketTotalPar(token.marketId)
-    totalSupplyPar = totalPar.supply
-    totalBorrowPar = totalPar.borrow
-  } else {
-    log.error('Could not find protocol type: {}', [protocolType])
-    return
-  }
+  let deltaWei = convertStructToDecimalAppliedValue(deltaWeiStruct, token.decimals)
 
   if (newPar.lt(ZERO_BD) && deltaWei.lt(ZERO_BD)) {
     // the user borrowed funds
@@ -314,49 +349,30 @@ export function changeProtocolBalance(
       borrowVolumeToken = absBD(newWei)
     }
 
-    // temporarily get rid of the old USD liquidity
-    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
-
-    token.borrowLiquidity = getMarketTotalBorrowWei(totalBorrowPar, token, index)
-    token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
-
-    // add the new liquidity back in
-    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
     dolomiteMargin.totalBorrowVolumeUSD = dolomiteMargin.totalBorrowVolumeUSD.plus(borrowVolumeToken.times(tokenPriceUSD))
-  } else if (isRepaymentOfBorrowAmount(newPar, deltaWei, index, token.decimals)) {
-    // temporarily get rid of the old USD liquidity
-    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
-
-    token.borrowLiquidity = getMarketTotalBorrowWei(totalBorrowPar, token, index)
-    token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
-
-    // add the new liquidity back in
-    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
   }
+
+  // temporarily get rid of the old USD liquidity
+  dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
+  dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
+
+  let totalPar = TotalPar.load(token.id) as TotalPar
+  token.borrowLiquidity = absBD(parToWei(totalPar.borrowPar.neg(), index, token.decimals))
+  token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
+  token.supplyLiquidity = parToWei(totalPar.supplyPar, index, token.decimals)
+  token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
+
+  // add the new liquidity back in
+  dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
+  dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
 
   if (!isVirtualTransfer) {
     // the balance change affected the ERC20.balanceOf(protocol)
-    // temporarily get rid of the old USD liquidity
-    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
-
-    token.supplyLiquidity = getMarketTotalSupplyWei(totalSupplyPar, token, index)
-    token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
-
-    // add the new liquidity back in
-    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
-
     if (deltaWei.gt(ZERO_BD)) {
+      // funds moved into DolomiteMargin
       let deltaWeiUSD = deltaWei.times(tokenPriceUSD)
       dolomiteMargin.totalSupplyVolumeUSD = dolomiteMargin.totalSupplyVolumeUSD.plus(deltaWeiUSD)
     }
-  } else {
-    // Adjust the liquidity of the protocol and token
-    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
-
-    token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
-
-    // add the new liquidity back in
-    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
   }
 
   dolomiteMargin.save()
@@ -378,8 +394,8 @@ export function getLiquidationSpreadForPair(
   owedToken: Token,
   dolomiteMargin: DolomiteMargin
 ): BigDecimal {
-  let heldRiskInfo = MarketRiskInfo.load(heldToken.marketId.toString()) as MarketRiskInfo
-  let owedRiskInfo = MarketRiskInfo.load(owedToken.marketId.toString()) as MarketRiskInfo
+  let heldRiskInfo = MarketRiskInfo.load(heldToken.id) as MarketRiskInfo
+  let owedRiskInfo = MarketRiskInfo.load(owedToken.id) as MarketRiskInfo
 
   let liquidationSpread = dolomiteMargin.liquidationReward.minus(ONE_BD)
   liquidationSpread = liquidationSpread.times(ONE_BD.plus(heldRiskInfo.liquidationRewardPremium))

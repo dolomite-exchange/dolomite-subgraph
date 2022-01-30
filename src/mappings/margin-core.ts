@@ -23,10 +23,10 @@ import {
   InterestIndex,
   InterestRate,
   Liquidation,
-  MarginAccount,
   MarginPosition,
   Token,
   TokenMarketIdReverseMap,
+  TotalPar,
   Trade,
   Transfer,
   Vaporization,
@@ -34,10 +34,10 @@ import {
 } from '../types/schema'
 import { getOrCreateTransaction } from './amm-core'
 import {
-  convertStructToDecimal,
+  convertStructToDecimalAppliedValue,
   convertTokenToDecimal
 } from './amm-helpers'
-import { getTokenOraclePriceUSD } from './amm-pricing'
+import { getTokenOraclePriceUSD } from './pricing'
 import {
   updateAndReturnTokenDayDataForMarginEvent,
   updateAndReturnTokenHourDataForMarginEvent,
@@ -47,8 +47,8 @@ import {
   updateTimeDataForVaporization
 } from './day-updates'
 import {
-  BD_ONE_ETH,
-  BI_18,
+  ONE_ETH_BD,
+  _18_BI,
   DOLOMITE_MARGIN_ADDRESS,
   EXPIRY_ADDRESS,
   ONE_BI,
@@ -59,11 +59,11 @@ import {
 import { absBD } from './helpers'
 import {
   changeProtocolBalance,
+  getIDForEvent,
   getLiquidationSpreadForPair,
   getOrCreateDolomiteMarginForCall,
-  getOrCreateMarginAccount,
   getOrCreateMarginPosition,
-  getOrCreateTokenValue,
+  handleDolomiteMarginBalanceUpdateForAccount,
   invalidateMarginPosition,
   parToWei,
   roundHalfUp
@@ -87,62 +87,46 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let id = event.params.market.toString()
-  let index = InterestIndex.load(id)
+  let tokenAddress = TokenMarketIdReverseMap.load(event.params.market.toString())!.token
+  let index = InterestIndex.load(tokenAddress)
   if (index === null) {
-    index = new InterestIndex(id)
+    index = new InterestIndex(tokenAddress)
   }
 
-  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-  index.borrowIndex = convertTokenToDecimal(event.params.index.borrow, BI_18)
-  index.supplyIndex = convertTokenToDecimal(event.params.index.supply, BI_18)
+  index.borrowIndex = convertTokenToDecimal(event.params.index.borrow, _18_BI)
+  index.supplyIndex = convertTokenToDecimal(event.params.index.supply, _18_BI)
   index.lastUpdate = event.params.index.lastUpdate
   index.save()
 
-  let interestRate = InterestRate.load(id) as InterestRate
+  let interestRate = InterestRate.load(tokenAddress) as InterestRate
+  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let interestRatePerSecond = marginProtocol.getMarketInterestRate(event.params.market).value
   let interestPerYearBD = new BigDecimal(interestRatePerSecond.times(SECONDS_IN_YEAR))
-  interestRate.borrowInterestRate = interestPerYearBD.div(BD_ONE_ETH)
+  interestRate.borrowInterestRate = interestPerYearBD.div(ONE_ETH_BD)
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Core)
-  let earningsRate = dolomiteMargin.earningsRate
-  interestRate.supplyInterestRate = interestRate.borrowInterestRate.times(earningsRate)
-    .truncate(18)
+
+  let token = Token.load(tokenAddress) as Token
+  let totalPar = TotalPar.load(tokenAddress) as TotalPar
+  let borrowWei = absBD(parToWei(totalPar.borrowPar.neg(), index, token.decimals))
+  let supplyWei = parToWei(totalPar.supplyPar, index, token.decimals)
+
+  if (borrowWei.lt(supplyWei)) {
+    // the supply interest rate is spread across the supplied balance, which is paid on the borrow amount. Therefore,
+    // the interest owed must be scaled down by the supplied we vs owed wei
+    interestRate.supplyInterestRate = interestRate.borrowInterestRate
+      .times(dolomiteMargin.earningsRate)
+      .truncate(18)
+      .times(borrowWei)
+      .div(supplyWei)
+      .truncate(token.decimals.toI32())
+  } else {
+    interestRate.supplyInterestRate = interestRate.borrowInterestRate
+      .times(dolomiteMargin.earningsRate)
+      .truncate(18)
+  }
 
   interestRate.save()
-}
-
-function handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate: BalanceUpdate, block: ethereum.Block): MarginAccount {
-  let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, block)
-
-  let tokenValue = getOrCreateTokenValue(marginAccount, balanceUpdate.token)
-
-  if (tokenValue.valuePar.lt(ZERO_BD) && balanceUpdate.valuePar.ge(ZERO_BD)) {
-    // The user is going from a negative balance to a positive one. Remove from the list
-    let index = marginAccount.borrowMarketIds.indexOf(balanceUpdate.token.marketId)
-    if (index != -1) {
-      marginAccount.borrowMarketIds = marginAccount.borrowMarketIds.splice(index, 1)
-    }
-  } else if (tokenValue.valuePar.ge(ZERO_BD) && balanceUpdate.valuePar.lt(ZERO_BD)) {
-    // The user is going from a positive balance to a negative one, add it to the list
-    marginAccount.borrowMarketIds = marginAccount.borrowMarketIds.concat([balanceUpdate.token.marketId])
-  }
-  marginAccount.hasBorrowValue = marginAccount.borrowMarketIds.length > 0
-
-  tokenValue.valuePar = balanceUpdate.valuePar
-  log.info(
-    'Balance changed for account {} to value {}',
-    [marginAccount.id, tokenValue.valuePar.toString()]
-  )
-
-  marginAccount.save()
-  tokenValue.save()
-
-  return marginAccount
-}
-
-function getIDForEvent(event: ethereum.Event): string {
-  return event.transaction.hash.toHexString() + '-' + event.logIndex.toString()
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -152,7 +136,7 @@ export function handleDeposit(event: DepositEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.tokenAddress) as Token
+  let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.token) as Token
 
   let balanceUpdate = new BalanceUpdate(
     event.params.accountOwner,
@@ -182,13 +166,15 @@ export function handleDeposit(event: DepositEvent): void {
   deposit.marginAccount = marginAccount.id
   deposit.token = token.id
   deposit.from = event.params.from
-  deposit.amountDeltaWei = convertStructToDecimal(deltaWeiStruct, token.decimals)
+  deposit.amountDeltaWei = convertStructToDecimalAppliedValue(deltaWeiStruct, token.decimals)
   deposit.amountUSDDeltaWei = deposit.amountDeltaWei.times(getTokenOraclePriceUSD(token, event, ProtocolType.Core))
     .truncate(18)
 
   dolomiteMargin.totalSupplyVolumeUSD = dolomiteMargin.totalSupplyVolumeUSD.plus(deposit.amountUSDDeltaWei)
 
-  let marketIndex = InterestIndex.load(event.params.market.toString()) as InterestIndex
+  updateDolomiteDayData(event)
+
+  let marketIndex = InterestIndex.load(token.id) as InterestIndex
   let isVirtualTransfer = false
   changeProtocolBalance(
     event,
@@ -216,7 +202,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.tokenAddress) as Token
+  let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.token) as Token
 
   let balanceUpdate = new BalanceUpdate(
     event.params.accountOwner,
@@ -247,7 +233,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   withdrawal.marginAccount = marginAccount.id
   withdrawal.token = token.id
   withdrawal.to = event.params.to
-  withdrawal.amountDeltaWei = convertStructToDecimal(deltaWeiStructAbs, token.decimals)
+  withdrawal.amountDeltaWei = convertStructToDecimalAppliedValue(deltaWeiStructAbs, token.decimals)
   withdrawal.amountUSDDeltaWei = withdrawal.amountDeltaWei
     .times(getTokenOraclePriceUSD(token, event, ProtocolType.Core))
     .truncate(18)
@@ -256,9 +242,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   withdrawal.save()
   transaction.save()
 
-  updateDolomiteDayData(event)
-
-  let marketIndex = InterestIndex.load(event.params.market.toString()) as InterestIndex
+  let marketIndex = InterestIndex.load(token.id) as InterestIndex
   let isVirtualTransfer = false
   changeProtocolBalance(
     event,
@@ -273,6 +257,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
+  updateDolomiteDayData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -282,7 +267,7 @@ export function handleTransfer(event: TransferEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.tokenAddress) as Token
+  let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.token) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
     event.params.accountOneOwner,
@@ -325,7 +310,7 @@ export function handleTransfer(event: TransferEvent): void {
 
   let amountDeltaWei = new ValueStruct(event.params.updateOne.deltaWei)
   let priceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
-  transfer.amountDeltaWei = convertStructToDecimal(amountDeltaWei.abs(), token.decimals)
+  transfer.amountDeltaWei = convertStructToDecimalAppliedValue(amountDeltaWei.abs(), token.decimals)
   transfer.amountUSDDeltaWei = transfer.amountDeltaWei.times(priceUSD)
     .truncate(18)
 
@@ -334,7 +319,7 @@ export function handleTransfer(event: TransferEvent): void {
   transfer.save()
   transaction.save()
 
-  let marketIndex = InterestIndex.load(token.marketId.toString()) as InterestIndex
+  let marketIndex = InterestIndex.load(token.id) as InterestIndex
   let isVirtualTransfer = true
   changeProtocolBalance(
     event,
@@ -387,6 +372,7 @@ export function handleTransfer(event: TransferEvent): void {
 
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
+  updateDolomiteDayData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -396,8 +382,8 @@ export function handleBuy(event: BuyEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let makerToken = Token.load(TokenMarketIdReverseMap.load(event.params.makerMarket.toString())!.tokenAddress) as Token
-  let takerToken = Token.load(TokenMarketIdReverseMap.load(event.params.takerMarket.toString())!.tokenAddress) as Token
+  let makerToken = Token.load(TokenMarketIdReverseMap.load(event.params.makerMarket.toString())!.token) as Token
+  let takerToken = Token.load(TokenMarketIdReverseMap.load(event.params.takerMarket.toString())!.token) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
     event.params.accountOwner,
@@ -441,10 +427,10 @@ export function handleBuy(event: BuyEvent): void {
   trade.makerToken = makerToken.id
 
   let takerDeltaWeiStruct = new ValueStruct(event.params.takerUpdate.deltaWei)
-  trade.takerTokenDeltaWei = convertStructToDecimal(takerDeltaWeiStruct.abs(), takerToken.decimals)
+  trade.takerTokenDeltaWei = convertStructToDecimalAppliedValue(takerDeltaWeiStruct.abs(), takerToken.decimals)
 
   let makerDeltaWeiStruct = new ValueStruct(event.params.makerUpdate.deltaWei)
-  trade.makerTokenDeltaWei = convertStructToDecimal(makerDeltaWeiStruct.abs(), makerToken.decimals)
+  trade.makerTokenDeltaWei = convertStructToDecimalAppliedValue(makerDeltaWeiStruct.abs(), makerToken.decimals)
 
   trade.amountUSD = trade.takerTokenDeltaWei
     .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
@@ -458,10 +444,8 @@ export function handleBuy(event: BuyEvent): void {
   transaction.save()
   dolomiteMargin.save()
 
-  let dolomiteDayData = updateDolomiteDayData(event)
-
-  let makerIndex = InterestIndex.load(event.params.makerMarket.toString()) as InterestIndex
-  let takerIndex = InterestIndex.load(event.params.takerMarket.toString()) as InterestIndex
+  let makerIndex = InterestIndex.load(makerToken.id) as InterestIndex
+  let takerIndex = InterestIndex.load(takerToken.id) as InterestIndex
   let isVirtualTransfer = false
 
   let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
@@ -492,6 +476,7 @@ export function handleBuy(event: BuyEvent): void {
   let outputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
   let inputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
   let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
+  let dolomiteDayData = updateDolomiteDayData(event)
 
   updateTimeDataForTrade(dolomiteDayData, inputTokenDayData, inputTokenHourData, makerToken, event, trade as Trade)
   updateTimeDataForTrade(dolomiteDayData, outputTokenDayData, outputTokenHourData, takerToken, event, trade as Trade)
@@ -506,8 +491,8 @@ export function handleSell(event: SellEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let makerToken = Token.load(TokenMarketIdReverseMap.load(event.params.makerMarket.toString())!.tokenAddress) as Token
-  let takerToken = Token.load(TokenMarketIdReverseMap.load(event.params.takerMarket.toString())!.tokenAddress) as Token
+  let makerToken = Token.load(TokenMarketIdReverseMap.load(event.params.makerMarket.toString())!.token) as Token
+  let takerToken = Token.load(TokenMarketIdReverseMap.load(event.params.takerMarket.toString())!.token) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
     event.params.accountOwner,
@@ -551,10 +536,10 @@ export function handleSell(event: SellEvent): void {
   trade.makerToken = makerToken.id
 
   let takerDeltaWeiStruct = new ValueStruct(event.params.takerUpdate.deltaWei)
-  trade.takerTokenDeltaWei = convertStructToDecimal(takerDeltaWeiStruct.abs(), takerToken.decimals)
+  trade.takerTokenDeltaWei = convertStructToDecimalAppliedValue(takerDeltaWeiStruct.abs(), takerToken.decimals)
 
   let makerDeltaWeiStruct = new ValueStruct(event.params.makerUpdate.deltaWei)
-  trade.makerTokenDeltaWei = convertStructToDecimal(makerDeltaWeiStruct.abs(), makerToken.decimals)
+  trade.makerTokenDeltaWei = convertStructToDecimalAppliedValue(makerDeltaWeiStruct.abs(), makerToken.decimals)
 
   trade.amountUSD = trade.takerTokenDeltaWei
     .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
@@ -568,10 +553,8 @@ export function handleSell(event: SellEvent): void {
   transaction.save()
   dolomiteMargin.save()
 
-  let dolomiteDayData = updateDolomiteDayData(event)
-
-  let makerIndex = InterestIndex.load(event.params.makerMarket.toString()) as InterestIndex
-  let takerIndex = InterestIndex.load(event.params.takerMarket.toString()) as InterestIndex
+  let makerIndex = InterestIndex.load(makerToken.id) as InterestIndex
+  let takerIndex = InterestIndex.load(takerToken.id) as InterestIndex
   let isVirtualTransfer = false
 
   let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
@@ -602,6 +585,7 @@ export function handleSell(event: SellEvent): void {
   let outputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
   let inputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
   let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
+  let dolomiteDayData = updateDolomiteDayData(event)
 
   updateTimeDataForTrade(dolomiteDayData, inputTokenDayData, inputTokenHourData, makerToken, event, trade as Trade)
   updateTimeDataForTrade(dolomiteDayData, outputTokenDayData, outputTokenHourData, takerToken, event, trade as Trade)
@@ -616,15 +600,15 @@ export function handleTrade(event: TradeEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let takerToken = Token.load(TokenMarketIdReverseMap.load(event.params.inputMarket.toString())!.tokenAddress) as Token
-  let makerToken = Token.load(TokenMarketIdReverseMap.load(event.params.outputMarket.toString())!.tokenAddress) as Token
+  let inputToken = Token.load(TokenMarketIdReverseMap.load(event.params.inputMarket.toString())!.token) as Token
+  let outputToken = Token.load(TokenMarketIdReverseMap.load(event.params.outputMarket.toString())!.token) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
     event.params.makerAccountOwner,
     event.params.makerAccountNumber,
     event.params.makerInputUpdate.newPar.value,
     event.params.makerInputUpdate.newPar.sign,
-    takerToken
+    inputToken
   )
   handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
 
@@ -633,7 +617,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.makerAccountNumber,
     event.params.makerOutputUpdate.newPar.value,
     event.params.makerOutputUpdate.newPar.sign,
-    makerToken
+    outputToken
   )
   let makerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
 
@@ -642,7 +626,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerAccountNumber,
     event.params.takerInputUpdate.newPar.value,
     event.params.takerInputUpdate.newPar.sign,
-    takerToken
+    inputToken
   )
   handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event.block)
 
@@ -651,7 +635,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerAccountNumber,
     event.params.takerOutputUpdate.newPar.value,
     event.params.takerOutputUpdate.newPar.sign,
-    makerToken
+    outputToken
   )
   let takerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event.block)
 
@@ -674,17 +658,17 @@ export function handleTrade(event: TradeEvent): void {
   trade.makerMarginAccount = makerMarginAccount.id
   trade.walletsConcatenated = takerMarginAccount.user + '_' + makerMarginAccount.user
 
-  trade.takerToken = takerToken.id
-  trade.makerToken = makerToken.id
+  trade.takerToken = inputToken.id
+  trade.makerToken = outputToken.id
 
   let takerInputDeltaWeiStruct = new ValueStruct(event.params.takerInputUpdate.deltaWei)
-  trade.takerTokenDeltaWei = convertStructToDecimal(takerInputDeltaWeiStruct.abs(), takerToken.decimals)
+  trade.takerTokenDeltaWei = convertStructToDecimalAppliedValue(takerInputDeltaWeiStruct.abs(), inputToken.decimals)
 
   let takerOutputDeltaWeiStruct = new ValueStruct(event.params.takerOutputUpdate.deltaWei)
-  trade.makerTokenDeltaWei = convertStructToDecimal(takerOutputDeltaWeiStruct.abs(), makerToken.decimals)
+  trade.makerTokenDeltaWei = convertStructToDecimalAppliedValue(takerOutputDeltaWeiStruct.abs(), outputToken.decimals)
 
   trade.amountUSD = trade.takerTokenDeltaWei
-    .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
+    .times(getTokenOraclePriceUSD(inputToken, event, ProtocolType.Core))
     .truncate(18)
 
   dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
@@ -696,19 +680,17 @@ export function handleTrade(event: TradeEvent): void {
   transaction.save()
   dolomiteMargin.save()
 
-  let dolomiteDayData = updateDolomiteDayData(event)
-
-  let takerIndex = InterestIndex.load(event.params.inputMarket.toString()) as InterestIndex
-  let makerIndex = InterestIndex.load(event.params.outputMarket.toString()) as InterestIndex
+  let inputIndex = InterestIndex.load(inputToken.id) as InterestIndex
+  let outputIndex = InterestIndex.load(outputToken.id) as InterestIndex
   let isVirtualTransfer = true
 
   let takerInputNewParStruct = new ValueStruct(event.params.takerInputUpdate.newPar)
   changeProtocolBalance(
     event,
-    takerToken,
+    inputToken,
     takerInputNewParStruct,
     takerInputDeltaWeiStruct,
-    takerIndex,
+    inputIndex,
     isVirtualTransfer,
     ProtocolType.Core,
     dolomiteMargin
@@ -717,10 +699,10 @@ export function handleTrade(event: TradeEvent): void {
   let takerOutputNewParStruct = new ValueStruct(event.params.takerOutputUpdate.newPar)
   changeProtocolBalance(
     event,
-    makerToken,
+    outputToken,
     takerOutputNewParStruct,
     takerOutputDeltaWeiStruct,
-    makerIndex,
+    outputIndex,
     isVirtualTransfer,
     ProtocolType.Core,
     dolomiteMargin
@@ -730,10 +712,10 @@ export function handleTrade(event: TradeEvent): void {
   let makerInputDeltaWeiStruct = new ValueStruct(event.params.makerInputUpdate.deltaWei)
   changeProtocolBalance(
     event,
-    makerToken,
+    inputToken,
     makerInputNewParStruct,
     makerInputDeltaWeiStruct,
-    takerIndex,
+    inputIndex,
     isVirtualTransfer,
     ProtocolType.Core,
     dolomiteMargin
@@ -743,30 +725,31 @@ export function handleTrade(event: TradeEvent): void {
   let makerOutputDeltaWeiStruct = new ValueStruct(event.params.makerOutputUpdate.deltaWei)
   changeProtocolBalance(
     event,
-    takerToken,
+    outputToken,
     makerOutputNewParStruct,
     makerOutputDeltaWeiStruct,
-    makerIndex,
+    outputIndex,
     isVirtualTransfer,
     ProtocolType.Core,
     dolomiteMargin
   )
 
-  let takerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
-  let makerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(makerToken, event)
-  let takerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
-  let makerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
+  let inputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(inputToken, event)
+  let outputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(outputToken, event)
+  let inputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(inputToken, event)
+  let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(outputToken, event)
+  let dolomiteDayData = updateDolomiteDayData(event)
 
-  updateTimeDataForTrade(dolomiteDayData, makerTokenDayData, makerTokenHourData, makerToken, event, trade as Trade)
-  updateTimeDataForTrade(dolomiteDayData, takerTokenDayData, takerTokenHourData, takerToken, event, trade as Trade)
+  updateTimeDataForTrade(dolomiteDayData, outputTokenDayData, outputTokenHourData, outputToken, event, trade as Trade)
+  updateTimeDataForTrade(dolomiteDayData, inputTokenDayData, inputTokenHourData, inputToken, event, trade as Trade)
 
   // if the trade is against the expiry contract, we need to change the margin position
   if (trade.traderAddress.equals(Address.fromString(EXPIRY_ADDRESS))) {
     // the maker is
     let marginPosition = getOrCreateMarginPosition(event, makerMarginAccount)
 
-    let heldToken = marginPosition.heldToken == makerToken.id ? makerToken : takerToken
-    let owedToken = marginPosition.owedToken == makerToken.id ? makerToken : takerToken
+    let heldToken = marginPosition.heldToken == outputToken.id ? outputToken : inputToken
+    let owedToken = marginPosition.owedToken == outputToken.id ? outputToken : inputToken
 
     let heldPrice = getTokenOraclePriceUSD(heldToken, event, ProtocolType.Core)
     let owedPrice = getTokenOraclePriceUSD(owedToken, event, ProtocolType.Core)
@@ -784,11 +767,11 @@ export function handleTrade(event: TradeEvent): void {
       .truncate(36)
 
     // makerToken == outputToken for taker; which means it's the inputToken for the maker
-    let heldNewParStruct = marginPosition.heldToken == makerToken.id ? makerInputNewParStruct : makerOutputNewParStruct
-    let owedNewParStruct = marginPosition.owedToken == makerToken.id ? makerInputNewParStruct : makerOutputNewParStruct
+    let heldNewParStruct = marginPosition.heldToken == outputToken.id ? makerInputNewParStruct : makerOutputNewParStruct
+    let owedNewParStruct = marginPosition.owedToken == outputToken.id ? makerInputNewParStruct : makerOutputNewParStruct
 
     // makerToken == outputToken for taker; which means it's the inputToken for the maker
-    let borrowedTokenAmountDeltaWeiStruct = marginPosition.owedToken == makerToken.id
+    let borrowedTokenAmountDeltaWeiStruct = marginPosition.owedToken == outputToken.id
       ? makerInputDeltaWeiStruct
       : makerOutputDeltaWeiStruct
 
@@ -799,11 +782,11 @@ export function handleTrade(event: TradeEvent): void {
       owedPriceAdj,
       heldToken,
       owedToken,
-      marginPosition.heldToken == makerToken.id ? makerIndex : takerIndex,
-      marginPosition.owedToken == makerToken.id ? makerIndex : takerIndex,
-      convertStructToDecimal(heldNewParStruct, heldToken.decimals),
-      convertStructToDecimal(owedNewParStruct, owedToken.decimals),
-      absBD(convertStructToDecimal(borrowedTokenAmountDeltaWeiStruct, owedToken.decimals)),
+      marginPosition.heldToken == outputToken.id ? outputIndex : inputIndex,
+      marginPosition.owedToken == outputToken.id ? outputIndex : inputIndex,
+      convertStructToDecimalAppliedValue(heldNewParStruct, heldToken.decimals),
+      convertStructToDecimalAppliedValue(owedNewParStruct, owedToken.decimals),
+      absBD(convertStructToDecimalAppliedValue(borrowedTokenAmountDeltaWeiStruct, owedToken.decimals)),
       MarginPositionStatus.Expired
     )
   }
@@ -816,8 +799,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let heldToken = Token.load(TokenMarketIdReverseMap.load(event.params.heldMarket.toString())!.tokenAddress) as Token
-  let owedToken = Token.load(TokenMarketIdReverseMap.load(event.params.owedMarket.toString())!.tokenAddress) as Token
+  let heldToken = Token.load(TokenMarketIdReverseMap.load(event.params.heldMarket.toString())!.token) as Token
+  let owedToken = Token.load(TokenMarketIdReverseMap.load(event.params.owedMarket.toString())!.token) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
     event.params.liquidAccountOwner,
@@ -877,11 +860,11 @@ export function handleLiquidate(event: LiquidationEvent): void {
 
   let solidHeldDeltaWeiStruct = new ValueStruct(event.params.solidHeldUpdate.deltaWei)
   let solidHeldNewParStruct = new ValueStruct(event.params.solidHeldUpdate.newPar)
-  liquidation.heldTokenAmountDeltaWei = convertStructToDecimal(solidHeldDeltaWeiStruct.abs(), heldToken.decimals)
+  liquidation.heldTokenAmountDeltaWei = convertStructToDecimalAppliedValue(solidHeldDeltaWeiStruct.abs(), heldToken.decimals)
 
   let solidOwedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
   let solidOwedNewParStruct = new ValueStruct(event.params.solidOwedUpdate.newPar)
-  liquidation.borrowedTokenAmountDeltaWei = convertStructToDecimal(solidOwedDeltaWeiStruct.abs(), owedToken.decimals)
+  liquidation.borrowedTokenAmountDeltaWei = convertStructToDecimalAppliedValue(solidOwedDeltaWeiStruct.abs(), owedToken.decimals)
 
   let liquidHeldDeltaWeiStruct = new ValueStruct(event.params.liquidHeldUpdate.deltaWei)
   let liquidHeldNewParStruct = new ValueStruct(event.params.liquidHeldUpdate.newPar)
@@ -918,8 +901,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
     dolomiteMargin.totalLiquidationVolumeUSD.plus(liquidation.borrowedTokenAmountUSD)
   dolomiteMargin.save()
 
-  let heldIndex = InterestIndex.load(event.params.heldMarket.toString()) as InterestIndex
-  let owedIndex = InterestIndex.load(event.params.owedMarket.toString()) as InterestIndex
+  let heldIndex = InterestIndex.load(heldToken.id) as InterestIndex
+  let owedIndex = InterestIndex.load(owedToken.id) as InterestIndex
   let isVirtualTransfer = true
   changeProtocolBalance(
     event,
@@ -993,8 +976,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
       owedToken,
       heldIndex,
       owedIndex,
-      convertStructToDecimal(liquidHeldNewParStruct, heldToken.decimals),
-      convertStructToDecimal(liquidOwedNewParStruct, owedToken.decimals),
+      convertStructToDecimalAppliedValue(liquidHeldNewParStruct, heldToken.decimals),
+      convertStructToDecimalAppliedValue(liquidOwedNewParStruct, owedToken.decimals),
       liquidation.borrowedTokenAmountDeltaWei,
       MarginPositionStatus.Liquidated
     )
@@ -1008,8 +991,8 @@ export function handleVaporize(event: VaporizationEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let heldToken = Token.load(TokenMarketIdReverseMap.load(event.params.heldMarket.toString())!.tokenAddress) as Token
-  let owedToken = Token.load(TokenMarketIdReverseMap.load(event.params.owedMarket.toString())!.tokenAddress) as Token
+  let heldToken = Token.load(TokenMarketIdReverseMap.load(event.params.heldMarket.toString())!.token) as Token
+  let owedToken = Token.load(TokenMarketIdReverseMap.load(event.params.owedMarket.toString())!.token) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
     event.params.vaporAccountOwner,
@@ -1068,14 +1051,14 @@ export function handleVaporize(event: VaporizationEvent): void {
   vaporization.borrowedToken = owedToken.id
 
   let borrowedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
-  vaporization.borrowedTokenAmountDeltaWei = convertStructToDecimal(borrowedDeltaWeiStruct.abs(), owedToken.decimals)
+  vaporization.borrowedTokenAmountDeltaWei = convertStructToDecimalAppliedValue(borrowedDeltaWeiStruct.abs(), owedToken.decimals)
 
   let heldDeltaWeiStruct = new ValueStruct(event.params.solidHeldUpdate.deltaWei)
-  vaporization.heldTokenAmountDeltaWei = convertStructToDecimal(heldDeltaWeiStruct.abs(), heldToken.decimals)
+  vaporization.heldTokenAmountDeltaWei = convertStructToDecimalAppliedValue(heldDeltaWeiStruct.abs(), heldToken.decimals)
 
   let owedPriceUSD = getTokenOraclePriceUSD(owedToken, event, ProtocolType.Core)
 
-  let vaporOwedDeltaWeiBD = convertStructToDecimal(vaporOwedDeltaWeiStruct, owedToken.decimals)
+  let vaporOwedDeltaWeiBD = convertStructToDecimalAppliedValue(vaporOwedDeltaWeiStruct, owedToken.decimals)
   vaporization.amountUSDVaporized = vaporOwedDeltaWeiBD.times(owedPriceUSD)
     .truncate(18)
 
@@ -1083,8 +1066,8 @@ export function handleVaporize(event: VaporizationEvent): void {
   dolomiteMargin.totalVaporizationVolumeUSD = dolomiteMargin.totalVaporizationVolumeUSD.plus(vaporization.amountUSDVaporized)
   dolomiteMargin.save()
 
-  let heldIndex = InterestIndex.load(event.params.heldMarket.toString()) as InterestIndex
-  let owedIndex = InterestIndex.load(event.params.owedMarket.toString()) as InterestIndex
+  let heldIndex = InterestIndex.load(heldToken.id) as InterestIndex
+  let owedIndex = InterestIndex.load(owedToken.id) as InterestIndex
   let isVirtualTransfer = true
   changeProtocolBalance(
     event,
@@ -1135,7 +1118,7 @@ export function handleVaporize(event: VaporizationEvent): void {
     let marginPosition = getOrCreateMarginPosition(event, vaporMarginAccount)
     if (marginPosition.status == MarginPositionStatus.Liquidated) {
       // when an account is vaporized, the vaporHeldAmount is zero, so it's not updated
-      marginPosition.owedAmountPar = convertStructToDecimal(vaporOwedNewParStruct, owedToken.decimals)
+      marginPosition.owedAmountPar = convertStructToDecimalAppliedValue(vaporOwedNewParStruct, owedToken.decimals)
       marginPosition.save()
     }
   }
@@ -1146,6 +1129,9 @@ export function handleVaporize(event: VaporizationEvent): void {
   transaction.save()
 }
 
+/**
+ * Handles liquidations via the liquidation action and liquidation via expiration
+ */
 function handleLiquidatePosition(
   marginPosition: MarginPosition,
   event: ethereum.Event,

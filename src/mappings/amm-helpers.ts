@@ -33,7 +33,7 @@ export function convertTokenToDecimal(tokenAmount: BigInt, exchangeDecimals: Big
   }
 }
 
-export function convertStructToDecimal(struct: ValueStruct, exchangeDecimals: BigInt): BigDecimal {
+export function convertStructToDecimalAppliedValue(struct: ValueStruct, exchangeDecimals: BigInt): BigDecimal {
   let value = struct.sign ? struct.value : struct.value.neg()
   if (exchangeDecimals.equals(ZERO_BI)) {
     return value.toBigDecimal()
@@ -138,9 +138,10 @@ export function initializeToken(token: Token, marketId: BigInt): void {
   token.supplyLiquidity = ZERO_BD
   token.supplyLiquidityUSD = ZERO_BD
   token.transactionCount = ZERO_BI
+  token.save()
 
   let reverseMap = new TokenMarketIdReverseMap(marketId.toString())
-  reverseMap.tokenAddress = token.id
+  reverseMap.token = token.id
   reverseMap.save()
 }
 

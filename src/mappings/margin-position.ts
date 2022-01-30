@@ -1,30 +1,22 @@
 import { ethereum } from '@graphprotocol/graph-ts'
-import {
-  Address,
-  BigDecimal
-} from '@graphprotocol/graph-ts/index'
+import { BigDecimal } from '@graphprotocol/graph-ts/index'
 import {
   MarginPositionClose as MarginPositionCloseEvent,
   MarginPositionOpen as MarginPositionOpenEvent
 } from '../types/DolomiteAmmRouter/DolomiteAmmRouterProxy'
-import { DolomiteMargin as DolomiteMarginProtocol } from '../types/DolomiteAmmRouter/DolomiteMargin'
 import {
   InterestIndex,
   MarginAccount,
   MarginPosition,
   Token
 } from '../types/schema'
-import { convertStructToDecimal } from './amm-helpers'
-import { getTokenOraclePriceUSD } from './amm-pricing'
-import {
-  DOLOMITE_MARGIN_ADDRESS,
-  ZERO_BD
-} from './generated/constants'
+import { convertStructToDecimalAppliedValue } from './amm-helpers'
+import { ZERO_BD } from './generated/constants'
 import { absBD } from './helpers'
 import {
   getOrCreateMarginAccount,
   getOrCreateMarginPosition,
-  getOrCreateTokenValue,
+  getOrCreateTokenValue
 } from './margin-helpers'
 import {
   MarginPositionStatus,
@@ -32,12 +24,12 @@ import {
   ProtocolType,
   ValueStruct
 } from './margin-types'
+import { getTokenOraclePriceUSD } from './pricing'
 
 function updateMarginPositionForTrade(
   marginPosition: MarginPosition,
   event: ethereum.Event,
   positionChangeEvent: PositionChangeEvent,
-  dolomiteMarginProtocol: DolomiteMarginProtocol,
   inputTokenNewPar: ValueStruct,
   outputTokenNewPar: ValueStruct,
   inputTokenIndex: InterestIndex,
@@ -70,12 +62,12 @@ function updateMarginPositionForTrade(
   let owedToken: Token = Token.load(marginPosition.owedToken as string) as Token
 
   const heldTokenNewPar = marginPosition.heldToken == positionChangeEvent.inputToken.id ?
-    absBD(convertStructToDecimal(inputTokenNewPar, heldToken.decimals)) :
-    absBD(convertStructToDecimal(outputTokenNewPar, heldToken.decimals))
+    absBD(convertStructToDecimalAppliedValue(inputTokenNewPar, heldToken.decimals)) :
+    absBD(convertStructToDecimalAppliedValue(outputTokenNewPar, heldToken.decimals))
 
   const owedTokenNewPar = marginPosition.owedToken == positionChangeEvent.inputToken.id ?
-    absBD(convertStructToDecimal(inputTokenNewPar, owedToken.decimals)) :
-    absBD(convertStructToDecimal(outputTokenNewPar, owedToken.decimals))
+    absBD(convertStructToDecimalAppliedValue(inputTokenNewPar, owedToken.decimals)) :
+    absBD(convertStructToDecimalAppliedValue(outputTokenNewPar, owedToken.decimals))
 
   let heldTokenIndex = marginPosition.heldToken == positionChangeEvent.inputToken.id ? inputTokenIndex : outputTokenIndex
   let owedTokenIndex = marginPosition.owedToken == positionChangeEvent.inputToken.id ? inputTokenIndex : outputTokenIndex
@@ -175,17 +167,15 @@ export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
     event.block.timestamp,
     event.transaction.hash
   )
-  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let inputBalanceUpdate = new ValueStruct(event.params.inputBalanceUpdate.newPar)
   let outputBalanceUpdate = new ValueStruct(event.params.outputBalanceUpdate.newPar)
-  let inputIndex = InterestIndex.load(positionChangeEvent.inputToken.marketId.toString()) as InterestIndex
-  let outputIndex = InterestIndex.load(positionChangeEvent.outputToken.marketId.toString()) as InterestIndex
+  let inputIndex = InterestIndex.load(positionChangeEvent.inputToken.id) as InterestIndex
+  let outputIndex = InterestIndex.load(positionChangeEvent.outputToken.id) as InterestIndex
 
   updateMarginPositionForTrade(
     marginPosition,
     event,
     positionChangeEvent,
-    marginProtocol,
     inputBalanceUpdate,
     outputBalanceUpdate,
     inputIndex,
@@ -212,17 +202,15 @@ export function handleMarginPositionClose(event: MarginPositionCloseEvent): void
     event.block.timestamp,
     event.transaction.hash
   )
-  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let inputBalanceUpdate = new ValueStruct(event.params.inputBalanceUpdate.newPar)
   let outputBalanceUpdate = new ValueStruct(event.params.outputBalanceUpdate.newPar)
-  let inputIndex = InterestIndex.load(positionChangeEvent.inputToken.marketId.toString()) as InterestIndex
-  let outputIndex = InterestIndex.load(positionChangeEvent.outputToken.marketId.toString()) as InterestIndex
+  let inputIndex = InterestIndex.load(positionChangeEvent.inputToken.id) as InterestIndex
+  let outputIndex = InterestIndex.load(positionChangeEvent.outputToken.id) as InterestIndex
 
   updateMarginPositionForTrade(
     marginPosition,
     event,
     positionChangeEvent,
-    marginProtocol,
     inputBalanceUpdate,
     outputBalanceUpdate,
     inputIndex,

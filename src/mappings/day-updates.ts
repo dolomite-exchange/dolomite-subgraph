@@ -12,10 +12,15 @@ import {
   Trade,
   Vaporization
 } from '../types/schema'
-import { BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
+import {
+  BigDecimal,
+  BigInt,
+  ethereum,
+  log
+} from '@graphprotocol/graph-ts'
 import { DOLOMITE_MARGIN_ADDRESS, FACTORY_ADDRESS, WETH_ADDRESS, ONE_BI, ZERO_BD, ZERO_BI } from './generated/constants'
 import { absBD } from './helpers'
-import { getTokenOraclePriceUSD } from './amm-pricing'
+import { getTokenOraclePriceUSD } from './pricing'
 import { ProtocolType } from './margin-types'
 
 function getDayId(timestamp: BigInt): string {
@@ -343,6 +348,13 @@ export function updateTimeDataForTrade(
   event: ethereum.Event,
   trade: Trade
 ): void {
+  if (tokenDayData.token != token.id || tokenHourData.token != token.id) {
+    log.error(
+      'Invalid trade token for day data {} or hour data {} does not match token {}',
+      [tokenDayData.token, tokenHourData.token, token.id]
+    )
+  }
+
   let dayId = tokenDayData.dayStartUnix
   let hourId = tokenHourData.hourStartUnix
 
@@ -439,6 +451,13 @@ export function updateTimeDataForLiquidation(
   event: ethereum.Event,
   liquidation: Liquidation
 ): void {
+  if (tokenDayData.token != token.id || tokenHourData.token != token.id) {
+    log.error(
+      'Invalid liquidation token for day data {} or hour data {} does not match token {}',
+      [tokenDayData.token, tokenHourData.token, token.id]
+    )
+  }
+
   if (liquidation.borrowedToken == token.id) {
     let liquidationVolumeToken = liquidation.borrowedTokenAmountDeltaWei
 
@@ -470,6 +489,13 @@ export function updateTimeDataForVaporization(
   event: ethereum.Event,
   vaporization: Vaporization
 ): void {
+  if (tokenDayData.token != token.id || tokenHourData.token != token.id) {
+    log.error(
+      'Invalid liquidation token for day data {} or hour data {} does not match token {}',
+      [tokenDayData.token, tokenHourData.token, token.id]
+    )
+  }
+
   if (vaporization.borrowedToken == token.id) {
     let vaporizationVolumeToken = absBD(vaporization.borrowedTokenAmountDeltaWei)
 
