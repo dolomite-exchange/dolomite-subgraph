@@ -3,7 +3,8 @@ import {
   BigDecimal,
   BigInt,
   ethereum,
-  log
+  log,
+  store
 } from '@graphprotocol/graph-ts'
 import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../types/MarginAdmin/DolomiteMargin'
 import { DolomiteMarginExpiry as DolomiteMarginExpiryAdminProtocol } from '../types/MarginAdmin/DolomiteMarginExpiry'
@@ -64,6 +65,21 @@ export function getOrCreateTokenValue(
   }
 
   return tokenValue as MarginAccountTokenValue
+}
+
+export function deleteTokenValueIfNecessary(
+  tokenValue: MarginAccountTokenValue
+): boolean {
+  if (
+    tokenValue.valuePar.equals(ZERO_BD) &&
+    tokenValue.expirationTimestamp === null &&
+    tokenValue.expiryAddress === null
+  ) {
+    store.remove('MarginAccountTokenValue', tokenValue.id)
+    return true
+  }
+
+  return false
 }
 
 export function getOrCreateMarginAccount(
@@ -312,7 +328,9 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
   )
 
   marginAccount.save()
-  tokenValue.save()
+  if (!deleteTokenValueIfNecessary(tokenValue)) {
+    tokenValue.save()
+  }
 
   return marginAccount
 }

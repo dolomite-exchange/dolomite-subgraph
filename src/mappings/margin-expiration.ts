@@ -13,6 +13,7 @@ import {
   ZERO_BI
 } from './generated/constants'
 import {
+  deleteTokenValueIfNecessary,
   getOrCreateDolomiteMarginForCall,
   getOrCreateMarginAccount,
   getOrCreateMarginPosition,
@@ -68,7 +69,9 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
   let tokenValue = getOrCreateTokenValue(marginAccount, token)
   tokenValue.expirationTimestamp = event.params.time.gt(ZERO_BI) ? event.params.time : null
   tokenValue.expiryAddress = event.params.time.gt(ZERO_BI) ? event.address.toHexString() : null
-  tokenValue.save()
+  if (!deleteTokenValueIfNecessary(tokenValue)) {
+    tokenValue.save()
+  }
 }
 
 // noinspection JSUnusedGlobalSymbols

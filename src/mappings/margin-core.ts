@@ -2,12 +2,14 @@
 import {
   Address,
   BigDecimal,
+  BigInt,
   ethereum,
   log
 } from '@graphprotocol/graph-ts'
 import {
   DolomiteMargin as DolomiteMarginProtocol,
   LogBuy as BuyEvent,
+  LogCall as CallEvent,
   LogDeposit as DepositEvent,
   LogIndexUpdate as IndexUpdateEvent,
   LogLiquidate as LiquidationEvent,
@@ -23,6 +25,7 @@ import {
   InterestIndex,
   InterestRate,
   Liquidation,
+  MarginAccountTokenValue,
   MarginPosition,
   Token,
   TokenMarketIdReverseMap,
@@ -54,7 +57,8 @@ import {
   ONE_BI,
   SECONDS_IN_YEAR,
   ZERO_BD,
-  ZERO_BI
+  ZERO_BI,
+  TEN_BI
 } from './generated/constants'
 import { absBD } from './helpers'
 import {
@@ -62,6 +66,7 @@ import {
   getIDForEvent,
   getLiquidationSpreadForPair,
   getOrCreateDolomiteMarginForCall,
+  getOrCreateMarginAccount,
   getOrCreateMarginPosition,
   handleDolomiteMarginBalanceUpdateForAccount,
   invalidateMarginPosition,
@@ -172,8 +177,6 @@ export function handleDeposit(event: DepositEvent): void {
 
   dolomiteMargin.totalSupplyVolumeUSD = dolomiteMargin.totalSupplyVolumeUSD.plus(deposit.amountUSDDeltaWei)
 
-  updateDolomiteDayData(event)
-
   let marketIndex = InterestIndex.load(token.id) as InterestIndex
   let isVirtualTransfer = false
   changeProtocolBalance(
@@ -191,8 +194,9 @@ export function handleDeposit(event: DepositEvent): void {
   deposit.save()
   transaction.save()
 
-  updateAndReturnTokenDayDataForMarginEvent(token, event)
   updateAndReturnTokenHourDataForMarginEvent(token, event)
+  updateAndReturnTokenDayDataForMarginEvent(token, event)
+  updateDolomiteDayData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -1127,6 +1131,35 @@ export function handleVaporize(event: VaporizationEvent): void {
   solidMarginAccount.save()
   vaporization.save()
   transaction.save()
+}
+
+// noinspection JSUnusedGlobalSymbols
+export function handleCall(event: CallEvent): void {
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
+  let marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
+  // This algorithm of running through all token values works because if the only action is a call action, the length
+  // of the array does not change. If the length does change (new markets are added or removed), the call to
+  // #changeProtocolBalance would have occurred in the other margin-core#handle function
+  let tokenValues = marginAccount.tokenValues // TODO fix this to get from store. check if null
+  for (let i = 0; i < tokenValues.length; i++) {
+    let tokenValue = MarginAccountTokenValue.load(tokenValues[i]) as MarginAccountTokenValue
+    let token = Token.load(tokenValue.token) as Token
+    let newPar = tokenValue.valuePar.times(new BigDecimal(TEN_BI.pow(token.decimals.toI32() as u8))).truncate(0).digits
+    changeProtocolBalance(
+      event,
+      token,
+      ValueStruct.fromFields(newPar.gt(ZERO_BI), newPar),
+      ValueStruct.fromFields(false, ZERO_BI),
+      InterestIndex.load(tokenValue.token) as InterestIndex,
+      true,
+      ProtocolType.Core,
+      dolomiteMargin
+    )
+
+    updateAndReturnTokenHourDataForMarginEvent(token, event)
+    updateAndReturnTokenDayDataForMarginEvent(token, event)
+    updateDolomiteDayData(event)
+  }
 }
 
 /**

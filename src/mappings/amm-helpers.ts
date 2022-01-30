@@ -118,7 +118,6 @@ export function initializeToken(token: Token, marketId: BigInt): void {
   let tokenAddress = Address.fromString(token.id)
   token.symbol = fetchTokenSymbol(tokenAddress)
   token.name = fetchTokenName(tokenAddress)
-  token.totalSupply = fetchTokenTotalSupply(tokenAddress)
   let decimals = fetchTokenDecimals(tokenAddress)
   // bail if we couldn't figure out the decimals
   if (decimals === null) {
