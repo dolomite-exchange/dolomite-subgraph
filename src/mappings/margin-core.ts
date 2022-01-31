@@ -2,7 +2,6 @@
 import {
   Address,
   BigDecimal,
-  BigInt,
   ethereum,
   log
 } from '@graphprotocol/graph-ts'
@@ -40,7 +39,6 @@ import {
   convertStructToDecimalAppliedValue,
   convertTokenToDecimal
 } from './amm-helpers'
-import { getTokenOraclePriceUSD } from './pricing'
 import {
   updateAndReturnTokenDayDataForMarginEvent,
   updateAndReturnTokenHourDataForMarginEvent,
@@ -50,15 +48,15 @@ import {
   updateTimeDataForVaporization
 } from './day-updates'
 import {
-  ONE_ETH_BD,
   _18_BI,
   DOLOMITE_MARGIN_ADDRESS,
   EXPIRY_ADDRESS,
   ONE_BI,
+  ONE_ETH_BD,
   SECONDS_IN_YEAR,
+  TEN_BI,
   ZERO_BD,
-  ZERO_BI,
-  TEN_BI
+  ZERO_BI
 } from './generated/constants'
 import { absBD } from './helpers'
 import {
@@ -79,6 +77,7 @@ import {
   ProtocolType,
   ValueStruct
 } from './margin-types'
+import { getTokenOraclePriceUSD } from './pricing'
 
 // noinspection JSUnusedGlobalSymbols,JSUnusedLocalSymbols
 export function handleOperation(event: OperationEvent): void {
@@ -1135,16 +1134,27 @@ export function handleVaporize(event: VaporizationEvent): void {
 
 // noinspection JSUnusedGlobalSymbols
 export function handleCall(event: CallEvent): void {
+  log.info(
+    'Handling call for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
   let marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
   // This algorithm of running through all token values works because if the only action is a call action, the length
   // of the array does not change. If the length does change (new markets are added or removed), the call to
   // #changeProtocolBalance would have occurred in the other margin-core#handle function
-  let tokenValues = marginAccount.tokenValues // TODO fix this to get from store. check if null
+  let tokenValuesRaw = marginAccount.get('tokenValues') // TODO fix this to get from store. check if null
+  if (tokenValuesRaw === null) {
+    log.warning('tokenValues is null for account {}', [marginAccount.id])
+    return
+  }
+  let tokenValues = tokenValuesRaw.toStringArray()
   for (let i = 0; i < tokenValues.length; i++) {
     let tokenValue = MarginAccountTokenValue.load(tokenValues[i]) as MarginAccountTokenValue
     let token = Token.load(tokenValue.token) as Token
-    let newPar = tokenValue.valuePar.times(new BigDecimal(TEN_BI.pow(token.decimals.toI32() as u8))).truncate(0).digits
+    let newPar = tokenValue.valuePar.times(new BigDecimal(TEN_BI.pow(token.decimals.toI32() as u8)))
+      .truncate(0).digits
     changeProtocolBalance(
       event,
       token,
