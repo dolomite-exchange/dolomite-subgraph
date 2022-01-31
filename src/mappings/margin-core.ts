@@ -1,10 +1,5 @@
 /* eslint-disable */
-import {
-  Address,
-  BigDecimal,
-  ethereum,
-  log
-} from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, ethereum, log } from '@graphprotocol/graph-ts'
 import {
   DolomiteMargin as DolomiteMarginProtocol,
   LogBuy as BuyEvent,
@@ -24,7 +19,6 @@ import {
   InterestIndex,
   InterestRate,
   Liquidation,
-  MarginAccountTokenValue,
   MarginPosition,
   Token,
   TokenMarketIdReverseMap,
@@ -35,10 +29,7 @@ import {
   Withdrawal
 } from '../types/schema'
 import { getOrCreateTransaction } from './amm-core'
-import {
-  convertStructToDecimalAppliedValue,
-  convertTokenToDecimal
-} from './amm-helpers'
+import { convertStructToDecimalAppliedValue, convertTokenToDecimal } from './amm-helpers'
 import {
   updateAndReturnTokenDayDataForMarginEvent,
   updateAndReturnTokenHourDataForMarginEvent,
@@ -54,7 +45,6 @@ import {
   ONE_BI,
   ONE_ETH_BD,
   SECONDS_IN_YEAR,
-  TEN_BI,
   ZERO_BD,
   ZERO_BI
 } from './generated/constants'
@@ -64,19 +54,13 @@ import {
   getIDForEvent,
   getLiquidationSpreadForPair,
   getOrCreateDolomiteMarginForCall,
-  getOrCreateMarginAccount,
   getOrCreateMarginPosition,
   handleDolomiteMarginBalanceUpdateForAccount,
   invalidateMarginPosition,
   parToWei,
   roundHalfUp
 } from './margin-helpers'
-import {
-  BalanceUpdate,
-  MarginPositionStatus,
-  ProtocolType,
-  ValueStruct
-} from './margin-types'
+import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
 
 // noinspection JSUnusedGlobalSymbols,JSUnusedLocalSymbols
@@ -102,35 +86,23 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
   index.lastUpdate = event.params.index.lastUpdate
   index.save()
 
-  let interestRate = InterestRate.load(tokenAddress) as InterestRate
-  let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-  let interestRatePerSecond = marginProtocol.getMarketInterestRate(event.params.market).value
-  let interestPerYearBD = new BigDecimal(interestRatePerSecond.times(SECONDS_IN_YEAR))
-  interestRate.borrowInterestRate = interestPerYearBD.div(ONE_ETH_BD)
-
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Core)
-
   let token = Token.load(tokenAddress) as Token
-  let totalPar = TotalPar.load(tokenAddress) as TotalPar
-  let borrowWei = absBD(parToWei(totalPar.borrowPar.neg(), index, token.decimals))
-  let supplyWei = parToWei(totalPar.supplyPar, index, token.decimals)
 
-  if (borrowWei.lt(supplyWei)) {
-    // the supply interest rate is spread across the supplied balance, which is paid on the borrow amount. Therefore,
-    // the interest owed must be scaled down by the supplied we vs owed wei
-    interestRate.supplyInterestRate = interestRate.borrowInterestRate
-      .times(dolomiteMargin.earningsRate)
-      .truncate(18)
-      .times(borrowWei)
-      .div(supplyWei)
-      .truncate(token.decimals.toI32())
-  } else {
-    interestRate.supplyInterestRate = interestRate.borrowInterestRate
-      .times(dolomiteMargin.earningsRate)
-      .truncate(18)
-  }
+  changeProtocolBalance(
+    event,
+    token,
+    ValueStruct.fromFields(false, ZERO_BI),
+    ValueStruct.fromFields(false, ZERO_BI),
+    index,
+    true,
+    ProtocolType.Core,
+    dolomiteMargin
+  )
 
-  interestRate.save()
+  updateAndReturnTokenHourDataForMarginEvent(token, event)
+  updateAndReturnTokenDayDataForMarginEvent(token, event)
+  updateDolomiteDayData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -307,7 +279,7 @@ export function handleTransfer(event: TransferEvent): void {
   transfer.fromMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount2.id : marginAccount1.id
   transfer.toMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount1.id : marginAccount2.id
   transfer.isSelfTransfer = transfer.fromMarginAccount == transfer.toMarginAccount
-  transfer.walletsConcatenated = marginAccount1.user + '_' + marginAccount2.user
+  transfer.walletsConcatenated = `${marginAccount1.user}_${marginAccount2.user}`
 
   transfer.token = token.id
 
@@ -659,7 +631,7 @@ export function handleTrade(event: TradeEvent): void {
 
   trade.takerMarginAccount = takerMarginAccount.id
   trade.makerMarginAccount = makerMarginAccount.id
-  trade.walletsConcatenated = takerMarginAccount.user + '_' + makerMarginAccount.user
+  trade.walletsConcatenated = `${takerMarginAccount.user}_${makerMarginAccount.user}`
 
   trade.takerToken = inputToken.id
   trade.makerToken = outputToken.id
@@ -863,11 +835,17 @@ export function handleLiquidate(event: LiquidationEvent): void {
 
   let solidHeldDeltaWeiStruct = new ValueStruct(event.params.solidHeldUpdate.deltaWei)
   let solidHeldNewParStruct = new ValueStruct(event.params.solidHeldUpdate.newPar)
-  liquidation.heldTokenAmountDeltaWei = convertStructToDecimalAppliedValue(solidHeldDeltaWeiStruct.abs(), heldToken.decimals)
+  liquidation.heldTokenAmountDeltaWei = convertStructToDecimalAppliedValue(
+    solidHeldDeltaWeiStruct.abs(),
+    heldToken.decimals
+  )
 
   let solidOwedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
   let solidOwedNewParStruct = new ValueStruct(event.params.solidOwedUpdate.newPar)
-  liquidation.borrowedTokenAmountDeltaWei = convertStructToDecimalAppliedValue(solidOwedDeltaWeiStruct.abs(), owedToken.decimals)
+  liquidation.borrowedTokenAmountDeltaWei = convertStructToDecimalAppliedValue(
+    solidOwedDeltaWeiStruct.abs(),
+    owedToken.decimals
+  )
 
   let liquidHeldDeltaWeiStruct = new ValueStruct(event.params.liquidHeldUpdate.deltaWei)
   let liquidHeldNewParStruct = new ValueStruct(event.params.liquidHeldUpdate.newPar)
@@ -1054,10 +1032,16 @@ export function handleVaporize(event: VaporizationEvent): void {
   vaporization.borrowedToken = owedToken.id
 
   let borrowedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
-  vaporization.borrowedTokenAmountDeltaWei = convertStructToDecimalAppliedValue(borrowedDeltaWeiStruct.abs(), owedToken.decimals)
+  vaporization.borrowedTokenAmountDeltaWei = convertStructToDecimalAppliedValue(
+    borrowedDeltaWeiStruct.abs(),
+    owedToken.decimals
+  )
 
   let heldDeltaWeiStruct = new ValueStruct(event.params.solidHeldUpdate.deltaWei)
-  vaporization.heldTokenAmountDeltaWei = convertStructToDecimalAppliedValue(heldDeltaWeiStruct.abs(), heldToken.decimals)
+  vaporization.heldTokenAmountDeltaWei = convertStructToDecimalAppliedValue(
+    heldDeltaWeiStruct.abs(),
+    heldToken.decimals
+  )
 
   let owedPriceUSD = getTokenOraclePriceUSD(owedToken, event, ProtocolType.Core)
 
@@ -1139,37 +1123,8 @@ export function handleCall(event: CallEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
-  let marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountNumber, event.block)
-  // This algorithm of running through all token values works because if the only action is a call action, the length
-  // of the array does not change. If the length does change (new markets are added or removed), the call to
-  // #changeProtocolBalance would have occurred in the other margin-core#handle function
-  let tokenValuesRaw = marginAccount.get('tokenValues') // TODO fix this to get from store. check if null
-  if (tokenValuesRaw === null) {
-    log.warning('tokenValues is null for account {}', [marginAccount.id])
-    return
-  }
-  let tokenValues = tokenValuesRaw.toStringArray()
-  for (let i = 0; i < tokenValues.length; i++) {
-    let tokenValue = MarginAccountTokenValue.load(tokenValues[i]) as MarginAccountTokenValue
-    let token = Token.load(tokenValue.token) as Token
-    let newPar = tokenValue.valuePar.times(new BigDecimal(TEN_BI.pow(token.decimals.toI32() as u8)))
-      .truncate(0).digits
-    changeProtocolBalance(
-      event,
-      token,
-      ValueStruct.fromFields(newPar.gt(ZERO_BI), newPar),
-      ValueStruct.fromFields(false, ZERO_BI),
-      InterestIndex.load(tokenValue.token) as InterestIndex,
-      true,
-      ProtocolType.Core,
-      dolomiteMargin
-    )
-
-    updateAndReturnTokenHourDataForMarginEvent(token, event)
-    updateAndReturnTokenDayDataForMarginEvent(token, event)
-    updateDolomiteDayData(event)
-  }
+  // This function saves the actionCount, so it's not necessary to use the return value
+  getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
 }
 
 /**

@@ -145,7 +145,7 @@ export function initializeToken(token: Token, marketId: BigInt): void {
 }
 
 export function createLiquidityPosition(exchange: Address, user: Address): AmmLiquidityPosition {
-  let positionID = exchange.toHexString() + '-' + user.toHex()
+  let positionID = `${exchange.toHexString()}-${user.toHex()}`
 
   let liquidityTokenBalance = AmmLiquidityPosition.load(positionID)
   if (liquidityTokenBalance === null) {

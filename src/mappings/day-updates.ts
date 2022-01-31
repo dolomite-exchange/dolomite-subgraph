@@ -99,7 +99,7 @@ export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
 
 export function updatePairDayData(event: ethereum.Event): AmmPairDayData {
   let dayId = getDayId(event.block.timestamp)
-  let dayPairID = event.address.toHexString() + '-' + dayId
+  let dayPairID = `${event.address.toHexString()}-${dayId}`
   let pair = AmmPair.load(event.address.toHexString()) as AmmPair
 
   let pairDayData = AmmPairDayData.load(dayPairID)
@@ -127,7 +127,7 @@ export function updatePairDayData(event: ethereum.Event): AmmPairDayData {
 
 export function updatePairHourData(event: ethereum.Event): AmmPairHourData {
   let hourId = getHourId(event.block.timestamp)
-  let hourPairID = event.address.toHexString() + '-' + hourId
+  let hourPairID = `${event.address.toHexString()}-${hourId}`
   let pair = AmmPair.load(event.address.toHexString()) as AmmPair
 
   let pairHourData = AmmPairHourData.load(hourPairID)
@@ -203,7 +203,7 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Eve
   let ethPriceUSD = getTokenOraclePriceUSD(ethToken, event, ProtocolType.Amm)
   let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Amm)
   let hourId = getHourId(event.block.timestamp)
-  let tokenHourID = token.id + '-' + hourId
+  let tokenHourID = `${token.id}-${hourId}`
 
   let tokenHourData = TokenHourData.load(tokenHourID)
   if (tokenHourData === null) {
@@ -216,12 +216,6 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Eve
   tokenHourData.ammLiquidityUSD = token.ammSwapLiquidity.times(tokenPriceUSD).truncate(18)
   tokenHourData.hourlyAllTransactionCount = tokenHourData.hourlyAllTransactionCount.plus(ONE_BI)
   tokenHourData.save()
-
-  /**
-   * @todo test if this speeds up sync
-   */
-  // updateStoredTokens(tokenHourData as TokenDayData, dayID)
-  // updateStoredPairs(tokenHourData as TokenDayData, dayPairID)
 
   return tokenHourData as TokenHourData
 }
@@ -277,7 +271,7 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Even
   let ethPriceUSD = getTokenOraclePriceUSD(ethToken, event, ProtocolType.Amm)
   let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Amm)
   let dayId = getDayId(event.block.timestamp)
-  let tokenDayID = token.id + '-' + dayId
+  let tokenDayID = `${token.id}-${dayId}`
 
   let tokenDayData = TokenDayData.load(tokenDayID)
   if (tokenDayData === null) {
@@ -296,7 +290,7 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Even
 
 export function updateAndReturnTokenHourDataForMarginEvent(token: Token, event: ethereum.Event): TokenHourData {
   let hourId = getHourId(event.block.timestamp)
-  let tokenHourID = token.id + '-' + hourId
+  let tokenHourID = `${token.id}-${hourId}`
 
   let tokenHourData = TokenHourData.load(tokenHourID)
   if (tokenHourData === null) {
@@ -319,7 +313,7 @@ export function updateAndReturnTokenHourDataForMarginEvent(token: Token, event: 
 
 export function updateAndReturnTokenDayDataForMarginEvent(token: Token, event: ethereum.Event): TokenDayData {
   let dayId = getDayId(event.block.timestamp)
-  let tokenDayID = token.id + '-' + dayId.toString()
+  let tokenDayID = `${token.id}-${dayId.toString()}`
 
   let tokenDayData = TokenDayData.load(tokenDayID)
   if (tokenDayData === null) {
@@ -338,6 +332,32 @@ export function updateAndReturnTokenDayDataForMarginEvent(token: Token, event: e
   tokenDayData.save()
 
   return tokenDayData as TokenDayData
+}
+
+export function updateTimeDataForBorrow(
+  token: Token,
+  event: ethereum.Event,
+  borrowAmountToken: BigDecimal,
+  borrowAmountUSD: BigDecimal
+): void {
+  let hourId = getHourId(event.block.timestamp)
+  let tokenHourData = TokenHourData.load(`${token.id}-${hourId}`) as TokenHourData
+
+  let dayId = getDayId(event.block.timestamp)
+  let tokenDayData = TokenDayData.load(`${token.id}-${dayId}`) as TokenDayData
+
+  let dolomiteDayData = DolomiteDayData.load(dayId) as DolomiteDayData
+
+  tokenHourData.hourlyBorrowVolumeToken = tokenHourData.hourlyBorrowVolumeToken.plus(borrowAmountToken)
+  tokenHourData.hourlyBorrowVolumeUSD = tokenHourData.hourlyBorrowVolumeUSD.plus(borrowAmountUSD)
+  tokenHourData.save()
+
+  tokenDayData.dailyBorrowVolumeToken = tokenDayData.dailyBorrowVolumeToken.plus(borrowAmountToken)
+  tokenDayData.dailyBorrowVolumeUSD = tokenDayData.dailyBorrowVolumeUSD.plus(borrowAmountUSD)
+  tokenDayData.save()
+
+  dolomiteDayData.dailyBorrowVolumeUSD = dolomiteDayData.dailyBorrowVolumeUSD.plus(borrowAmountUSD)
+  dolomiteDayData.save()
 }
 
 export function updateTimeDataForTrade(
@@ -399,7 +419,7 @@ export function updateTimeDataForTrade(
 
   // Price stats
   if (tokenDayData.openPriceUSD.equals(ZERO_BD)) {
-    let previousDayTokenId = token.id + '-' + BigInt.fromI32(dayId - 86400).toString()
+    let previousDayTokenId = `${token.id}-${BigInt.fromI32(dayId - 86400).toString()}`
     let previousDayToken = TokenDayData.load(previousDayTokenId)
     if (previousDayToken === null) {
       tokenDayData.openPriceUSD = closePriceUSD
@@ -410,7 +430,7 @@ export function updateTimeDataForTrade(
     tokenDayData.lowPriceUSD = tokenDayData.openPriceUSD
   }
   if (tokenHourData.openPriceUSD.equals(ZERO_BD)) {
-    let previousHourTokenId = token.id + '-' + BigInt.fromI32(hourId - 3600).toString()
+    let previousHourTokenId = `${token.id}-${BigInt.fromI32(hourId - 3600).toString()}`
     let previousHourToken = TokenHourData.load(previousHourTokenId)
     if (previousHourToken === null) {
       tokenHourData.openPriceUSD = closePriceUSD

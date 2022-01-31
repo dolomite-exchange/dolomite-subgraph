@@ -1,11 +1,4 @@
-import {
-  Address,
-  BigDecimal,
-  BigInt,
-  ethereum,
-  log,
-  store
-} from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, ethereum, log, store } from '@graphprotocol/graph-ts'
 import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../types/MarginAdmin/DolomiteMargin'
 import { DolomiteMarginExpiry as DolomiteMarginExpiryAdminProtocol } from '../types/MarginAdmin/DolomiteMarginExpiry'
 import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../types/MarginCore/DolomiteMargin'
@@ -22,33 +15,27 @@ import {
   Token,
   TotalPar
 } from '../types/schema'
+import { convertStructToDecimalAppliedValue, createUserIfNecessary } from './amm-helpers'
 import {
-  convertStructToDecimalAppliedValue,
-  createUserIfNecessary
-} from './amm-helpers'
-import {
-  ONE_ETH_BD,
   DOLOMITE_MARGIN_ADDRESS,
   EXPIRY_ADDRESS,
   FIVE_BD,
   ONE_BD,
   ONE_BI,
+  ONE_ETH_BD,
   TEN_BI,
   ZERO_BD,
   ZERO_BI,
   ZERO_BYTES
 } from './generated/constants'
 import { absBD } from './helpers'
-import {
-  BalanceUpdate,
-  MarginPositionStatus,
-  ProtocolType,
-  ValueStruct
-} from './margin-types'
+import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
+import { updateTimeDataForBorrow } from './day-updates'
+import { updateInterestRate } from './interest-setter'
 
 export function getIDForEvent(event: ethereum.Event): string {
-  return event.transaction.hash.toHexString() + '-' + event.logIndex.toString()
+  return `${event.transaction.hash.toHexString()}-${event.logIndex.toString()}`
 }
 
 export function getOrCreateTokenValue(
@@ -87,7 +74,7 @@ export function getOrCreateMarginAccount(
   accountNumber: BigInt,
   block: ethereum.Block
 ): MarginAccount {
-  let id = owner.toHexString() + '-' + accountNumber.toString()
+  let id = `${owner.toHexString()}-${accountNumber.toString()}`
   let marginAccount = MarginAccount.load(id)
   if (marginAccount === null) {
     createUserIfNecessary(owner)
@@ -352,6 +339,9 @@ export function changeProtocolBalance(
     )
   }
 
+  let totalPar = TotalPar.load(token.id) as TotalPar
+  updateInterestRate(token, totalPar, index, dolomiteMargin, event)
+
   let tokenPriceUSD = getTokenOraclePriceUSD(token, event, protocolType)
 
   let newPar = convertStructToDecimalAppliedValue(newParStruct, token.decimals)
@@ -367,14 +357,16 @@ export function changeProtocolBalance(
       borrowVolumeToken = absBD(newWei)
     }
 
-    dolomiteMargin.totalBorrowVolumeUSD = dolomiteMargin.totalBorrowVolumeUSD.plus(borrowVolumeToken.times(tokenPriceUSD))
+    let borrowVolumeUsd = borrowVolumeToken.times(tokenPriceUSD)
+    dolomiteMargin.totalBorrowVolumeUSD = dolomiteMargin.totalBorrowVolumeUSD.plus(borrowVolumeUsd)
+
+    updateTimeDataForBorrow(token, event, borrowVolumeToken, borrowVolumeUsd)
   }
 
   // temporarily get rid of the old USD liquidity
   dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
   dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
 
-  let totalPar = TotalPar.load(token.id) as TotalPar
   token.borrowLiquidity = absBD(parToWei(totalPar.borrowPar.neg(), index, token.decimals))
   token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
   token.supplyLiquidity = parToWei(totalPar.supplyPar, index, token.decimals)

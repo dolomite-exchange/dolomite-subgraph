@@ -39,7 +39,7 @@ export function handleNewPair(event: PairCreated): void {
     bundle.ethPrice = ZERO_BD
     bundle.save()
   }
-  factory.pairCount = factory.pairCount + 1
+  factory.pairCount += 1
   factory.save()
 
   // create the tokens

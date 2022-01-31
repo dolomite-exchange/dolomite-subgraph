@@ -107,7 +107,7 @@ export function handleMarketRemoved(event: RemoveMarketEvent): void {
   )
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.numberOfMarkets = dolomiteMargin.numberOfMarkets + 1
+  dolomiteMargin.numberOfMarkets += 1
   dolomiteMargin.save()
 
   let id = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
