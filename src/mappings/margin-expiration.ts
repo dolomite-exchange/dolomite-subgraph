@@ -59,7 +59,13 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
   let marginPosition = getOrCreateMarginPosition(event, marginAccount)
   if (marginPosition.marginDeposit.notEqual(ZERO_BD) && marginPosition.status == MarginPositionStatus.Open) {
     if (event.params.time.equals(ZERO_BI)) {
-      marginPosition.expirationTimestamp = null
+      let expirationTimestamp = marginPosition.expirationTimestamp
+      if (expirationTimestamp === null || expirationTimestamp.ge(event.block.timestamp)) {
+        // if the position is not expired, follow through with changing the expiration. Why? Because this event is
+        // emitted *before* LogTrade if the account is expired in its entirety. So, the expiration needs to stay intact
+        // for the data's sake
+        marginPosition.expirationTimestamp = null
+      }
     } else {
       marginPosition.expirationTimestamp = event.params.time
     }
