@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { Address, BigDecimal, ethereum, log } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts'
 import {
   LogBuy as BuyEvent,
   LogCall as CallEvent,
@@ -7,6 +7,7 @@ import {
   LogIndexUpdate as IndexUpdateEvent,
   LogLiquidate as LiquidationEvent,
   LogOperation as OperationEvent,
+  LogOraclePrice as OraclePriceEvent,
   LogSell as SellEvent,
   LogTrade as TradeEvent,
   LogTransfer as TransferEvent,
@@ -17,7 +18,7 @@ import {
   Deposit,
   InterestIndex,
   Liquidation,
-  MarginPosition,
+  MarginPosition, OraclePrice,
   Token,
   TokenMarketIdReverseMap,
   Trade,
@@ -50,6 +51,7 @@ import {
 } from './margin-helpers'
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
+import { dataSource } from '@graphprotocol/graph-ts/index'
 
 // noinspection JSUnusedGlobalSymbols,JSUnusedLocalSymbols
 export function handleOperation(event: OperationEvent): void {
@@ -74,15 +76,56 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
   index.lastUpdate = event.params.index.lastUpdate
   index.save()
 
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Core)
+  if (dataSource.network() == 'mumbai') {
+    // On mumbai, the OraclePriceEvent does not exist, so we index the protocol balance change here
+    log.debug('Indexing protocol balance changes for {} network', [dataSource.network()])
+    let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Core)
+    let token = Token.load(tokenAddress) as Token
+
+    changeProtocolBalance(
+      event,
+      token,
+      ValueStruct.fromFields(false, ZERO_BI),
+      ValueStruct.fromFields(false, ZERO_BI),
+      index,
+      true,
+      ProtocolType.Core,
+      dolomiteMargin,
+    )
+
+    updateAndReturnTokenHourDataForMarginEvent(token, event)
+    updateAndReturnTokenDayDataForMarginEvent(token, event)
+    updateDolomiteDayData(event)
+  }
+}
+
+// noinspection JSUnusedGlobalSymbols
+export function handleOraclePriceUpdate(event: OraclePriceEvent): void {
+  log.info(
+    'Handling oracle price update for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let tokenAddress = TokenMarketIdReverseMap.load(event.params.market.toString())!.token
   let token = Token.load(tokenAddress) as Token
+  let oraclePrice = OraclePrice.load(tokenAddress) as OraclePrice
+
+  oraclePrice.price = convertTokenToDecimal(
+    event.params.price.value,
+    BigInt.fromI32(36 - token.decimals.toI32())
+  )
+  oraclePrice.blockNumber = event.block.number
+  oraclePrice.blockHash = event.block.hash
+  oraclePrice.save()
+
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Core)
 
   changeProtocolBalance(
     event,
     token,
     ValueStruct.fromFields(false, ZERO_BI),
     ValueStruct.fromFields(false, ZERO_BI),
-    index,
+    InterestIndex.load(token.id) as InterestIndex,
     true,
     ProtocolType.Core,
     dolomiteMargin,

@@ -3612,5 +3612,31 @@
     ],
     "name": "LogOperatorSet",
     "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "market",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Monetary.Price",
+        "name": "price",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogOraclePrice",
+    "type": "event"
   }
 ]
