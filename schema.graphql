@@ -640,6 +640,12 @@ type Trade @entity {
   amountUSD: BigDecimal! # based on the value of the takerInputDeltaWei
 }
 
+type MostRecentTrade @entity {
+  # token address
+  id: ID!
+  trade: Trade!
+}
+
 type MarginPosition @entity {
   id: ID! # Defined as "userAddress-accountNumber"
   marginAccount: MarginAccount!

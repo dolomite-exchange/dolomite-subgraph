@@ -11,9 +11,9 @@ import {
   MarginAccount,
   MarginAccountTokenValue,
   MarginPosition,
-  MarketRiskInfo,
+  MarketRiskInfo, MostRecentTrade,
   Token,
-  TotalPar
+  TotalPar, Trade,
 } from '../types/schema'
 import { convertStructToDecimalAppliedValue, createUserIfNecessary } from './amm-helpers'
 import {
@@ -320,6 +320,22 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
   }
 
   return marginAccount
+}
+
+export function saveMostRecentTrade(trade: Trade): void {
+  let mostRecentTrade = MostRecentTrade.load(trade.takerToken)
+  if (mostRecentTrade === null) {
+    mostRecentTrade = new MostRecentTrade(trade.takerToken)
+  }
+  mostRecentTrade.trade = trade.id
+  mostRecentTrade.save()
+
+  mostRecentTrade = MostRecentTrade.load(trade.makerToken)
+  if (mostRecentTrade === null) {
+    mostRecentTrade = new MostRecentTrade(trade.makerToken)
+  }
+  mostRecentTrade.trade = trade.id
+  mostRecentTrade.save()
 }
 
 export function changeProtocolBalance(

@@ -6,19 +6,15 @@ import {
   DolomiteDayData,
   DolomiteMargin,
   Liquidation,
+  MostRecentTrade,
   Token,
   TokenDayData,
   TokenHourData,
   Trade,
-  Vaporization
+  Vaporization,
 } from '../types/schema'
-import {
-  BigDecimal,
-  BigInt,
-  ethereum,
-  log
-} from '@graphprotocol/graph-ts'
-import { DOLOMITE_MARGIN_ADDRESS, FACTORY_ADDRESS, WETH_ADDRESS, ONE_BI, ZERO_BD, ZERO_BI } from './generated/constants'
+import { BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts'
+import { DOLOMITE_MARGIN_ADDRESS, FACTORY_ADDRESS, ONE_BI, WETH_ADDRESS, ZERO_BD, ZERO_BI } from './generated/constants'
 import { absBD } from './helpers'
 import { getTokenOraclePriceUSD } from './pricing'
 import { ProtocolType } from './margin-types'
@@ -152,7 +148,13 @@ export function updatePairHourData(event: ethereum.Event): AmmPairHourData {
   return pairHourData as AmmPairHourData
 }
 
-function setupTokenHourData(tokenHourData: TokenHourData, hourId: i32, token: Token): TokenHourData {
+function setupTokenHourData(
+  tokenHourData: TokenHourData,
+  hourId: i32,
+  token: Token,
+  event: ethereum.Event,
+  protocolType: string,
+): TokenHourData {
   tokenHourData.hourStartUnix = hourId
   tokenHourData.token = token.id
 
@@ -189,11 +191,28 @@ function setupTokenHourData(tokenHourData: TokenHourData, hourId: i32, token: To
   tokenHourData.hourlyVaporizationCount = ZERO_BI
 
   // # Price stats
+  let previousHourTokenId = `${token.id}-${BigInt.fromI32(hourId - 3600).toString()}`
+  let previousHourToken = TokenHourData.load(previousHourTokenId)
+  if (previousHourToken === null) {
+    let mostRecentTrade = MostRecentTrade.load(token.id)
+    if (mostRecentTrade === null) {
+      tokenHourData.openPriceUSD = ZERO_BD
+    } else {
+      let trade = Trade.load(mostRecentTrade.trade) as Trade
+      let otherToken = Token.load(trade.takerToken == token.id ? trade.makerToken : trade.takerToken) as Token
+      let otherPriceUSD = getTokenOraclePriceUSD(otherToken, event, protocolType)
+      tokenHourData.openPriceUSD = token.id == trade.takerToken
+        ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).div(otherPriceUSD).truncate(36)
+        : trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei).times(otherPriceUSD).truncate(36)
+    }
+  } else {
+    tokenHourData.openPriceUSD = previousHourToken.closePriceUSD
+  }
+
   tokenHourData.ammPriceUSD = ZERO_BD
-  tokenHourData.openPriceUSD = ZERO_BD
-  tokenHourData.highPriceUSD = ZERO_BD
-  tokenHourData.lowPriceUSD = ZERO_BD
-  tokenHourData.closePriceUSD = ZERO_BD
+  tokenHourData.highPriceUSD = tokenHourData.openPriceUSD
+  tokenHourData.lowPriceUSD = tokenHourData.openPriceUSD
+  tokenHourData.closePriceUSD = tokenHourData.openPriceUSD
 
   return tokenHourData
 }
@@ -208,7 +227,13 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Eve
   let tokenHourData = TokenHourData.load(tokenHourID)
   if (tokenHourData === null) {
     tokenHourData = new TokenHourData(tokenHourID)
-    setupTokenHourData(tokenHourData as TokenHourData, BigInt.fromString(hourId).toI32(), token)
+    setupTokenHourData(
+      tokenHourData as TokenHourData,
+      BigInt.fromString(hourId).toI32(),
+      token,
+      event,
+      ProtocolType.Amm,
+    )
   }
 
   tokenHourData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
@@ -220,7 +245,13 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Eve
   return tokenHourData as TokenHourData
 }
 
-function setupTokenDayData(tokenDayData: TokenDayData, dayId: i32, token: Token): TokenDayData {
+function setupTokenDayData(
+  tokenDayData: TokenDayData,
+  dayId: i32,
+  token: Token,
+  event: ethereum.Event,
+  protocolType: string,
+): TokenDayData {
   tokenDayData.dayStartUnix = dayId
   tokenDayData.token = token.id
 
@@ -257,11 +288,28 @@ function setupTokenDayData(tokenDayData: TokenDayData, dayId: i32, token: Token)
   tokenDayData.dailyVaporizationCount = ZERO_BI
 
   // # Price stats
+  let previousHourTokenId = `${token.id}-${BigInt.fromI32(dayId - 86400).toString()}`
+  let previousHourToken = TokenHourData.load(previousHourTokenId)
+  if (previousHourToken === null) {
+    let mostRecentTrade = MostRecentTrade.load(token.id)
+    if (mostRecentTrade === null) {
+      tokenDayData.openPriceUSD = ZERO_BD
+    } else {
+      let trade = Trade.load(mostRecentTrade.trade) as Trade
+      let otherToken = Token.load(trade.takerToken == token.id ? trade.makerToken : trade.takerToken) as Token
+      let otherPriceUSD = getTokenOraclePriceUSD(otherToken, event, protocolType)
+      tokenDayData.openPriceUSD = token.id == trade.takerToken
+        ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).div(otherPriceUSD).truncate(36)
+        : trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei).times(otherPriceUSD).truncate(36)
+    }
+  } else {
+    tokenDayData.openPriceUSD = previousHourToken.closePriceUSD
+  }
+
   tokenDayData.ammPriceUSD = ZERO_BD
-  tokenDayData.openPriceUSD = ZERO_BD
-  tokenDayData.highPriceUSD = ZERO_BD
-  tokenDayData.lowPriceUSD = ZERO_BD
-  tokenDayData.closePriceUSD = ZERO_BD
+  tokenDayData.highPriceUSD = tokenDayData.openPriceUSD
+  tokenDayData.lowPriceUSD = tokenDayData.openPriceUSD
+  tokenDayData.closePriceUSD = tokenDayData.openPriceUSD
 
   return tokenDayData
 }
@@ -276,7 +324,7 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Even
   let tokenDayData = TokenDayData.load(tokenDayID)
   if (tokenDayData === null) {
     tokenDayData = new TokenDayData(tokenDayID)
-    setupTokenDayData(tokenDayData as TokenDayData, BigInt.fromString(dayId).toI32(), token)
+    setupTokenDayData(tokenDayData as TokenDayData, BigInt.fromString(dayId).toI32(), token, event, ProtocolType.Amm)
   }
 
   tokenDayData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
@@ -295,7 +343,13 @@ export function updateAndReturnTokenHourDataForMarginEvent(token: Token, event: 
   let tokenHourData = TokenHourData.load(tokenHourID)
   if (tokenHourData === null) {
     tokenHourData = new TokenHourData(tokenHourID)
-    setupTokenHourData(tokenHourData as TokenHourData, BigInt.fromString(hourId).toI32(), token)
+    setupTokenHourData(
+      tokenHourData as TokenHourData,
+      BigInt.fromString(hourId).toI32(),
+      token,
+      event,
+      ProtocolType.Core,
+    )
   }
 
   tokenHourData.borrowLiquidityToken = token.borrowLiquidity
@@ -313,12 +367,12 @@ export function updateAndReturnTokenHourDataForMarginEvent(token: Token, event: 
 
 export function updateAndReturnTokenDayDataForMarginEvent(token: Token, event: ethereum.Event): TokenDayData {
   let dayId = getDayId(event.block.timestamp)
-  let tokenDayID = `${token.id}-${dayId.toString()}`
+  let tokenDayID = `${token.id}-${dayId}`
 
   let tokenDayData = TokenDayData.load(tokenDayID)
   if (tokenDayData === null) {
     tokenDayData = new TokenDayData(tokenDayID)
-    setupTokenDayData(tokenDayData as TokenDayData, BigInt.fromString(dayId).toI32(), token)
+    setupTokenDayData(tokenDayData as TokenDayData, BigInt.fromString(dayId).toI32(), token, event, ProtocolType.Core)
   }
 
   tokenDayData.borrowLiquidityToken = token.borrowLiquidity
@@ -338,7 +392,7 @@ export function updateTimeDataForBorrow(
   token: Token,
   event: ethereum.Event,
   borrowAmountToken: BigDecimal,
-  borrowAmountUSD: BigDecimal
+  borrowAmountUSD: BigDecimal,
 ): void {
   let hourId = getHourId(event.block.timestamp)
   let tokenHourData = TokenHourData.load(`${token.id}-${hourId}`) as TokenHourData
@@ -365,22 +419,16 @@ export function updateTimeDataForTrade(
   tokenDayData: TokenDayData,
   tokenHourData: TokenHourData,
   token: Token,
+  otherToken: Token,
   event: ethereum.Event,
-  trade: Trade
+  trade: Trade,
 ): void {
-  if (tokenDayData.token != token.id || tokenHourData.token != token.id) {
+  if (tokenDayData.token != token.id || tokenHourData.token != token.id || token.id == otherToken.id) {
     log.error(
       'Invalid trade token for day data {} or hour data {} does not match token {}',
-      [tokenDayData.token, tokenHourData.token, token.id]
+      [tokenDayData.token, tokenHourData.token, token.id],
     )
   }
-
-  let dayId = tokenDayData.dayStartUnix
-  let hourId = tokenHourData.hourStartUnix
-
-  let otherToken: Token = token.id == trade.takerToken
-    ? Token.load(trade.makerToken) as Token
-    : Token.load(trade.takerToken) as Token
 
   // Using the below examples of buying / selling, token == USD || token == ETH
   let oraclePriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
@@ -417,30 +465,6 @@ export function updateTimeDataForTrade(
   tokenDayData.dailyTradeCount = tokenDayData.dailyTradeCount.plus(ONE_BI)
   tokenHourData.hourlyTradeCount = tokenHourData.hourlyTradeCount.plus(ONE_BI)
 
-  // Price stats
-  if (tokenDayData.openPriceUSD.equals(ZERO_BD)) {
-    let previousDayTokenId = `${token.id}-${BigInt.fromI32(dayId - 86400).toString()}`
-    let previousDayToken = TokenDayData.load(previousDayTokenId)
-    if (previousDayToken === null) {
-      tokenDayData.openPriceUSD = closePriceUSD
-    } else {
-      tokenDayData.openPriceUSD = previousDayToken.closePriceUSD
-    }
-    tokenDayData.highPriceUSD = tokenDayData.openPriceUSD
-    tokenDayData.lowPriceUSD = tokenDayData.openPriceUSD
-  }
-  if (tokenHourData.openPriceUSD.equals(ZERO_BD)) {
-    let previousHourTokenId = `${token.id}-${BigInt.fromI32(hourId - 3600).toString()}`
-    let previousHourToken = TokenHourData.load(previousHourTokenId)
-    if (previousHourToken === null) {
-      tokenHourData.openPriceUSD = closePriceUSD
-    } else {
-      tokenHourData.openPriceUSD = previousHourToken.closePriceUSD
-    }
-    tokenHourData.highPriceUSD = tokenHourData.openPriceUSD
-    tokenHourData.lowPriceUSD = tokenHourData.openPriceUSD
-  }
-
   if (tokenDayData.lowPriceUSD.gt(closePriceUSD)) {
     tokenDayData.lowPriceUSD = closePriceUSD
   }
@@ -469,12 +493,12 @@ export function updateTimeDataForLiquidation(
   tokenHourData: TokenHourData,
   token: Token,
   event: ethereum.Event,
-  liquidation: Liquidation
+  liquidation: Liquidation,
 ): void {
   if (tokenDayData.token != token.id || tokenHourData.token != token.id) {
     log.error(
       'Invalid liquidation token for day data {} or hour data {} does not match token {}',
-      [tokenDayData.token, tokenHourData.token, token.id]
+      [tokenDayData.token, tokenHourData.token, token.id],
     )
   }
 
@@ -507,12 +531,12 @@ export function updateTimeDataForVaporization(
   tokenHourData: TokenHourData,
   token: Token,
   event: ethereum.Event,
-  vaporization: Vaporization
+  vaporization: Vaporization,
 ): void {
   if (tokenDayData.token != token.id || tokenHourData.token != token.id) {
     log.error(
       'Invalid liquidation token for day data {} or hour data {} does not match token {}',
-      [tokenDayData.token, tokenHourData.token, token.id]
+      [tokenDayData.token, tokenHourData.token, token.id],
     )
   }
 
@@ -526,7 +550,8 @@ export function updateTimeDataForVaporization(
     tokenDayData.dailyVaporizationVolumeUSD = tokenDayData.dailyVaporizationVolumeUSD.plus(vaporizationVolumeUSD)
     tokenDayData.dailyVaporizationCount = tokenDayData.dailyVaporizationCount.plus(ONE_BI)
 
-    tokenHourData.hourlyVaporizationVolumeToken = tokenHourData.hourlyVaporizationVolumeToken.plus(vaporizationVolumeToken)
+    tokenHourData.hourlyVaporizationVolumeToken = tokenHourData.hourlyVaporizationVolumeToken.plus(
+      vaporizationVolumeToken)
     tokenHourData.hourlyVaporizationVolumeUSD = tokenHourData.hourlyVaporizationVolumeUSD.plus(vaporizationVolumeUSD)
     tokenHourData.hourlyVaporizationCount = tokenHourData.hourlyVaporizationCount.plus(ONE_BI)
 

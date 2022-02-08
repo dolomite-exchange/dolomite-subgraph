@@ -18,7 +18,8 @@ import {
   Deposit,
   InterestIndex,
   Liquidation,
-  MarginPosition, OraclePrice,
+  MarginPosition,
+  OraclePrice,
   Token,
   TokenMarketIdReverseMap,
   Trade,
@@ -48,6 +49,7 @@ import {
   invalidateMarginPosition,
   parToWei,
   roundHalfUp,
+  saveMostRecentTrade,
 } from './margin-helpers'
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
@@ -112,7 +114,7 @@ export function handleOraclePriceUpdate(event: OraclePriceEvent): void {
 
   oraclePrice.price = convertTokenToDecimal(
     event.params.price.value,
-    BigInt.fromI32(36 - token.decimals.toI32())
+    BigInt.fromI32(36 - token.decimals.toI32()),
   )
   oraclePrice.blockNumber = event.block.number
   oraclePrice.blockHash = event.block.hash
@@ -450,6 +452,8 @@ export function handleBuy(event: BuyEvent): void {
   transaction.save()
   dolomiteMargin.save()
 
+  saveMostRecentTrade(trade)
+
   let makerIndex = InterestIndex.load(makerToken.id) as InterestIndex
   let takerIndex = InterestIndex.load(takerToken.id) as InterestIndex
   let isVirtualTransfer = false
@@ -484,8 +488,24 @@ export function handleBuy(event: BuyEvent): void {
   let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
 
-  updateTimeDataForTrade(dolomiteDayData, inputTokenDayData, inputTokenHourData, makerToken, event, trade as Trade)
-  updateTimeDataForTrade(dolomiteDayData, outputTokenDayData, outputTokenHourData, takerToken, event, trade as Trade)
+  updateTimeDataForTrade(
+    dolomiteDayData,
+    inputTokenDayData,
+    inputTokenHourData,
+    makerToken,
+    takerToken,
+    event,
+    trade as Trade,
+  )
+  updateTimeDataForTrade(
+    dolomiteDayData,
+    outputTokenDayData,
+    outputTokenHourData,
+    takerToken,
+    makerToken,
+    event,
+    trade as Trade,
+  )
 
   invalidateMarginPosition(marginAccount)
 }
@@ -559,6 +579,8 @@ export function handleSell(event: SellEvent): void {
   transaction.save()
   dolomiteMargin.save()
 
+  saveMostRecentTrade(trade)
+
   let makerIndex = InterestIndex.load(makerToken.id) as InterestIndex
   let takerIndex = InterestIndex.load(takerToken.id) as InterestIndex
   let isVirtualTransfer = false
@@ -593,8 +615,24 @@ export function handleSell(event: SellEvent): void {
   let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
 
-  updateTimeDataForTrade(dolomiteDayData, inputTokenDayData, inputTokenHourData, makerToken, event, trade as Trade)
-  updateTimeDataForTrade(dolomiteDayData, outputTokenDayData, outputTokenHourData, takerToken, event, trade as Trade)
+  updateTimeDataForTrade(
+    dolomiteDayData,
+    inputTokenDayData,
+    inputTokenHourData,
+    makerToken,
+    takerToken,
+    event,
+    trade as Trade,
+  )
+  updateTimeDataForTrade(
+    dolomiteDayData,
+    outputTokenDayData,
+    outputTokenHourData,
+    takerToken,
+    makerToken,
+    event,
+    trade as Trade,
+  )
 
   invalidateMarginPosition(marginAccount)
 }
@@ -686,6 +724,8 @@ export function handleTrade(event: TradeEvent): void {
   transaction.save()
   dolomiteMargin.save()
 
+  saveMostRecentTrade(trade)
+
   let inputIndex = InterestIndex.load(inputToken.id) as InterestIndex
   let outputIndex = InterestIndex.load(outputToken.id) as InterestIndex
   let isVirtualTransfer = true
@@ -746,8 +786,24 @@ export function handleTrade(event: TradeEvent): void {
   let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(outputToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
 
-  updateTimeDataForTrade(dolomiteDayData, outputTokenDayData, outputTokenHourData, outputToken, event, trade as Trade)
-  updateTimeDataForTrade(dolomiteDayData, inputTokenDayData, inputTokenHourData, inputToken, event, trade as Trade)
+  updateTimeDataForTrade(
+    dolomiteDayData,
+    outputTokenDayData,
+    outputTokenHourData,
+    outputToken,
+    inputToken,
+    event,
+    trade as Trade,
+  )
+  updateTimeDataForTrade(
+    dolomiteDayData,
+    inputTokenDayData,
+    inputTokenHourData,
+    inputToken,
+    outputToken,
+    event,
+    trade as Trade,
+  )
 
   // if the trade is against the expiry contract, we need to change the margin position
   if (trade.traderAddress.equals(Address.fromString(EXPIRY_ADDRESS))) {
