@@ -1,0 +1,17 @@
+{
+  "network": "arbitrum-rinkeby",
+  "startBlock": "10002507",
+  "daiAddress": "0x362eD516f2E8eEab895043AF976864126BdD9C7b",
+  "dolomiteAmmFactoryAddress": "0xcD6b7A449b495339Db8cB84047cf7C9B53443f2F",
+  "dolomiteAmmRouterProxyAddress": "0x3AF444Bd44f22dF7720e2C59b684E1aa529C265F",
+  "dolomiteMarginAddress": "0x80686433Fdb5F6030a3b3172a468A5539166d3f8",
+  "expiryAddress": "0x26412B315e91705a212E08bdC0A096C29bC157cB",
+  "linkAddress": "0x615fBe6372676474d9e6933d310469c9b68e9726",
+  "maticAddress": "0x0000000000000000000000000000000000000000",
+  "usdcAddress": "0xf5ba7ca17aF300F52112C4CC8A7AB1A0482e84D5",
+  "wbtcAddress": "0x48c40e8B9F45E199238e3131B232ADf12d88eA2C",
+  "wethAddress": "0x267dc5f342e139b5E407684e3A731aeaE8A71E3e",
+  "wethDaiAddress": "0x3837dd4e3c4Ba274B623Ed7c29FbB3FE29cfC0dD",
+  "wethUsdcAddress": "0xC45F6cF7283aeA81b49D0b47f6E69b358c16daD3",
+  "wethUsdtAddress": ""
+}
