@@ -52,6 +52,10 @@ export function getEthPriceInUSD(): BigDecimal {
     let usdcReserveStable = usdcPair.token0 == wethAddress ? usdcPair.reserve1 : usdcPair.reserve0
     let usdtReserveStable = usdtPair.token0 == wethAddress ? usdtPair.reserve1 : usdtPair.reserve0
 
+    if (totalLiquidityETH.equals(ZERO_BD)) {
+      return ZERO_BD
+    }
+
     let daiWeight = daiReserveStable.div(totalLiquidityETH)
     let usdcWeight = usdcReserveStable.div(totalLiquidityETH)
     let usdtWeight = usdtReserveStable.div(totalLiquidityETH)
@@ -68,6 +72,10 @@ export function getEthPriceInUSD(): BigDecimal {
     let daiReserveETH = daiPair.token0 == wethAddress ? daiPair.reserve0 : daiPair.reserve1
     let usdcReserveETH = usdcPair.token0 == wethAddress ? usdcPair.reserve0 : usdcPair.reserve1
     let totalLiquidityETH = daiReserveETH.plus(usdcReserveETH)
+
+    if (totalLiquidityETH.equals(ZERO_BD)) {
+      return ZERO_BD
+    }
 
     let daiWeight = daiReserveETH.div(totalLiquidityETH)
     let usdcWeight = usdcReserveETH.div(totalLiquidityETH)
@@ -158,11 +166,11 @@ export function findEthPerToken(token: Token): BigDecimal {
 
 export function findETHPerTokenForTrade(trade: Trade, token: Token): BigDecimal {
   if (token.id == trade.makerToken) {
-    let takerToken = Token.load(trade.takerToken)
+    let takerToken = Token.load(trade.takerToken) as Token
     let takerTokenPrice = trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei)
     return takerTokenPrice.times(takerToken.derivedETH as BigDecimal) // return token1 per our token * ETH per token1
   } else {
-    let makerToken = Token.load(trade.makerToken)
+    let makerToken = Token.load(trade.makerToken) as Token
     let makerTokenPrice = trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei)
     return makerTokenPrice.times(makerToken.derivedETH as BigDecimal) // return token0 per our token * ETH per token0
   }
@@ -181,12 +189,22 @@ export function getTrackedVolumeUSD(
   token1: Token,
   pair: AmmPair
 ): BigDecimal {
-  let bundle = Bundle.load('1')
-  let price0 = token0.derivedETH.times(bundle.ethPrice)
-  let price1 = token1.derivedETH.times(bundle.ethPrice)
+  let bundle = Bundle.load('1') as Bundle
+  let price0 = ZERO_BD
+  if (token0.derivedETH) {
+    price0 =  token0.derivedETH.times(bundle.ethPrice)
+  }
+  let price1 = ZERO_BD
+  if (token1.derivedETH) {
+    token1.derivedETH.times(bundle.ethPrice)
+  }
 
   // if less than 5 LPs, require high minimum reserve amount or return 0
   if (pair.liquidityProviderCount.lt(BigInt.fromI32(5))) {
+    if (!price0 || !price1) {
+      return ZERO_BD
+    }
+
     let reserve0USD = pair.reserve0.times(price0)
     let reserve1USD = pair.reserve1.times(price1)
     if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
@@ -211,6 +229,10 @@ export function getTrackedVolumeUSD(
 
   // both are whitelist tokens, take average of both amounts
   if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
+    if (!price0 || !price1) {
+      return ZERO_BD
+    }
+
     return tokenAmount0
       .times(price0)
       .plus(tokenAmount1.times(price1))
@@ -219,11 +241,17 @@ export function getTrackedVolumeUSD(
 
   // take full value of the whitelisted token amount
   if (WHITELIST.includes(token0.id) && !WHITELIST.includes(token1.id)) {
+    if (!price0) {
+      return ZERO_BD
+    }
     return tokenAmount0.times(price0)
   }
 
   // take full value of the whitelisted token amount
   if (!WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
+    if (!price1) {
+      return ZERO_BD
+    }
     return tokenAmount1.times(price1)
   }
 
