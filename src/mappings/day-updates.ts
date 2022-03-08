@@ -200,9 +200,10 @@ function setupTokenHourData(
     } else {
       let trade = Trade.load(mostRecentTrade.trade) as Trade
       let otherToken = Token.load(trade.takerToken == token.id ? trade.makerToken : trade.takerToken) as Token
+      let oraclePriceUSD = getTokenOraclePriceUSD(token, event, protocolType)
       let otherPriceUSD = getTokenOraclePriceUSD(otherToken, event, protocolType)
       tokenHourData.openPriceUSD = token.id == trade.takerToken
-        ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).div(otherPriceUSD).truncate(36)
+        ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).times(oraclePriceUSD).truncate(36)
         : trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei).times(otherPriceUSD).truncate(36)
     }
   } else {
@@ -297,9 +298,10 @@ function setupTokenDayData(
     } else {
       let trade = Trade.load(mostRecentTrade.trade) as Trade
       let otherToken = Token.load(trade.takerToken == token.id ? trade.makerToken : trade.takerToken) as Token
+      let oraclePriceUSD = getTokenOraclePriceUSD(token, event, protocolType)
       let otherPriceUSD = getTokenOraclePriceUSD(otherToken, event, protocolType)
       tokenDayData.openPriceUSD = token.id == trade.takerToken
-        ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).div(otherPriceUSD).truncate(36)
+        ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).times(oraclePriceUSD).truncate(36)
         : trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei).times(otherPriceUSD).truncate(36)
     }
   } else {
@@ -434,7 +436,7 @@ export function updateTimeDataForTrade(
   let oraclePriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
   let otherPriceUSD = getTokenOraclePriceUSD(otherToken, event, ProtocolType.Core)
   let closePriceUSD = token.id == trade.takerToken
-    ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).div(otherPriceUSD).truncate(36)
+    ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).times(oraclePriceUSD).truncate(36)
     : trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei).times(otherPriceUSD).truncate(36)
 
   // IE: BUY 4 ETH @ $300 --> outputDeltaWei = $1200; inputDeltaWei = 4 ETH; takerToken = USD; makerToken = ETH
