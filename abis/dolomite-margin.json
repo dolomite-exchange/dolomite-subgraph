@@ -50,6 +50,11 @@
             "internalType": "struct Monetary.Value",
             "name": "minBorrowedValue",
             "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxNumberOfMarketsWithBalancesAndDebt",
+            "type": "uint256"
           }
         ],
         "internalType": "struct Storage.RiskParams",
@@ -561,6 +566,27 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "autoTrader",
+        "type": "address"
+      }
+    ],
+    "name": "getIsAutoTraderSpecial",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "operator",
         "type": "address"
       }
@@ -779,6 +805,23 @@
             ],
             "internalType": "struct Decimal.D256",
             "name": "spreadPremium",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct Types.Wei",
+            "name": "maxWei",
             "type": "tuple"
           }
         ],
@@ -999,6 +1042,39 @@
           }
         ],
         "internalType": "struct Decimal.D256",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "marketId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getMarketMaxWei",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "sign",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct Types.Wei",
         "name": "",
         "type": "tuple"
       }
@@ -1238,6 +1314,23 @@
             "internalType": "struct Decimal.D256",
             "name": "spreadPremium",
             "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct Types.Wei",
+            "name": "maxWei",
+            "type": "tuple"
           }
         ],
         "internalType": "struct Storage.Market",
@@ -1289,6 +1382,21 @@
         "internalType": "struct Interest.Rate",
         "name": "",
         "type": "tuple"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "getMaxNumberOfMarketsWithBalancesAndDebt",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "payable": false,
@@ -1520,6 +1628,11 @@
             "internalType": "struct Monetary.Value",
             "name": "minBorrowedValue",
             "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxNumberOfMarketsWithBalancesAndDebt",
+            "type": "uint256"
           }
         ],
         "internalType": "struct Storage.RiskParams",
@@ -1700,6 +1813,11 @@
         "type": "tuple"
       },
       {
+        "internalType": "uint256",
+        "name": "maxWei",
+        "type": "uint256"
+      },
+      {
         "internalType": "bool",
         "name": "isClosing",
         "type": "bool"
@@ -1731,6 +1849,26 @@
       }
     ],
     "name": "ownerRemoveMarkets",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "autoTrader",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "special",
+        "type": "bool"
+      }
+    ],
+    "name": "ownerSetAutoTraderSpecial",
     "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
@@ -1884,6 +2022,41 @@
       }
     ],
     "name": "ownerSetMarginRatio",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "maxNumberOfMarketsWithBalancesAndDebt",
+        "type": "uint256"
+      }
+    ],
+    "name": "ownerSetMaxNumberOfMarketsWithBalancesAndDebt",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "marketId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxWei",
+        "type": "uint256"
+      }
+    ],
+    "name": "ownerSetMaxWei",
     "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
@@ -2538,6 +2711,32 @@
       }
     ],
     "name": "LogOperation",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "market",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Monetary.Price",
+        "name": "price",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogOraclePrice",
     "type": "event"
   },
   {
@@ -3283,6 +3482,25 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "address",
+        "name": "autoTrader",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "isSpecial",
+        "type": "bool"
+      }
+    ],
+    "name": "LogSetAutoTraderIsSpecial",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "components": [
           {
             "internalType": "uint256",
@@ -3335,25 +3553,6 @@
       }
     ],
     "name": "LogSetInterestSetter",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "marketId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "bool",
-        "name": "isAllowedInIndexZero",
-        "type": "bool"
-      }
-    ],
-    "name": "LogSetIsAllowedInIndexZero",
     "type": "event"
   },
   {
@@ -3439,6 +3638,50 @@
       }
     ],
     "name": "LogSetMarginRatio",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxNumberOfMarketsWithBalancesAndDebt",
+        "type": "uint256"
+      }
+    ],
+    "name": "LogSetMaxNumberOfMarketsWithBalancesAndDebt",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "marketId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "sign",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Types.Wei",
+        "name": "maxWei",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogSetMaxWei",
     "type": "event"
   },
   {
@@ -3542,101 +3785,6 @@
       }
     ],
     "name": "LogWithdrawUnsupportedTokens",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "liquidAccountOwner",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "liquidAccountNumber",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "reason",
-        "type": "string"
-      }
-    ],
-    "name": "LogLiquidationCallbackFailure",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "liquidAccountOwner",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "liquidAccountNumber",
-        "type": "uint256"
-      }
-    ],
-    "name": "LogLiquidationCallbackSuccess",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "operator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "bool",
-        "name": "trusted",
-        "type": "bool"
-      }
-    ],
-    "name": "LogOperatorSet",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "market",
-        "type": "uint256"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "value",
-            "type": "uint256"
-          }
-        ],
-        "indexed": false,
-        "internalType": "struct Monetary.Price",
-        "name": "price",
-        "type": "tuple"
-      }
-    ],
-    "name": "LogOraclePrice",
     "type": "event"
   }
 ]

@@ -101,14 +101,24 @@ dataSources:
           handler: handleMarketAdded
         - event: LogRemoveMarket(uint256,address)
           handler: handleMarketRemoved
+        - event: LogSetMarginRatio((uint256))
+          handler: handleSetLiquidationRatio
+        - event: LogSetLiquidationSpread((uint256))
+          handler: handleSetLiquidationReward
         - event: LogSetEarningsRate((uint256))
           handler: handleEarningsRateUpdate
+        - event: LogSetMinBorrowedValue((uint256))
+          handler: handleSetMinBorrowedValue
+        - event: LogSetMaxNumberOfMarketsWithBalancesAndDebt(uint256)
+          handler: handleSetMaxNumberOfMarketsWithBalancesAndDebt
         - event: LogSetMarginPremium(uint256,(uint256))
           handler: handleSetMarginPremium
         - event: LogSetSpreadPremium(uint256,(uint256))
           handler: handleSetLiquidationSpreadPremium
         - event: LogSetIsClosing(uint256,bool)
           handler: handleSetIsMarketClosing
+        - event: LogSetMaxWei(uint256,(bool,uint256))
+          handler: handleSetMaxWei
   - kind: ethereum/contract
     name: DolomiteAmmRouter
     network: {{network}}

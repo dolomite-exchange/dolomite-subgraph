@@ -17,8 +17,10 @@ import {
   LogSetLiquidationSpread as LiquidationSpreadUpdateEvent,
   LogSetMarginPremium as MarginPremiumUpdateEvent,
   LogSetMarginRatio as MarginRatioUpdateEvent,
+  LogSetMaxWei as MaxWeiUpdateEvent,
   LogSetMinBorrowedValue as MinBorrowedValueUpdateEvent,
-  LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent
+  LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent,
+  LogSetMaxNumberOfMarketsWithBalancesAndDebt as MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent
 } from '../types/MarginAdmin/DolomiteMargin'
 import {
   InterestIndex,
@@ -34,10 +36,10 @@ import {
   initializeToken
 } from './amm-helpers'
 import {
-  ONE_ETH_BD,
   DOLOMITE_MARGIN_ADDRESS,
   ONE_BD,
-  ZERO_BD,
+  ONE_ETH_BD,
+  ZERO_BD
 } from './generated/constants'
 import { getOrCreateDolomiteMarginForCall } from './margin-helpers'
 import { ProtocolType } from './margin-types'
@@ -81,6 +83,7 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   riskInfo.liquidationRewardPremium = ZERO_BD
   riskInfo.marginPremium = ZERO_BD
   riskInfo.isBorrowingDisabled = false
+  riskInfo.maxWei = ZERO_BD
   riskInfo.save()
 
   let oraclePrice = new OraclePrice(token.id)
@@ -200,6 +203,20 @@ export function handleSetMinBorrowedValue(event: MinBorrowedValueUpdateEvent): v
 }
 
 // noinspection JSUnusedGlobalSymbols
+export function handleSetMaxNumberOfMarketsWithBalancesAndDebt(
+  event: MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent
+): void {
+  log.info(
+    'Handling set max number of markets with balances and debt change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
+  dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = event.params.maxNumberOfMarketsWithBalancesAndDebt
+  dolomiteMargin.save()
+}
+
+// noinspection JSUnusedGlobalSymbols
 export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
   log.info(
     'Handling margin premium change for hash and index: {}-{}',
@@ -232,7 +249,7 @@ export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpda
 // noinspection JSUnusedGlobalSymbols
 export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
   log.info(
-    'Handling set_market_closing for hash and index: {}-{}',
+    'Handling set market closing for hash and index: {}-{}',
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
@@ -240,5 +257,19 @@ export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
   let token = Token.load(tokenAddress) as Token
   let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   marketInfo.isBorrowingDisabled = event.params.isClosing
+  marketInfo.save()
+}
+
+// noinspection JSUnusedGlobalSymbols
+export function handleSetMaxWei(event: MaxWeiUpdateEvent): void {
+  log.info(
+    'Handling set max wei for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
+  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  marketInfo.maxWei = convertTokenToDecimal(event.params.maxWei.value, token.decimals)
   marketInfo.save()
 }

@@ -140,12 +140,18 @@ export function getOrCreateDolomiteMarginForCall(
     if (protocolType === ProtocolType.Core) {
       let marginProtocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
       let expiryProtocol = DolomiteMarginExpiryCoreProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
-      let riskParams = marginProtocol.getRiskParams()
 
-      let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
-      let liquidationRewardBD = new BigDecimal(riskParams.liquidationSpread.value)
-      let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
-      let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
+      let liquidationRatioBD = new BigDecimal(marginProtocol.getMarginRatio().value)
+      let liquidationRewardBD = new BigDecimal(marginProtocol.getLiquidationSpread().value)
+      let earningsRateBD = new BigDecimal(marginProtocol.getEarningsRate().value)
+      let minBorrowedValueBD = new BigDecimal(marginProtocol.getMinBorrowedValue().value)
+      let maxNumberOfMarketsWithBalancesAndDebt: BigInt
+      let result = marginProtocol.try_getMaxNumberOfMarketsWithBalancesAndDebt()
+      if (result.reverted) {
+        maxNumberOfMarketsWithBalancesAndDebt = BigInt.fromI32(32)
+      } else {
+        maxNumberOfMarketsWithBalancesAndDebt = result.value
+      }
 
       dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
@@ -154,16 +160,23 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
         .div(ONE_ETH_BD)
+      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = maxNumberOfMarketsWithBalancesAndDebt
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     } else if (protocolType == ProtocolType.Admin) {
       let marginProtocol = DolomiteMarginAdminProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
       let expiryProtocol = DolomiteMarginExpiryAdminProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
-      let riskParams = marginProtocol.getRiskParams()
 
-      let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
-      let liquidationRewardBD = new BigDecimal(riskParams.liquidationSpread.value)
-      let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
-      let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
+      let liquidationRatioBD = new BigDecimal(marginProtocol.getMarginRatio().value)
+      let liquidationRewardBD = new BigDecimal(marginProtocol.getLiquidationSpread().value)
+      let earningsRateBD = new BigDecimal(marginProtocol.getEarningsRate().value)
+      let minBorrowedValueBD = new BigDecimal(marginProtocol.getMinBorrowedValue().value)
+      let maxNumberOfMarketsWithBalancesAndDebt: BigInt
+      let result = marginProtocol.try_getMaxNumberOfMarketsWithBalancesAndDebt()
+      if (result.reverted) {
+        maxNumberOfMarketsWithBalancesAndDebt = BigInt.fromI32(32)
+      } else {
+        maxNumberOfMarketsWithBalancesAndDebt = result.value
+      }
 
       dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
@@ -172,16 +185,23 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
         .div(ONE_ETH_BD)
+      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = maxNumberOfMarketsWithBalancesAndDebt
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     } else {
       let marginProtocol = DolomiteMarginExpiryProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
       let expiryProtocol = DolomiteMarginExpiryExpiryProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
-      let riskParams = marginProtocol.getRiskParams()
 
-      let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
-      let liquidationRewardBD = new BigDecimal(riskParams.liquidationSpread.value)
-      let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
-      let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
+      let liquidationRatioBD = new BigDecimal(marginProtocol.getMarginRatio().value)
+      let liquidationRewardBD = new BigDecimal(marginProtocol.getLiquidationSpread().value)
+      let earningsRateBD = new BigDecimal(marginProtocol.getEarningsRate().value)
+      let minBorrowedValueBD = new BigDecimal(marginProtocol.getMinBorrowedValue().value)
+      let maxNumberOfMarketsWithBalancesAndDebt: BigInt
+      let result = marginProtocol.try_getMaxNumberOfMarketsWithBalancesAndDebt()
+      if (result.reverted) {
+        maxNumberOfMarketsWithBalancesAndDebt = BigInt.fromI32(32)
+      } else {
+        maxNumberOfMarketsWithBalancesAndDebt = result.value
+      }
 
       dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
@@ -190,6 +210,7 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
         .div(ONE_ETH_BD)
+      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = maxNumberOfMarketsWithBalancesAndDebt
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     }
 
