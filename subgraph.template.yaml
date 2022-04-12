@@ -103,12 +103,16 @@ dataSources:
           handler: handleMarketRemoved
         - event: LogSetEarningsRate((uint256))
           handler: handleEarningsRateUpdate
+        - event: LogSetMaxNumberOfMarketsWithBalancesAndDebt(uint256)
+          handler: handleSetMaxNumberOfMarketsWithBalancesAndDebt
         - event: LogSetMarginPremium(uint256,(uint256))
           handler: handleSetMarginPremium
         - event: LogSetSpreadPremium(uint256,(uint256))
           handler: handleSetLiquidationSpreadPremium
         - event: LogSetIsClosing(uint256,bool)
           handler: handleSetIsMarketClosing
+        - event: LogSetMaxWei(uint256,(bool,uint256))
+          handler: handleSetMaxWei
   - kind: ethereum/contract
     name: DolomiteAmmRouter
     network: {{network}}

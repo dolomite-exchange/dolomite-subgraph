@@ -18,7 +18,9 @@ import {
   LogSetMarginPremium as MarginPremiumUpdateEvent,
   LogSetMarginRatio as MarginRatioUpdateEvent,
   LogSetMinBorrowedValue as MinBorrowedValueUpdateEvent,
-  LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent
+  LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent,
+  LogSetMaxWei as MaxWeiUpdateEvent,
+  LogSetMaxNumberOfMarketsWithBalancesAndDebt as MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent
 } from '../types/MarginAdmin/DolomiteMargin'
 import {
   InterestIndex,
@@ -81,6 +83,7 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   riskInfo.liquidationRewardPremium = ZERO_BD
   riskInfo.marginPremium = ZERO_BD
   riskInfo.isBorrowingDisabled = false
+  riskInfo.maxWei = ZERO_BD
   riskInfo.save()
 
   let oraclePrice = new OraclePrice(token.id)
@@ -170,6 +173,20 @@ export function handleSetLiquidationReward(event: LiquidationSpreadUpdateEvent):
 }
 
 // noinspection JSUnusedGlobalSymbols
+export function handleSetMaxNumberOfMarketsWithBalancesAndDebt(
+  event: MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent
+): void {
+  log.info(
+    'Handling max # of markets with balances and debt change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
+  dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = event.params.maxNumberOfMarketsWithBalancesAndDebt
+  dolomiteMargin.save()
+}
+
+// noinspection JSUnusedGlobalSymbols
 export function handleSetLiquidationRatio(event: MarginRatioUpdateEvent): void {
   log.info(
     'Handling liquidation ratio change for hash and index: {}-{}',
@@ -240,5 +257,19 @@ export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
   let token = Token.load(tokenAddress) as Token
   let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   marketInfo.isBorrowingDisabled = event.params.isClosing
+  marketInfo.save()
+}
+
+// noinspection JSUnusedGlobalSymbols
+export function handleSetMaxWei(event: MaxWeiUpdateEvent): void {
+  log.info(
+    'Handling max wei change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
+  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  marketInfo.maxWei = convertTokenToDecimal(event.params.maxWei.value, token.decimals)
   marketInfo.save()
 }

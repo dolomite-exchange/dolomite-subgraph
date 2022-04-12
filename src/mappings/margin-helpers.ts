@@ -154,6 +154,7 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
         .div(ONE_ETH_BD)
+      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = riskParams.maxNumberOfMarketsWithBalancesAndDebt
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     } else if (protocolType == ProtocolType.Admin) {
       let marginProtocol = DolomiteMarginAdminProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
@@ -172,6 +173,7 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
         .div(ONE_ETH_BD)
+      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = riskParams.maxNumberOfMarketsWithBalancesAndDebt
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     } else {
       let marginProtocol = DolomiteMarginExpiryProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
@@ -190,6 +192,7 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
         .div(ONE_ETH_BD)
+      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = riskParams.maxNumberOfMarketsWithBalancesAndDebt
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     }
 
