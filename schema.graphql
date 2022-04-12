@@ -32,7 +32,6 @@ type DolomiteMargin @entity {
   minBorrowedValue: BigDecimal!
   maxNumberOfMarketsWithBalancesAndDebt: BigInt!
   expiryRampTime: BigInt!
-  maxNumberOfMarketsWithBalancesAndDebt: BigInt!
 
   # current liquidity across all markets
   supplyLiquidityUSD: BigDecimal!
@@ -482,6 +481,7 @@ type MarketRiskInfo @entity {
   liquidationRewardPremium: BigDecimal!
   isBorrowingDisabled: Boolean!
   maxWei: BigDecimal!
+  oracle: Bytes! # address of the price oracle
 }
 
 type TotalPar @entity {

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  BigInt,
-  store
+  BigInt, Bytes,
+  store,
 } from '@graphprotocol/graph-ts'
 import {
   Address,
@@ -20,6 +20,7 @@ import {
   LogSetMinBorrowedValue as MinBorrowedValueUpdateEvent,
   LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent,
   LogSetMaxWei as MaxWeiUpdateEvent,
+  LogSetPriceOracle as PriceOracleUpdateEvent,
   LogSetMaxNumberOfMarketsWithBalancesAndDebt as MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent
 } from '../types/MarginAdmin/DolomiteMargin'
 import {
@@ -83,6 +84,7 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   riskInfo.liquidationRewardPremium = ZERO_BD
   riskInfo.marginPremium = ZERO_BD
   riskInfo.isBorrowingDisabled = false
+  riskInfo.oracle = Bytes.empty()
   riskInfo.maxWei = ZERO_BD
   riskInfo.save()
 
@@ -271,5 +273,19 @@ export function handleSetMaxWei(event: MaxWeiUpdateEvent): void {
   let token = Token.load(tokenAddress) as Token
   let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   marketInfo.maxWei = convertTokenToDecimal(event.params.maxWei.value, token.decimals)
+  marketInfo.save()
+}
+
+// noinspection JSUnusedGlobalSymbols
+export function handleSetPriceOracle(event: PriceOracleUpdateEvent): void {
+  log.info(
+    'Handling oracle change change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
+  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  marketInfo.oracle = event.params.priceOracle
   marketInfo.save()
 }
