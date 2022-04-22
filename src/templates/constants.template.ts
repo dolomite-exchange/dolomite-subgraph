@@ -53,6 +53,8 @@ export const LINK_ADDRESS = '{{linkAddress}}'.toLowerCase()
 
 export const USDC_ADDRESS = '{{usdcAddress}}'.toLowerCase()
 
+export const USDT_ADDRESS = '{{usdtAddress}}'.toLowerCase()
+
 export const WBTC_ADDRESS = '{{wbtcAddress}}'.toLowerCase()
 
 export const WETH_ADDRESS = '{{wethAddress}}'.toLowerCase()
@@ -95,6 +97,7 @@ WHITELISTS.set(MUMBAI_NETWORK, [
 WHITELISTS.set(ARBITRUM_MAINNET_NETWORK, [
   WETH_ADDRESS,
   USDC_ADDRESS,
+  USDT_ADDRESS,
   DAI_ADDRESS,
   WBTC_ADDRESS,
   LINK_ADDRESS,
