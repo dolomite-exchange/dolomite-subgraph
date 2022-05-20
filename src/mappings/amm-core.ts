@@ -506,6 +506,8 @@ export function handleSwap(event: SwapEvent): void {
   let ammPairDayData = updatePairDayData(event)
   let ammPairHourData = updatePairHourData(event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let token0HourData = updateTokenHourDataForAmmEvent(token0, event)
+  let token1HourData = updateTokenHourDataForAmmEvent(token1, event)
   let token0DayData = updateTokenDayDataForAmmEvent(token0, event)
   let token1DayData = updateTokenDayDataForAmmEvent(token1, event)
 
@@ -533,9 +535,19 @@ export function handleSwap(event: SwapEvent): void {
   token0DayData.dailyAmmSwapCount = token0DayData.dailyAmmSwapCount.plus(ONE_BI)
   token0DayData.save()
 
+  token0HourData.hourlyAmmSwapVolumeToken = token0HourData.hourlyAmmSwapVolumeToken.plus(amount0Total)
+  token0HourData.hourlyAmmSwapVolumeUSD = token0HourData.hourlyAmmSwapVolumeUSD.plus(amount0Total.times(token0PriceUSD))
+  token0HourData.hourlyAmmSwapCount = token0HourData.hourlyAmmSwapCount.plus(ONE_BI)
+  token0HourData.save()
+
   // swap specific updating
   token1DayData.dailyAmmSwapVolumeToken = token1DayData.dailyAmmSwapVolumeToken.plus(amount1Total)
   token1DayData.dailyAmmSwapVolumeUSD = token1DayData.dailyAmmSwapVolumeUSD.plus(amount1Total.times(token1PriceUSD))
   token1DayData.dailyAmmSwapCount = token1DayData.dailyAmmSwapCount.plus(ONE_BI)
   token1DayData.save()
+
+  token1HourData.hourlyAmmSwapVolumeToken = token1HourData.hourlyAmmSwapVolumeToken.plus(amount1Total)
+  token1HourData.hourlyAmmSwapVolumeUSD = token1HourData.hourlyAmmSwapVolumeUSD.plus(amount1Total.times(token1PriceUSD))
+  token1HourData.hourlyAmmSwapCount = token1HourData.hourlyAmmSwapCount.plus(ONE_BI)
+  token1HourData.save()
 }

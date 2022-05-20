@@ -425,6 +425,7 @@ export function handleBuy(event: BuyEvent): void {
   }
 
   trade.transaction = transaction.id
+  trade.timestamp = transaction.timestamp
   trade.logIndex = event.logIndex
 
   trade.takerMarginAccount = marginAccount.id
@@ -482,16 +483,16 @@ export function handleBuy(event: BuyEvent): void {
     dolomiteMargin,
   )
 
-  let inputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(makerToken, event)
-  let outputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
-  let inputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
-  let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
+  let makerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(makerToken, event)
+  let takerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
+  let makerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
+  let takerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
 
   updateTimeDataForTrade(
     dolomiteDayData,
-    inputTokenDayData,
-    inputTokenHourData,
+    makerTokenDayData,
+    makerTokenHourData,
     makerToken,
     takerToken,
     event,
@@ -499,8 +500,8 @@ export function handleBuy(event: BuyEvent): void {
   )
   updateTimeDataForTrade(
     dolomiteDayData,
-    outputTokenDayData,
-    outputTokenHourData,
+    takerTokenDayData,
+    takerTokenHourData,
     takerToken,
     makerToken,
     event,
@@ -552,6 +553,7 @@ export function handleSell(event: SellEvent): void {
   }
 
   trade.transaction = transaction.id
+  trade.timestamp = transaction.timestamp
   trade.logIndex = event.logIndex
 
   trade.takerMarginAccount = marginAccount.id
@@ -609,16 +611,16 @@ export function handleSell(event: SellEvent): void {
     dolomiteMargin,
   )
 
-  let inputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(makerToken, event)
-  let outputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
-  let inputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
-  let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
+  let makerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(makerToken, event)
+  let takerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
+  let makerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
+  let takerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
 
   updateTimeDataForTrade(
     dolomiteDayData,
-    inputTokenDayData,
-    inputTokenHourData,
+    makerTokenDayData,
+    makerTokenHourData,
     makerToken,
     takerToken,
     event,
@@ -626,8 +628,8 @@ export function handleSell(event: SellEvent): void {
   )
   updateTimeDataForTrade(
     dolomiteDayData,
-    outputTokenDayData,
-    outputTokenHourData,
+    takerTokenDayData,
+    takerTokenHourData,
     takerToken,
     makerToken,
     event,
@@ -696,6 +698,7 @@ export function handleTrade(event: TradeEvent): void {
   }
 
   trade.transaction = transaction.id
+  trade.timestamp = transaction.timestamp
   trade.logIndex = event.logIndex
 
   trade.takerMarginAccount = takerMarginAccount.id

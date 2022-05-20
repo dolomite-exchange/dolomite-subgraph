@@ -628,6 +628,7 @@ type Trade @entity {
   logIndex: BigInt!
   serialId: BigInt!
   traderAddress: Bytes!
+  timestamp: BigInt!
 
   takerMarginAccount: MarginAccount!
   makerMarginAccount: MarginAccount # NULLABLE
