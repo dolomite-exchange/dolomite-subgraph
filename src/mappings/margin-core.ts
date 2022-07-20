@@ -357,6 +357,8 @@ export function handleTransfer(event: TransferEvent): void {
         // The user is transferring collateral
         if (marginPosition.status == MarginPositionStatus.Open && marginPosition.heldToken == token.id) {
           marginPosition.heldAmountPar = balanceUpdateTwo.valuePar
+          marginPosition.marginDeposit = marginPosition.marginDeposit.plus(transfer.amountDeltaWei)
+          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(18)
         } else if (marginPosition.status == MarginPositionStatus.Open && token.id == marginPosition.owedToken) {
           marginPosition.owedAmountPar = absBD(balanceUpdateOne.valuePar)
         }
@@ -369,6 +371,13 @@ export function handleTransfer(event: TransferEvent): void {
         // The user is removing collateral
         if (token.id == marginPosition.heldToken) {
           marginPosition.heldAmountPar = balanceUpdateOne.valuePar
+          if (transfer.amountDeltaWei.gt(marginPosition.marginDeposit)) {
+            // Don't let the margin deposit go negative.
+            marginPosition.marginDeposit = ZERO_BD
+          } else {
+            marginPosition.marginDeposit = marginPosition.marginDeposit.minus(transfer.amountDeltaWei)
+          }
+          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(18)
         } else if (marginPosition.status == MarginPositionStatus.Open && token.id == marginPosition.owedToken) {
           marginPosition.owedAmountPar = absBD(balanceUpdateOne.valuePar)
         }
