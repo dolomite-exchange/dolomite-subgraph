@@ -29,6 +29,8 @@ export const FIVE_BD = BigDecimal.fromString('5')
 
 export const TEN_BI = BigInt.fromI32(10)
 
+export const _100_BI = BigInt.fromI32(100)
+
 export const _18_BI = BigInt.fromI32(18)
 
 export const ONE_ETH_BI = TEN_BI.pow(18)

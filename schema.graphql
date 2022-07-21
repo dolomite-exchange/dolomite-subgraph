@@ -653,6 +653,7 @@ type MostRecentTrade @entity {
 type MarginPosition @entity {
   id: ID! # Defined as "userAddress-accountNumber"
   marginAccount: MarginAccount!
+  isInitialized: Boolean!
 
   openTimestamp: BigInt!
   openTransaction: Transaction!
@@ -660,6 +661,8 @@ type MarginPosition @entity {
   heldToken: Token
   marginDeposit: BigDecimal!
   marginDepositUSD: BigDecimal!
+  initialMarginDeposit: BigDecimal!
+  initialMarginDepositUSD: BigDecimal!
 
   # set for tracking interest accrued. This number is only set initially
   initialHeldAmountPar: BigDecimal!

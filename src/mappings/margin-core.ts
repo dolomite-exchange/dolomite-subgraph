@@ -37,7 +37,7 @@ import {
   updateTimeDataForTrade,
   updateTimeDataForVaporization,
 } from './day-updates'
-import { _18_BI, EXPIRY_ADDRESS, ONE_BI, ZERO_BD, ZERO_BI } from './generated/constants'
+import { _18_BI, EXPIRY_ADDRESS, ONE_BI, ZERO_BI } from './generated/constants'
 import { absBD } from './helpers'
 import {
   changeProtocolBalance,
@@ -46,10 +46,10 @@ import {
   getOrCreateDolomiteMarginForCall,
   getOrCreateMarginPosition,
   handleDolomiteMarginBalanceUpdateForAccount,
-  invalidateMarginPosition,
+  invalidateMarginPosition, canBeMarginPosition,
   parToWei,
   roundHalfUp,
-  saveMostRecentTrade,
+  saveMostRecentTrade, updateMarginPositionForTransfer,
 } from './margin-helpers'
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
@@ -277,23 +277,23 @@ export function handleTransfer(event: TransferEvent): void {
 
   let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.token) as Token
 
-  let balanceUpdateOne = new BalanceUpdate(
+  let balanceUpdate1 = new BalanceUpdate(
     event.params.accountOneOwner,
     event.params.accountOneNumber,
     event.params.updateOne.newPar.value,
     event.params.updateOne.newPar.sign,
     token,
   )
-  let marginAccount1 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  let marginAccount1 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate1, event.block)
 
-  let balanceUpdateTwo = new BalanceUpdate(
+  let balanceUpdate2 = new BalanceUpdate(
     event.params.accountTwoOwner,
     event.params.accountTwoNumber,
     event.params.updateTwo.newPar.value,
     event.params.updateTwo.newPar.sign,
     token,
   )
-  let marginAccount2 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let marginAccount2 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate2, event.block)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -350,42 +350,16 @@ export function handleTransfer(event: TransferEvent): void {
     dolomiteMargin,
   )
 
-  if (marginAccount1.user == marginAccount2.user) {
-    if (marginAccount1.accountNumber.equals(ZERO_BI) && marginAccount2.accountNumber.notEqual(ZERO_BI)) {
-      let marginPosition = getOrCreateMarginPosition(event, marginAccount2)
-      if (marginPosition.marginDeposit.notEqual(ZERO_BD)) {
-        // The user is transferring collateral
-        if (marginPosition.status == MarginPositionStatus.Open && marginPosition.heldToken == token.id) {
-          marginPosition.heldAmountPar = balanceUpdateTwo.valuePar
-          marginPosition.marginDeposit = marginPosition.marginDeposit.plus(transfer.amountDeltaWei)
-          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(18)
-        } else if (marginPosition.status == MarginPositionStatus.Open && token.id == marginPosition.owedToken) {
-          marginPosition.owedAmountPar = absBD(balanceUpdateOne.valuePar)
-        }
-
-        marginPosition.save()
-      }
-    } else if (marginAccount2.accountNumber.equals(ZERO_BI) && marginAccount1.accountNumber.notEqual(ZERO_BI)) {
-      let marginPosition = getOrCreateMarginPosition(event, marginAccount1)
-      if (marginPosition.marginDeposit.notEqual(ZERO_BD)) {
-        // The user is removing collateral
-        if (token.id == marginPosition.heldToken) {
-          marginPosition.heldAmountPar = balanceUpdateOne.valuePar
-          if (transfer.amountDeltaWei.gt(marginPosition.marginDeposit)) {
-            // Don't let the margin deposit go negative.
-            marginPosition.marginDeposit = ZERO_BD
-          } else {
-            marginPosition.marginDeposit = marginPosition.marginDeposit.minus(transfer.amountDeltaWei)
-          }
-          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(18)
-        } else if (marginPosition.status == MarginPositionStatus.Open && token.id == marginPosition.owedToken) {
-          marginPosition.owedAmountPar = absBD(balanceUpdateOne.valuePar)
-        }
-
-        marginPosition.save()
-      }
-    }
-  }
+  updateMarginPositionForTransfer(
+    marginAccount1,
+    marginAccount2,
+    balanceUpdate1,
+    balanceUpdate2,
+    transfer,
+    event,
+    token,
+    priceUSD
+  )
 
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
@@ -1049,7 +1023,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
   liquidation.save()
   transaction.save()
 
-  if (liquidMarginAccount.accountNumber.notEqual(ZERO_BI)) {
+  if (canBeMarginPosition(liquidMarginAccount)) {
     let marginPosition = getOrCreateMarginPosition(event, liquidMarginAccount)
     handleLiquidatePosition(
       marginPosition,
@@ -1204,9 +1178,10 @@ export function handleVaporize(event: VaporizationEvent): void {
     vaporization as Vaporization,
   )
 
-  if (vaporMarginAccount.accountNumber.notEqual(ZERO_BI)) {
+  if (canBeMarginPosition(vaporMarginAccount)) {
     let marginPosition = getOrCreateMarginPosition(event, vaporMarginAccount)
     if (marginPosition.status == MarginPositionStatus.Liquidated) {
+      // vaporized accounts must be liquidated before being vaporized
       // when an account is vaporized, the vaporHeldAmount is zero, so it's not updated
       marginPosition.owedAmountPar = convertStructToDecimalAppliedValue(vaporOwedNewParStruct, owedToken.decimals)
       marginPosition.save()
@@ -1248,9 +1223,11 @@ function handleLiquidatePosition(
   status: string,
 ): void {
   if (
-    marginPosition.status == MarginPositionStatus.Open ||
-    marginPosition.status == MarginPositionStatus.Liquidated ||
-    marginPosition.status == MarginPositionStatus.Expired
+    marginPosition.isInitialized && (
+      marginPosition.status == MarginPositionStatus.Open ||
+      marginPosition.status == MarginPositionStatus.Liquidated ||
+      marginPosition.status == MarginPositionStatus.Expired
+    )
   ) {
     log.info('Setting position {} to {}', [marginPosition.id, status])
     marginPosition.status = status

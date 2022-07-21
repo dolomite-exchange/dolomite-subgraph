@@ -93,6 +93,10 @@ export class BalanceUpdate {
     }
   }
 
+  get marginAccount(): string {
+    return `${this.accountOwner.toHexString()}-${this.accountNumber.toString()}`
+  }
+
 }
 
 export class ValueStruct {
