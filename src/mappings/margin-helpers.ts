@@ -469,6 +469,10 @@ export function updateMarginPositionForTransfer(
         return
       }
 
+      // This is a real margin position
+      transfer.isTransferForMarginPosition = true
+      transfer.save()
+
       if (marginPosition.heldToken == token.id) {
         marginPosition.heldAmountPar = balanceUpdate1.marginAccount == marginPosition.marginAccount
           ? absBD(balanceUpdate1.valuePar)

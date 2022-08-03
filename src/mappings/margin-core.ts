@@ -303,6 +303,7 @@ export function handleTransfer(event: TransferEvent): void {
   let transfer = Transfer.load(transferID)
   if (transfer === null) {
     transfer = new Transfer(transferID)
+    transfer.isTransferForMarginPosition = false
     transfer.serialId = dolomiteMargin.actionCount
   }
 
