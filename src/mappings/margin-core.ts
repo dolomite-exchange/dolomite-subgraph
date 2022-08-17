@@ -78,29 +78,6 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
   index.supplyIndex = convertTokenToDecimal(event.params.index.supply, _18_BI)
   index.lastUpdate = event.params.index.lastUpdate
   index.save()
-
-  if (dataSource.network() == 'mumbai') {
-    // On mumbai, the OraclePriceEvent does not exist, so we index the protocol balance change here
-    log.debug('Indexing protocol balance changes for {} network', [dataSource.network()])
-    let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Core)
-    let token = Token.load(tokenAddress) as Token
-
-    changeProtocolBalance(
-      event,
-      token,
-      ValueStruct.fromFields(false, ZERO_BI),
-      ValueStruct.fromFields(false, ZERO_BI),
-      index,
-      true,
-      ProtocolType.Core,
-      dolomiteMargin,
-    )
-
-    updateAndReturnTokenHourDataForMarginEvent(token, event)
-    updateAndReturnTokenDayDataForMarginEvent(token, event)
-    updateDolomiteDayData(event)
-    updateDolomiteHourData(event)
-  }
 }
 
 // noinspection JSUnusedGlobalSymbols

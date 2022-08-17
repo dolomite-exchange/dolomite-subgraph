@@ -140,7 +140,7 @@ export function updateDolomiteHourData(event: ethereum.Event): DolomiteHourData 
     setupDolomiteHourData(dolomiteHourData as DolomiteHourData)
   }
 
-  // ## Daily Liquidity
+  // ## Hourly Liquidity
   dolomiteHourData.ammLiquidityUSD = factory.ammLiquidityUSD
   dolomiteHourData.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD
   dolomiteHourData.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD
@@ -414,6 +414,15 @@ export function updateAndReturnTokenHourDataForMarginEvent(token: Token, event: 
       event,
       ProtocolType.Core,
     )
+
+    let ethToken = Token.load(WETH_ADDRESS) as Token
+    let ethPriceUSD = getTokenOraclePriceUSD(ethToken, event, ProtocolType.Core)
+    let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
+
+    // Initialize the AMM data
+    tokenHourData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
+    tokenHourData.ammLiquidityToken = token.ammSwapLiquidity
+    tokenHourData.ammLiquidityUSD = token.ammSwapLiquidity.times(tokenPriceUSD).truncate(18)
   }
 
   tokenHourData.borrowLiquidityToken = token.borrowLiquidity
@@ -437,6 +446,15 @@ export function updateAndReturnTokenDayDataForMarginEvent(token: Token, event: e
   if (tokenDayData === null) {
     tokenDayData = new TokenDayData(tokenDayID)
     setupTokenDayData(tokenDayData as TokenDayData, BigInt.fromString(dayId).toI32(), token, event, ProtocolType.Core)
+
+    let ethToken = Token.load(WETH_ADDRESS) as Token
+    let ethPriceUSD = getTokenOraclePriceUSD(ethToken, event, ProtocolType.Core)
+    let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
+
+    // Initialize the AMM data
+    tokenDayData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
+    tokenDayData.ammLiquidityToken = token.ammSwapLiquidity
+    tokenDayData.ammLiquidityUSD = token.ammSwapLiquidity.times(tokenPriceUSD).truncate(18)
   }
 
   tokenDayData.borrowLiquidityToken = token.borrowLiquidity
