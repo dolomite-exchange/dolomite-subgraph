@@ -33,6 +33,7 @@ import {
   updateAndReturnTokenDayDataForMarginEvent,
   updateAndReturnTokenHourDataForMarginEvent,
   updateDolomiteDayData,
+  updateDolomiteHourData,
   updateTimeDataForLiquidation,
   updateTimeDataForTrade,
   updateTimeDataForVaporization,
@@ -98,6 +99,7 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
     updateAndReturnTokenHourDataForMarginEvent(token, event)
     updateAndReturnTokenDayDataForMarginEvent(token, event)
     updateDolomiteDayData(event)
+    updateDolomiteHourData(event)
   }
 }
 
@@ -136,6 +138,7 @@ export function handleOraclePriceUpdate(event: OraclePriceEvent): void {
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -201,6 +204,7 @@ export function handleDeposit(event: DepositEvent): void {
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -266,6 +270,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -365,6 +370,7 @@ export function handleTransfer(event: TransferEvent): void {
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -472,9 +478,11 @@ export function handleBuy(event: BuyEvent): void {
   let makerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
   let takerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
 
   updateTimeDataForTrade(
     dolomiteDayData,
+    dolomiteHourData,
     makerTokenDayData,
     makerTokenHourData,
     makerToken,
@@ -484,6 +492,7 @@ export function handleBuy(event: BuyEvent): void {
   )
   updateTimeDataForTrade(
     dolomiteDayData,
+    dolomiteHourData,
     takerTokenDayData,
     takerTokenHourData,
     takerToken,
@@ -600,9 +609,11 @@ export function handleSell(event: SellEvent): void {
   let makerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
   let takerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
 
   updateTimeDataForTrade(
     dolomiteDayData,
+    dolomiteHourData,
     makerTokenDayData,
     makerTokenHourData,
     makerToken,
@@ -612,6 +623,7 @@ export function handleSell(event: SellEvent): void {
   )
   updateTimeDataForTrade(
     dolomiteDayData,
+    dolomiteHourData,
     takerTokenDayData,
     takerTokenHourData,
     takerToken,
@@ -772,9 +784,11 @@ export function handleTrade(event: TradeEvent): void {
   let inputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(inputToken, event)
   let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(outputToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
 
   updateTimeDataForTrade(
     dolomiteDayData,
+    dolomiteHourData,
     outputTokenDayData,
     outputTokenHourData,
     outputToken,
@@ -784,6 +798,7 @@ export function handleTrade(event: TradeEvent): void {
   )
   updateTimeDataForTrade(
     dolomiteDayData,
+    dolomiteHourData,
     inputTokenDayData,
     inputTokenHourData,
     inputToken,
@@ -1009,9 +1024,11 @@ export function handleLiquidate(event: LiquidationEvent): void {
   let owedTokenHourData = updateAndReturnTokenHourDataForMarginEvent(owedToken, event)
   let owedTokenDayData = updateAndReturnTokenDayDataForMarginEvent(owedToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
 
   updateTimeDataForLiquidation(
     dolomiteDayData,
+    dolomiteHourData,
     owedTokenDayData,
     owedTokenHourData,
     owedToken,
@@ -1169,9 +1186,11 @@ export function handleVaporize(event: VaporizationEvent): void {
   let owedTokenHourData = updateAndReturnTokenHourDataForMarginEvent(owedToken, event)
   let owedTokenDayData = updateAndReturnTokenDayDataForMarginEvent(owedToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
 
   updateTimeDataForVaporization(
     dolomiteDayData,
+    dolomiteHourData,
     owedTokenDayData,
     owedTokenHourData,
     owedToken,

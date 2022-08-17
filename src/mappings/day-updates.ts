@@ -3,7 +3,7 @@ import {
   AmmPair,
   AmmPairDayData,
   AmmPairHourData,
-  DolomiteDayData,
+  DolomiteDayData, DolomiteHourData,
   DolomiteMargin,
   Liquidation,
   MostRecentTrade,
@@ -65,6 +65,42 @@ function setupDolomiteDayData(dolomiteDayData: DolomiteDayData): DolomiteDayData
   return dolomiteDayData
 }
 
+function setupDolomiteHourData(dolomiteHourData: DolomiteHourData): DolomiteHourData {
+  dolomiteHourData.hourStartUnix = BigInt.fromString(dolomiteHourData.id).toI32()
+
+  // # Daily Figures
+  // ## Daily Volume Figures USD
+  dolomiteHourData.hourlyAmmSwapVolumeUSD = ZERO_BD
+  dolomiteHourData.hourlyBorrowVolumeUSD = ZERO_BD
+  dolomiteHourData.hourlyLiquidationVolumeUSD = ZERO_BD
+  dolomiteHourData.hourlySupplyVolumeUSD = ZERO_BD
+  dolomiteHourData.hourlyTradeVolumeUSD = ZERO_BD
+  dolomiteHourData.hourlyVaporizationVolumeUSD = ZERO_BD
+
+  // ## Daily Volume Figures Untracked
+  dolomiteHourData.hourlyAmmSwapVolumeUntracked = ZERO_BD
+
+  // ## Daily Liquidity
+  dolomiteHourData.ammLiquidityUSD = ZERO_BD
+  dolomiteHourData.borrowLiquidityUSD = ZERO_BD
+  dolomiteHourData.supplyLiquidityUSD = ZERO_BD
+
+  // ## Daily Counts
+  dolomiteHourData.hourlyAmmSwapCount = ZERO_BI
+  dolomiteHourData.hourlyLiquidationCount = ZERO_BI
+  dolomiteHourData.hourlyTradeCount = ZERO_BI
+  dolomiteHourData.hourlyVaporizationCount = ZERO_BI
+
+  // ## Running Total Counts
+  dolomiteHourData.totalAllTransactionCount = ZERO_BI
+  dolomiteHourData.totalAmmSwapCount = ZERO_BI
+  dolomiteHourData.totalLiquidationCount = ZERO_BI
+  dolomiteHourData.totalTradeCount = ZERO_BI
+  dolomiteHourData.totalVaporizationCount = ZERO_BI
+
+  return dolomiteHourData
+}
+
 export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
   let factory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
   let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
@@ -91,6 +127,34 @@ export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
   dolomiteDayData.save()
 
   return dolomiteDayData as DolomiteDayData
+}
+
+export function updateDolomiteHourData(event: ethereum.Event): DolomiteHourData {
+  let factory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
+  let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
+  let hourId = getHourId(event.block.timestamp)
+
+  let dolomiteHourData = DolomiteHourData.load(hourId)
+  if (dolomiteHourData === null) {
+    dolomiteHourData = new DolomiteHourData(hourId)
+    setupDolomiteHourData(dolomiteHourData as DolomiteHourData)
+  }
+
+  // ## Daily Liquidity
+  dolomiteHourData.ammLiquidityUSD = factory.ammLiquidityUSD
+  dolomiteHourData.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD
+  dolomiteHourData.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD
+
+  // ## Total Counts
+  dolomiteHourData.totalAllTransactionCount = dolomiteMargin.transactionCount
+  dolomiteHourData.totalAmmSwapCount = factory.transactionCount
+  dolomiteHourData.totalLiquidationCount = dolomiteMargin.liquidationCount
+  dolomiteHourData.totalTradeCount = dolomiteMargin.tradeCount
+  dolomiteHourData.totalVaporizationCount = dolomiteMargin.vaporizationCount
+
+  dolomiteHourData.save()
+
+  return dolomiteHourData as DolomiteHourData
 }
 
 export function updatePairDayData(event: ethereum.Event): AmmPairDayData {
@@ -401,6 +465,7 @@ export function updateTimeDataForBorrow(
   let tokenDayData = TokenDayData.load(`${token.id}-${dayId}`) as TokenDayData
 
   let dolomiteDayData = DolomiteDayData.load(dayId) as DolomiteDayData
+  let dolomiteHourData = DolomiteHourData.load(hourId) as DolomiteHourData
 
   tokenHourData.hourlyBorrowVolumeToken = tokenHourData.hourlyBorrowVolumeToken.plus(borrowAmountToken)
   tokenHourData.hourlyBorrowVolumeUSD = tokenHourData.hourlyBorrowVolumeUSD.plus(borrowAmountUSD)
@@ -412,10 +477,14 @@ export function updateTimeDataForBorrow(
 
   dolomiteDayData.dailyBorrowVolumeUSD = dolomiteDayData.dailyBorrowVolumeUSD.plus(borrowAmountUSD)
   dolomiteDayData.save()
+
+  dolomiteHourData.hourlyBorrowVolumeUSD = dolomiteHourData.hourlyBorrowVolumeUSD.plus(borrowAmountUSD)
+  dolomiteHourData.save()
 }
 
 export function updateTimeDataForTrade(
   dolomiteDayData: DolomiteDayData,
+  dolomiteHourData: DolomiteHourData,
   tokenDayData: TokenDayData,
   tokenHourData: TokenHourData,
   token: Token,
@@ -445,6 +514,9 @@ export function updateTimeDataForTrade(
     // we don't want to double count trade volume, so keep it with the taker token
     dolomiteDayData.dailyTradeVolumeUSD = dolomiteDayData.dailyTradeVolumeUSD.plus(amountUSD)
     dolomiteDayData.dailyTradeCount = dolomiteDayData.dailyTradeCount.plus(ONE_BI)
+
+    dolomiteHourData.hourlyTradeVolumeUSD = dolomiteHourData.hourlyTradeVolumeUSD.plus(amountUSD)
+    dolomiteHourData.hourlyTradeCount = dolomiteHourData.hourlyTradeCount.plus(ONE_BI)
 
     tokenDayData.dailyTradeVolumeToken = tokenDayData.dailyTradeVolumeToken.plus(trade.takerTokenDeltaWei)
     tokenDayData.dailyTradeVolumeUSD = tokenDayData.dailyTradeVolumeUSD.plus(amountUSD)
@@ -485,10 +557,12 @@ export function updateTimeDataForTrade(
   tokenDayData.save()
   tokenHourData.save()
   dolomiteDayData.save()
+  dolomiteHourData.save()
 }
 
 export function updateTimeDataForLiquidation(
   dolomiteDayData: DolomiteDayData,
+  dolomiteHourData: DolomiteHourData,
   tokenDayData: TokenDayData,
   tokenHourData: TokenHourData,
   token: Token,
@@ -519,14 +593,19 @@ export function updateTimeDataForLiquidation(
     dolomiteDayData.dailyLiquidationVolumeUSD = dolomiteDayData.dailyLiquidationVolumeUSD.plus(liquidationVolumeUSD)
     dolomiteDayData.dailyLiquidationCount = dolomiteDayData.dailyLiquidationCount.plus(ONE_BI)
 
+    dolomiteHourData.hourlyLiquidationVolumeUSD = dolomiteHourData.hourlyLiquidationVolumeUSD.plus(liquidationVolumeUSD)
+    dolomiteHourData.hourlyLiquidationCount = dolomiteHourData.hourlyLiquidationCount.plus(ONE_BI)
+
     tokenDayData.save()
     tokenHourData.save()
     dolomiteDayData.save()
+    dolomiteHourData.save()
   }
 }
 
 export function updateTimeDataForVaporization(
   dolomiteDayData: DolomiteDayData,
+  dolomiteHourData: DolomiteHourData,
   tokenDayData: TokenDayData,
   tokenHourData: TokenHourData,
   token: Token,
@@ -557,6 +636,9 @@ export function updateTimeDataForVaporization(
 
     dolomiteDayData.dailyVaporizationVolumeUSD = dolomiteDayData.dailyVaporizationVolumeUSD.plus(vaporizationVolumeUSD)
     dolomiteDayData.dailyVaporizationCount = dolomiteDayData.dailyVaporizationCount.plus(ONE_BI)
+
+    dolomiteHourData.hourlyVaporizationVolumeUSD = dolomiteHourData.hourlyVaporizationVolumeUSD.plus(vaporizationVolumeUSD)
+    dolomiteHourData.hourlyVaporizationCount = dolomiteHourData.hourlyVaporizationCount.plus(ONE_BI)
 
     tokenDayData.save()
     dolomiteDayData.save()

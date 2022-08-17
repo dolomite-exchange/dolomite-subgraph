@@ -413,6 +413,41 @@ type DolomiteDayData @entity {
   totalVaporizationCount: BigInt!
 }
 
+type DolomiteHourData @entity {
+  id: ID! # timestamp rounded to current day by dividing by 86400
+  hourStartUnix: Int!
+
+  # Hourly Figures
+  ## Hourly Volume Figures USD
+  hourlyAmmSwapVolumeUSD: BigDecimal!
+  hourlyBorrowVolumeUSD: BigDecimal!
+  hourlyLiquidationVolumeUSD: BigDecimal!
+  hourlySupplyVolumeUSD: BigDecimal!
+  hourlyTradeVolumeUSD: BigDecimal!
+  hourlyVaporizationVolumeUSD: BigDecimal!
+
+  ## Hourly Volume Figures Untracked
+  hourlyAmmSwapVolumeUntracked: BigDecimal!
+
+  ## Closing liquidity on the hour
+  ammLiquidityUSD: BigDecimal!
+  borrowLiquidityUSD: BigDecimal!
+  supplyLiquidityUSD: BigDecimal!
+
+  ## Hourly Counts
+  hourlyAmmSwapCount: BigInt!
+  hourlyLiquidationCount: BigInt!
+  hourlyTradeCount: BigInt!
+  hourlyVaporizationCount: BigInt!
+
+  ## Running Total Counts
+  totalAllTransactionCount: BigInt!
+  totalAmmSwapCount: BigInt!
+  totalLiquidationCount: BigInt!
+  totalTradeCount: BigInt!
+  totalVaporizationCount: BigInt!
+}
+
 type AmmPairHourData @entity {
   id: ID!
   hourStartUnix: Int! # unix timestamp for start of hour

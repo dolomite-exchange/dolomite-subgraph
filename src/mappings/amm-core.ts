@@ -38,10 +38,11 @@ import {
 } from './pricing'
 import {
   updateDolomiteDayData,
+  updateDolomiteHourData,
   updatePairDayData,
   updatePairHourData,
   updateTokenDayDataForAmmEvent,
-  updateTokenHourDataForAmmEvent
+  updateTokenHourDataForAmmEvent,
 } from './day-updates'
 import {
   ADDRESS_ZERO,
@@ -341,6 +342,7 @@ export function handleMint(event: MintEvent): void {
   updatePairDayData(event)
   updatePairHourData(event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
   updateTokenHourDataForAmmEvent(token0, event)
   updateTokenHourDataForAmmEvent(token1, event)
   updateTokenDayDataForAmmEvent(token0, event)
@@ -405,6 +407,7 @@ export function handleBurn(event: BurnEvent): void {
   updatePairDayData(event)
   updatePairHourData(event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
   updateTokenDayDataForAmmEvent(token0, event)
   updateTokenDayDataForAmmEvent(token1, event)
 }
@@ -506,6 +509,7 @@ export function handleSwap(event: SwapEvent): void {
   let ammPairDayData = updatePairDayData(event)
   let ammPairHourData = updatePairHourData(event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
   let token0HourData = updateTokenHourDataForAmmEvent(token0, event)
   let token1HourData = updateTokenHourDataForAmmEvent(token1, event)
   let token0DayData = updateTokenDayDataForAmmEvent(token0, event)
@@ -516,6 +520,12 @@ export function handleSwap(event: SwapEvent): void {
   dolomiteDayData.dailyAmmSwapVolumeUntracked = dolomiteDayData.dailyAmmSwapVolumeUntracked.plus(derivedAmountUSD)
   dolomiteDayData.dailyAmmSwapCount = dolomiteDayData.dailyAmmSwapCount.plus(ONE_BI)
   dolomiteDayData.save()
+
+  // swap specific updating
+  dolomiteHourData.hourlyAmmSwapVolumeUSD = dolomiteHourData.hourlyAmmSwapVolumeUSD.plus(volumeUSD)
+  dolomiteHourData.hourlyAmmSwapVolumeUntracked = dolomiteHourData.hourlyAmmSwapVolumeUntracked.plus(derivedAmountUSD)
+  dolomiteHourData.hourlyAmmSwapCount = dolomiteHourData.hourlyAmmSwapCount.plus(ONE_BI)
+  dolomiteHourData.save()
 
   // swap specific updating for pair
   ammPairDayData.dailyVolumeToken0 = ammPairDayData.dailyVolumeToken0.plus(amount0Total)
