@@ -1,6 +1,7 @@
 {
   "network": "arbitrum-one",
   "startBlock": "10319209",
+  "borrowPositionProxyAddress": "0x2036e188b5fB51a86E6dCf6744c0215a862567C8",
   "daiAddress": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
   "dolomiteAmmFactoryAddress": "0x79C666093972bDCd77EFB350b2f88b42d0de1394",
   "dolomiteAmmRouterProxyAddress": "0xC47e015830E775EC932BCcE8CFC9452f5D76f4Bd",

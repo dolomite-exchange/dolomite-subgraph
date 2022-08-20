@@ -165,6 +165,28 @@ dataSources:
           handler: handleSetExpiry
         - event: LogExpiryRampTimeSet(uint256)
           handler: handleSetExpiryRampTime
+  - kind: ethereum/contract
+    name: BorrowPositionProxy
+    network: {{network}}
+    source:
+      address: '{{borrowPositionProxyAddress}}'
+      abi: BorrowPositionProxy
+      startBlock: {{startBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      file: ./src/mappings/borrow-position-proxy.ts
+      entities:
+        - BorrowPosition
+      abis:
+        - name: BorrowPositionProxy
+          file: ./abis/borrow-position-proxy.json
+        - name: DolomiteMargin
+          file: ./abis/dolomite-margin.json
+      eventHandlers:
+        - event: BorrowPositionOpen(indexed address,indexed uint256)
+          handler: handleOpenBorrowPosition
 templates:
   - kind: ethereum/contract
     name: AmmPair

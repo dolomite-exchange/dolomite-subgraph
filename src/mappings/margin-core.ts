@@ -55,6 +55,7 @@ import {
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
 import { dataSource } from '@graphprotocol/graph-ts/index'
+import { updateBorrowPositionForBalanceUpdate, updateBorrowPositionForLiquidation } from './borrow-position-helpers'
 
 // noinspection JSUnusedGlobalSymbols,JSUnusedLocalSymbols
 export function handleOperation(event: OperationEvent): void {
@@ -134,7 +135,7 @@ export function handleDeposit(event: DepositEvent): void {
     event.params.update.newPar.sign,
     token,
   )
-  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -176,7 +177,6 @@ export function handleDeposit(event: DepositEvent): void {
 
   marginAccount.save()
   deposit.save()
-  transaction.save()
 
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
@@ -200,7 +200,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
     event.params.update.newPar.sign,
     token,
   )
-  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -229,7 +229,6 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
   marginAccount.save()
   withdrawal.save()
-  transaction.save()
 
   let marketIndex = InterestIndex.load(token.id) as InterestIndex
   let isVirtualTransfer = false
@@ -266,7 +265,7 @@ export function handleTransfer(event: TransferEvent): void {
     event.params.updateOne.newPar.sign,
     token,
   )
-  let marginAccount1 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate1, event.block)
+  let marginAccount1 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate1, event)
 
   let balanceUpdate2 = new BalanceUpdate(
     event.params.accountTwoOwner,
@@ -275,7 +274,7 @@ export function handleTransfer(event: TransferEvent): void {
     event.params.updateTwo.newPar.sign,
     token,
   )
-  let marginAccount2 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate2, event.block)
+  let marginAccount2 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate2, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -308,7 +307,6 @@ export function handleTransfer(event: TransferEvent): void {
   marginAccount1.save()
   marginAccount2.save()
   transfer.save()
-  transaction.save()
 
   let marketIndex = InterestIndex.load(token.id) as InterestIndex
   let isVirtualTransfer = true
@@ -368,7 +366,7 @@ export function handleBuy(event: BuyEvent): void {
     makerToken,
   )
   // Don't do a variable assignment here since it's overwritten below
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountOwner,
@@ -377,7 +375,7 @@ export function handleBuy(event: BuyEvent): void {
     event.params.takerUpdate.newPar.sign,
     takerToken,
   )
-  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -417,7 +415,6 @@ export function handleBuy(event: BuyEvent): void {
 
   marginAccount.save()
   trade.save()
-  transaction.save()
   dolomiteMargin.save()
 
   saveMostRecentTrade(trade)
@@ -499,7 +496,7 @@ export function handleSell(event: SellEvent): void {
     makerToken,
   )
   // Don't do a variable assignment here since it's overwritten below
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountOwner,
@@ -508,7 +505,7 @@ export function handleSell(event: SellEvent): void {
     event.params.takerUpdate.newPar.sign,
     takerToken,
   )
-  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -548,7 +545,6 @@ export function handleSell(event: SellEvent): void {
 
   marginAccount.save()
   trade.save()
-  transaction.save()
   dolomiteMargin.save()
 
   saveMostRecentTrade(trade)
@@ -629,7 +625,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.makerInputUpdate.newPar.sign,
     inputToken,
   )
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.makerAccountOwner,
@@ -638,7 +634,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.makerOutputUpdate.newPar.sign,
     outputToken,
   )
-  let makerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let makerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.takerAccountOwner,
@@ -647,7 +643,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerInputUpdate.newPar.sign,
     inputToken,
   )
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event)
 
   let balanceUpdateFour = new BalanceUpdate(
     event.params.takerAccountOwner,
@@ -656,7 +652,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerOutputUpdate.newPar.sign,
     outputToken,
   )
-  let takerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event.block)
+  let takerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -697,7 +693,6 @@ export function handleTrade(event: TradeEvent): void {
   takerMarginAccount.save()
   makerMarginAccount.save()
   trade.save()
-  transaction.save()
   dolomiteMargin.save()
 
   saveMostRecentTrade(trade)
@@ -820,7 +815,7 @@ export function handleTrade(event: TradeEvent): void {
       ? makerOutputDeltaWeiStruct
       : makerInputDeltaWeiStruct
 
-    handleLiquidatePosition(
+    handleLiquidateMarginPosition(
       marginPosition,
       event,
       heldPrice,
@@ -854,7 +849,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.liquidHeldUpdate.newPar.sign,
     heldToken,
   )
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.liquidAccountOwner,
@@ -863,7 +858,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.liquidOwedUpdate.newPar.sign,
     owedToken,
   )
-  let liquidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let liquidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.solidAccountOwner,
@@ -872,7 +867,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.solidHeldUpdate.newPar.sign,
     heldToken,
   )
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event)
 
   let balanceUpdateFour = new BalanceUpdate(
     event.params.solidAccountOwner,
@@ -881,7 +876,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.solidOwedUpdate.newPar.sign,
     owedToken,
   )
-  let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event.block)
+  let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -1016,11 +1011,10 @@ export function handleLiquidate(event: LiquidationEvent): void {
   liquidMarginAccount.save()
   solidMarginAccount.save()
   liquidation.save()
-  transaction.save()
 
   if (canBeMarginPosition(liquidMarginAccount)) {
     let marginPosition = getOrCreateMarginPosition(event, liquidMarginAccount)
-    handleLiquidatePosition(
+    handleLiquidateMarginPosition(
       marginPosition,
       event,
       heldPriceUSD,
@@ -1035,6 +1029,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
       MarginPositionStatus.Liquidated,
     )
   }
+
+  updateBorrowPositionForLiquidation(liquidMarginAccount, event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -1054,7 +1050,7 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.vaporOwedUpdate.newPar.sign,
     owedToken,
   )
-  let vaporMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  let vaporMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.solidAccountOwner,
@@ -1063,7 +1059,7 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.solidHeldUpdate.newPar.sign,
     heldToken,
   )
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.solidAccountOwner,
@@ -1072,7 +1068,7 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.solidOwedUpdate.newPar.sign,
     owedToken,
   )
-  let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event.block)
+  let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -1188,7 +1184,6 @@ export function handleVaporize(event: VaporizationEvent): void {
   vaporMarginAccount.save()
   solidMarginAccount.save()
   vaporization.save()
-  transaction.save()
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -1205,7 +1200,7 @@ export function handleCall(event: CallEvent): void {
 /**
  * Handles liquidations via the liquidation action and liquidation via expiration
  */
-function handleLiquidatePosition(
+function handleLiquidateMarginPosition(
   marginPosition: MarginPosition,
   event: ethereum.Event,
   heldPrice: BigDecimal,

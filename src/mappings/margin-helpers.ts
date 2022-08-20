@@ -34,6 +34,7 @@ import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from '
 import { getTokenOraclePriceUSD } from './pricing'
 import { updateTimeDataForBorrow } from './day-updates'
 import { updateInterestRate } from './interest-setter'
+import { updateBorrowPositionForBalanceUpdate } from './borrow-position-helpers'
 
 export function getIDForEvent(event: ethereum.Event): string {
   return `${event.transaction.hash.toHexString()}-${event.logIndex.toString()}`
@@ -294,9 +295,9 @@ function handleTotalParChange(
 
 export function handleDolomiteMarginBalanceUpdateForAccount(
   balanceUpdate: BalanceUpdate,
-  block: ethereum.Block
+  event: ethereum.Event
 ): MarginAccount {
-  let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, block)
+  let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, event.block)
   let tokenValue = getOrCreateTokenValue(marginAccount, balanceUpdate.token)
   let token = Token.load(tokenValue.token) as Token
 
@@ -329,6 +330,8 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
   if (!deleteTokenValueIfNecessary(tokenValue)) {
     tokenValue.save()
   }
+
+  updateBorrowPositionForBalanceUpdate(marginAccount, balanceUpdate, event)
 
   return marginAccount
 }

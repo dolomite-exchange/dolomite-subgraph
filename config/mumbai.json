@@ -1,6 +1,7 @@
 {
   "network": "mumbai",
   "startBlock": "24239468",
+  "borrowPositionProxyAddress": "0x0000000000000000000000000000000000000000",
   "daiAddress": "0x8ac8ae0a208bef466512cd26142ac5a3ddb5b99e",
   "dolomiteAmmFactoryAddress": "0x790C61eA35C6480f46EBCFff390e2dB5745B4Dd1",
   "dolomiteAmmRouterProxyAddress": "0x705DD555603dbdf8593Ec9d3176d2ebCa839b8e1",

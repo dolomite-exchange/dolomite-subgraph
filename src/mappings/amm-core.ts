@@ -67,6 +67,7 @@ export function getOrCreateTransaction(event: ethereum.Event): Transaction {
     transaction.intermitentMints = []
     transaction.intermitentBurns = []
     transaction.intermitentSwaps = []
+    transaction.save()
   }
 
   return transaction as Transaction
@@ -218,8 +219,6 @@ export function handleERC20Transfer(event: TransferEvent): void {
     toUserLiquidityPosition.save()
     createLiquiditySnapshot(toUserLiquidityPosition, event)
   }
-
-  transaction.save()
 }
 
 // noinspection JSUnusedGlobalSymbols

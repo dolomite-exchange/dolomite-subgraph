@@ -736,3 +736,19 @@ type MarginPosition @entity {
   closeTransaction: Transaction
   expirationTimestamp: BigInt
 }
+
+type BorrowPosition @entity {
+  id: ID! # Defined as "userAddress-accountNumber"
+  marginAccount: MarginAccount!
+  openTimestamp: BigInt!
+  closeTimestamp: BigInt
+  status: String! # one of OPEN, CLOSED, LIQUIDATED
+
+  openTransaction: Transaction!
+  closeTransaction: Transaction
+
+  # Tokens whose par value are > 0
+  supplyTokens: [Token!]!
+  # Tokens whose par value are < 0
+  borrowTokens: [Token!]!
+}

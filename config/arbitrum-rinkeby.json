@@ -1,6 +1,7 @@
 {
   "network": "arbitrum-rinkeby",
   "startBlock": "11364407",
+  "borrowPositionProxyAddress": "0x04a631F974d93CbECE72d84E9443A6dd9b56316D",
   "daiAddress": "0x362eD516f2E8eEab895043AF976864126BdD9C7b",
   "dolomiteAmmFactoryAddress": "0xf3f88a800779cC0B0858019D2e09757b49abfFe6",
   "dolomiteAmmRouterProxyAddress": "0xb80FFa618A0DE7f5506F4F0B3A98b61C51b1563b",
