@@ -1,0 +1,18 @@
+{
+  "network": "arbitrum-goerli",
+  "startBlock": "500449",
+  "borrowPositionProxyAddress": "0xC6a645a979035D8Aac9B3f56f0589E5CcB3f0AB7",
+  "daiAddress": "0xE65A051E0ae02eB66a11c73B2BA14021B5aadAEE",
+  "dolomiteAmmFactoryAddress": "0xa712182078dD19642C00fB1f49A5D9a2D7283a5b",
+  "dolomiteAmmRouterProxyAddress": "0x7aB43E8b8d662920576a5cB446c816cae9Fcffaf",
+  "dolomiteMarginAddress": "0xb4de6b0Aa8c1187633Ab33a73eF0c840bC9B6D49",
+  "expiryAddress": "0x16Ec03D86cC8B8bb57646b533d6fBda07D992229",
+  "linkAddress": "0x2d3B3F17d6694d5AA643Cb89A82Ac9214a41536d",
+  "maticAddress": "0x0000000000000000000000000000000000000000",
+  "usdcAddress": "0x7317eb743583250739862644cef74B982708eBB4",
+  "wbtcAddress": "0x6fA07522F1dd8D8cb5b400c957418b4bD2C96F80",
+  "wethAddress": "0xC033378c6eEa969C001CE9438973ca4d6460999a",
+  "wethDaiAddress": "0x37C5AbEE256222619d7bAf6891ba86db78159Bd5",
+  "wethUsdcAddress": "0x1503FfD3a68979A990e01D08566CfA50C5A2AaC7",
+  "wethUsdtAddress": ""
+}
