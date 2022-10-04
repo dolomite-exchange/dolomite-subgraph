@@ -555,10 +555,10 @@ export function updateTimeDataForTrade(
   tokenDayData.dailyTradeCount = tokenDayData.dailyTradeCount.plus(ONE_BI)
   tokenHourData.hourlyTradeCount = tokenHourData.hourlyTradeCount.plus(ONE_BI)
 
-  if (tokenDayData.lowPriceUSD.gt(closePriceUSD)) {
+  if (tokenDayData.lowPriceUSD.gt(closePriceUSD) || tokenDayData.lowPriceUSD.equals(ZERO_BD)) {
     tokenDayData.lowPriceUSD = closePriceUSD
   }
-  if (tokenHourData.lowPriceUSD.gt(closePriceUSD)) {
+  if (tokenHourData.lowPriceUSD.gt(closePriceUSD) || tokenHourData.lowPriceUSD.equals(ZERO_BD)) {
     tokenHourData.lowPriceUSD = closePriceUSD
   }
 
