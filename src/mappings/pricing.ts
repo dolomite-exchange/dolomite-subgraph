@@ -34,9 +34,9 @@ import { ProtocolType } from './margin-types'
 
 export function getEthPriceInUSD(): BigDecimal {
   // fetch eth prices for each stablecoin
-  let daiPair = AmmPair.load(DAI_WETH_PAIR) // dai is token0
-  let usdcPair = AmmPair.load(WETH_USDC_ADDRESS) // usdc is token0
-  let usdtPair = AmmPair.load(USDT_WETH_PAIR) // usdt is token1
+  let daiPair = AmmPair.load(DAI_WETH_PAIR)
+  let usdcPair = AmmPair.load(WETH_USDC_ADDRESS)
+  let usdtPair = AmmPair.load(USDT_WETH_PAIR)
 
   let wethAddress = WETH_ADDRESS
 
@@ -45,20 +45,15 @@ export function getEthPriceInUSD(): BigDecimal {
     let daiReserveETH = daiPair.token0 == wethAddress ? daiPair.reserve0 : daiPair.reserve1
     let usdcReserveETH = usdcPair.token0 == wethAddress ? usdcPair.reserve0 : usdcPair.reserve1
     let usdtReserveETH = usdtPair.token0 == wethAddress ? usdtPair.reserve0 : usdtPair.reserve1
-    let totalLiquidityETH = daiReserveETH.plus(usdcReserveETH)
-      .plus(usdtReserveETH)
-
-    let daiReserveStable = daiPair.token0 == wethAddress ? daiPair.reserve1 : daiPair.reserve0
-    let usdcReserveStable = usdcPair.token0 == wethAddress ? usdcPair.reserve1 : usdcPair.reserve0
-    let usdtReserveStable = usdtPair.token0 == wethAddress ? usdtPair.reserve1 : usdtPair.reserve0
+    let totalLiquidityETH = daiReserveETH.plus(usdcReserveETH).plus(usdtReserveETH)
 
     if (totalLiquidityETH.equals(ZERO_BD)) {
       return ZERO_BD
     }
 
-    let daiWeight = daiReserveStable.div(totalLiquidityETH)
-    let usdcWeight = usdcReserveStable.div(totalLiquidityETH)
-    let usdtWeight = usdtReserveStable.div(totalLiquidityETH)
+    let daiWeight = daiReserveETH.div(totalLiquidityETH)
+    let usdcWeight = usdcReserveETH.div(totalLiquidityETH)
+    let usdtWeight = usdtReserveETH.div(totalLiquidityETH)
 
     let daiPrice = daiPair.token0 == wethAddress ? daiPair.token1Price : daiPair.token0Price
     let usdcPrice = usdcPair.token0 == wethAddress ? usdcPair.token1Price : usdcPair.token0Price
