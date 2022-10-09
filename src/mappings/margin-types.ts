@@ -75,21 +75,29 @@ export class BalanceUpdate {
   accountNumber: BigInt
   token: Token
   valuePar: BigDecimal
+  deltaWei: BigDecimal
 
   constructor(
     accountOwner: Address,
     accountNumber: BigInt,
     valuePar: BigInt,
-    sign: boolean,
+    valueParSign: boolean,
+    deltaWei: BigInt,
+    deltaWeiSign: boolean,
     token: Token
   ) {
     this.accountOwner = accountOwner
     this.accountNumber = accountNumber
     this.token = token
-    if (sign) {
+    if (valueParSign) {
       this.valuePar = convertTokenToDecimal(valuePar, token.decimals)
     } else {
       this.valuePar = convertTokenToDecimal(valuePar.neg(), token.decimals)
+    }
+    if (deltaWeiSign) {
+      this.deltaWei = convertTokenToDecimal(deltaWei, token.decimals)
+    } else {
+      this.deltaWei = convertTokenToDecimal(deltaWei.neg(), token.decimals)
     }
   }
 

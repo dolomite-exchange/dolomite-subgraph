@@ -19,6 +19,7 @@ export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
     borrowPosition.openTimestamp = event.block.timestamp
     borrowPosition.openTransaction = getOrCreateTransaction(event).id
     borrowPosition.status = BorrowPositionStatus.Open
+    borrowPosition.amounts = []
     borrowPosition.save()
   }
 }

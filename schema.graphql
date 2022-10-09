@@ -737,6 +737,16 @@ type MarginPosition @entity {
   expirationTimestamp: BigInt
 }
 
+type BorrowPositionAmount @entity {
+  id: ID! # Defined as "userAddress-accountNumber-tokenAddress"
+  token: Token!
+
+  # the summation of all supplies or borrows. This is used for tracking interest accrued. Interest accrued can be
+  # calculated by taking the delta of the `totalAmountWei` from `parToWei(positionPar)`
+  amountWei: BigDecimal!
+  amountPar: BigDecimal!
+}
+
 type BorrowPosition @entity {
   id: ID! # Defined as "userAddress-accountNumber"
   marginAccount: MarginAccount!
@@ -747,8 +757,6 @@ type BorrowPosition @entity {
   openTransaction: Transaction!
   closeTransaction: Transaction
 
-  # Tokens whose par value are > 0
-  supplyTokens: [Token!]!
-  # Tokens whose par value are < 0
-  borrowTokens: [Token!]!
+  # user held amounts for each token in the position. Negative means the value is debt.
+  amounts: [BorrowPositionAmount!]!
 }

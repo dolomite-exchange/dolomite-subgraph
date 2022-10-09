@@ -54,8 +54,7 @@ import {
 } from './margin-helpers'
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
-import { dataSource } from '@graphprotocol/graph-ts/index'
-import { updateBorrowPositionForBalanceUpdate, updateBorrowPositionForLiquidation } from './borrow-position-helpers'
+import { updateBorrowPositionForLiquidation } from './borrow-position-helpers'
 
 // noinspection JSUnusedGlobalSymbols,JSUnusedLocalSymbols
 export function handleOperation(event: OperationEvent): void {
@@ -133,6 +132,8 @@ export function handleDeposit(event: DepositEvent): void {
     event.params.accountNumber,
     event.params.update.newPar.value,
     event.params.update.newPar.sign,
+    event.params.update.deltaWei.value,
+    event.params.update.deltaWei.sign,
     token,
   )
   let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
@@ -198,6 +199,8 @@ export function handleWithdraw(event: WithdrawEvent): void {
     event.params.accountNumber,
     event.params.update.newPar.value,
     event.params.update.newPar.sign,
+    event.params.update.deltaWei.value,
+    event.params.update.deltaWei.sign,
     token,
   )
   let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
@@ -263,6 +266,8 @@ export function handleTransfer(event: TransferEvent): void {
     event.params.accountOneNumber,
     event.params.updateOne.newPar.value,
     event.params.updateOne.newPar.sign,
+    event.params.updateOne.deltaWei.value,
+    event.params.updateOne.deltaWei.sign,
     token,
   )
   let marginAccount1 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate1, event)
@@ -272,6 +277,8 @@ export function handleTransfer(event: TransferEvent): void {
     event.params.accountTwoNumber,
     event.params.updateTwo.newPar.value,
     event.params.updateTwo.newPar.sign,
+    event.params.updateTwo.deltaWei.value,
+    event.params.updateTwo.deltaWei.sign,
     token,
   )
   let marginAccount2 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate2, event)
@@ -363,6 +370,8 @@ export function handleBuy(event: BuyEvent): void {
     event.params.accountNumber,
     event.params.makerUpdate.newPar.value,
     event.params.makerUpdate.newPar.sign,
+    event.params.makerUpdate.deltaWei.value,
+    event.params.makerUpdate.deltaWei.sign,
     makerToken,
   )
   // Don't do a variable assignment here since it's overwritten below
@@ -373,6 +382,8 @@ export function handleBuy(event: BuyEvent): void {
     event.params.accountNumber,
     event.params.takerUpdate.newPar.value,
     event.params.takerUpdate.newPar.sign,
+    event.params.takerUpdate.deltaWei.value,
+    event.params.takerUpdate.deltaWei.sign,
     takerToken,
   )
   let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
@@ -493,6 +504,8 @@ export function handleSell(event: SellEvent): void {
     event.params.accountNumber,
     event.params.makerUpdate.newPar.value,
     event.params.makerUpdate.newPar.sign,
+    event.params.makerUpdate.deltaWei.value,
+    event.params.makerUpdate.deltaWei.sign,
     makerToken,
   )
   // Don't do a variable assignment here since it's overwritten below
@@ -503,6 +516,8 @@ export function handleSell(event: SellEvent): void {
     event.params.accountNumber,
     event.params.takerUpdate.newPar.value,
     event.params.takerUpdate.newPar.sign,
+    event.params.takerUpdate.deltaWei.value,
+    event.params.takerUpdate.deltaWei.sign,
     takerToken,
   )
   let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
@@ -623,6 +638,8 @@ export function handleTrade(event: TradeEvent): void {
     event.params.makerAccountNumber,
     event.params.makerInputUpdate.newPar.value,
     event.params.makerInputUpdate.newPar.sign,
+    event.params.makerInputUpdate.deltaWei.value,
+    event.params.makerInputUpdate.deltaWei.sign,
     inputToken,
   )
   handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
@@ -632,6 +649,8 @@ export function handleTrade(event: TradeEvent): void {
     event.params.makerAccountNumber,
     event.params.makerOutputUpdate.newPar.value,
     event.params.makerOutputUpdate.newPar.sign,
+    event.params.makerOutputUpdate.deltaWei.value,
+    event.params.makerOutputUpdate.deltaWei.sign,
     outputToken,
   )
   let makerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
@@ -641,6 +660,8 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerAccountNumber,
     event.params.takerInputUpdate.newPar.value,
     event.params.takerInputUpdate.newPar.sign,
+    event.params.takerInputUpdate.deltaWei.value,
+    event.params.takerInputUpdate.deltaWei.sign,
     inputToken,
   )
   handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event)
@@ -650,6 +671,8 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerAccountNumber,
     event.params.takerOutputUpdate.newPar.value,
     event.params.takerOutputUpdate.newPar.sign,
+    event.params.takerOutputUpdate.deltaWei.value,
+    event.params.takerOutputUpdate.deltaWei.sign,
     outputToken,
   )
   let takerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event)
@@ -847,6 +870,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.liquidAccountNumber,
     event.params.liquidHeldUpdate.newPar.value,
     event.params.liquidHeldUpdate.newPar.sign,
+    event.params.liquidHeldUpdate.deltaWei.value,
+    event.params.liquidHeldUpdate.deltaWei.sign,
     heldToken,
   )
   handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
@@ -856,6 +881,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.liquidAccountNumber,
     event.params.liquidOwedUpdate.newPar.value,
     event.params.liquidOwedUpdate.newPar.sign,
+    event.params.liquidOwedUpdate.deltaWei.value,
+    event.params.liquidOwedUpdate.deltaWei.sign,
     owedToken,
   )
   let liquidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
@@ -865,6 +892,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.solidAccountNumber,
     event.params.solidHeldUpdate.newPar.value,
     event.params.solidHeldUpdate.newPar.sign,
+    event.params.solidHeldUpdate.deltaWei.value,
+    event.params.solidHeldUpdate.deltaWei.sign,
     heldToken,
   )
   handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event)
@@ -874,6 +903,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.solidAccountNumber,
     event.params.solidOwedUpdate.newPar.value,
     event.params.solidOwedUpdate.newPar.sign,
+    event.params.solidOwedUpdate.deltaWei.value,
+    event.params.solidOwedUpdate.deltaWei.sign,
     owedToken,
   )
   let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event)
@@ -1048,6 +1079,8 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.vaporAccountNumber,
     event.params.vaporOwedUpdate.newPar.value,
     event.params.vaporOwedUpdate.newPar.sign,
+    event.params.vaporOwedUpdate.deltaWei.value,
+    event.params.vaporOwedUpdate.deltaWei.sign,
     owedToken,
   )
   let vaporMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
@@ -1057,6 +1090,8 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.solidAccountNumber,
     event.params.solidHeldUpdate.newPar.value,
     event.params.solidHeldUpdate.newPar.sign,
+    event.params.solidHeldUpdate.deltaWei.value,
+    event.params.solidHeldUpdate.deltaWei.sign,
     heldToken,
   )
   handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
@@ -1066,6 +1101,8 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.solidAccountNumber,
     event.params.solidOwedUpdate.newPar.value,
     event.params.solidOwedUpdate.newPar.sign,
+    event.params.solidOwedUpdate.deltaWei.value,
+    event.params.solidOwedUpdate.deltaWei.sign,
     owedToken,
   )
   let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event)
