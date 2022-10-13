@@ -32,7 +32,7 @@ export function handleNewPair(event: PairCreated): void {
     factory.untrackedAmmVolumeUSD = ZERO_BD
     factory.ammLiquidityUSD = ZERO_BD
     factory.transactionCount = ZERO_BI
-    factory.swapCount = ZERO_BI
+    factory.ammTradeCount = ZERO_BI
 
     // create new bundle
     let bundle = new Bundle('1')

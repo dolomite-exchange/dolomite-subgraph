@@ -11,16 +11,17 @@ import {
   AmmFactory,
   AmmMint,
   AmmPair,
-  AmmSwap,
+  AmmTrade,
   Bundle,
   Token,
-  Transaction
+  Transaction,
+  User
 } from '../types/schema'
 import {
   AmmPair as AmmPairContract,
-  Burn as BurnEvent,
-  Mint as MintEvent,
-  Swap as SwapEvent,
+  Burn as AmmBurnEvent,
+  Mint as AmmMintEvent,
+  Swap as AmmTradeEvent,
   Sync as SyncEvent,
   Transfer as TransferEvent
 } from '../types/templates/AmmPair/AmmPair'
@@ -64,9 +65,9 @@ export function getOrCreateTransaction(event: ethereum.Event): Transaction {
     transaction = new Transaction(transactionID)
     transaction.blockNumber = event.block.number
     transaction.timestamp = event.block.timestamp
-    transaction.intermitentMints = []
-    transaction.intermitentBurns = []
-    transaction.intermitentSwaps = []
+    transaction.intermitentAmmMints = []
+    transaction.intermitentAmmBurns = []
+    transaction.intermitentAmmTrades = []
     transaction.save()
   }
 
@@ -106,7 +107,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
   let transaction = getOrCreateTransaction(event)
 
   // mints
-  let mints = transaction.intermitentMints
+  let mints = transaction.intermitentAmmMints
   if (from.toHexString() == ADDRESS_ZERO) {
     // update total supply
     pair.totalSupply = pair.totalSupply.plus(value)
@@ -114,6 +115,9 @@ export function handleERC20Transfer(event: TransferEvent): void {
 
     // create new mint if no mints so far or if last one is done already
     if (mints.length == 0 || isCompleteMint(mints[mints.length - 1])) {
+      // update factory
+      ammFactory.ammMintCount = ammFactory.ammMintCount.plus(ONE_BI)
+
       let mint = new AmmMint(getAmmEventID(event, mints))
       mint.transaction = transaction.id
       mint.pair = pair.id
@@ -121,10 +125,11 @@ export function handleERC20Transfer(event: TransferEvent): void {
       mint.liquidity = value
       mint.timestamp = transaction.timestamp
       mint.transaction = transaction.id
+      mint.serialId = ammFactory.ammMintCount
       mint.save()
 
       // update mints in transaction
-      transaction.intermitentMints = mints.concat([mint.id])
+      transaction.intermitentAmmMints = mints.concat([mint.id])
 
       // save entities
       transaction.save()
@@ -134,7 +139,10 @@ export function handleERC20Transfer(event: TransferEvent): void {
 
   // case where direct send first on ETH withdrawals
   if (event.params.to.toHexString() == pair.id) {
-    let burns = transaction.intermitentBurns
+    ammFactory.ammBurnCount = ammFactory.ammBurnCount.plus(ONE_BI)
+    ammFactory.save()
+
+    let burns = transaction.intermitentAmmBurns
     let burn = new AmmBurn(getAmmEventID(event, burns))
     burn.transaction = transaction.id
     burn.pair = pair.id
@@ -144,9 +152,10 @@ export function handleERC20Transfer(event: TransferEvent): void {
     burn.sender = event.params.from
     burn.needsComplete = true
     burn.transaction = transaction.id
+    burn.serialId = ammFactory.ammBurnCount
     burn.save()
 
-    transaction.intermitentBurns = burns.concat([burn.id])
+    transaction.intermitentAmmBurns = burns.concat([burn.id])
     transaction.save()
   }
 
@@ -156,13 +165,15 @@ export function handleERC20Transfer(event: TransferEvent): void {
     pair.save()
 
     // this is a new instance of a logical burn
-    let burns = transaction.intermitentBurns
+    let burns = transaction.intermitentAmmBurns
     let burn: AmmBurn
     if (burns.length > 0) {
       let currentBurn = AmmBurn.load(burns[burns.length - 1]) as AmmBurn
       if (currentBurn.needsComplete) {
         burn = currentBurn
       } else {
+        ammFactory.ammBurnCount = ammFactory.ammBurnCount.plus(ONE_BI)
+
         burn = new AmmBurn(getAmmEventID(event, burns))
         burn.transaction = transaction.id
         burn.needsComplete = false
@@ -170,6 +181,10 @@ export function handleERC20Transfer(event: TransferEvent): void {
         burn.liquidity = value
         burn.transaction = transaction.id
         burn.timestamp = transaction.timestamp
+        burn.serialId = ammFactory.ammBurnCount
+
+        ammFactory.ammBurnCount = ammFactory.ammBurnCount.plus(ONE_BI)
+        ammFactory.save()
       }
     } else {
       burn = new AmmBurn(getAmmEventID(event, burns))
@@ -179,6 +194,10 @@ export function handleERC20Transfer(event: TransferEvent): void {
       burn.liquidity = value
       burn.transaction = transaction.id
       burn.timestamp = transaction.timestamp
+      burn.serialId = ammFactory.ammBurnCount
+
+      ammFactory.ammBurnCount = ammFactory.ammBurnCount.plus(ONE_BI)
+      ammFactory.save()
     }
 
     // if this logical burn included a fee mint, account for this
@@ -190,18 +209,18 @@ export function handleERC20Transfer(event: TransferEvent): void {
       store.remove('Mint', mints[mints.length - 1])
 
       // update the transaction
-      transaction.intermitentMints = mints.slice(0, mints.length - 1)
+      transaction.intermitentAmmMints = mints.slice(0, mints.length - 1)
       transaction.save()
     }
     burn.save()
 
     if (burn.needsComplete) {
       // if accessing last one, replace it
-      transaction.intermitentBurns = burns.slice(0, burns.length - 1)
+      transaction.intermitentAmmBurns = burns.slice(0, burns.length - 1)
         .concat([burn.id])
     } else {
       // else add new one
-      transaction.intermitentBurns = burns.concat([burn.id])
+      transaction.intermitentAmmBurns = burns.concat([burn.id])
     }
     transaction.save()
   }
@@ -232,8 +251,8 @@ export function handleSync(event: SyncEvent): void {
   ammFactory.ammLiquidityUSD = ammFactory.ammLiquidityUSD.minus(ammPair.reserveUSD)
 
   // reset token total liquidity amounts
-  token0.ammSwapLiquidity = token0.ammSwapLiquidity.minus(ammPair.reserve0)
-  token1.ammSwapLiquidity = token1.ammSwapLiquidity.minus(ammPair.reserve1)
+  token0.ammTradeLiquidity = token0.ammTradeLiquidity.minus(ammPair.reserve0)
+  token1.ammTradeLiquidity = token1.ammTradeLiquidity.minus(ammPair.reserve1)
 
   ammPair.reserve0 = convertTokenToDecimal(event.params.reserve0, token0.decimals)
   ammPair.reserve1 = convertTokenToDecimal(event.params.reserve1, token1.decimals)
@@ -280,8 +299,8 @@ export function handleSync(event: SyncEvent): void {
   ammFactory.ammLiquidityUSD = ammFactory.ammLiquidityUSD.plus(ammPair.reserveUSD)
 
   // now correctly set liquidity amounts for each token
-  token0.ammSwapLiquidity = token0.ammSwapLiquidity.plus(ammPair.reserve0)
-  token1.ammSwapLiquidity = token1.ammSwapLiquidity.plus(ammPair.reserve1)
+  token0.ammTradeLiquidity = token0.ammTradeLiquidity.plus(ammPair.reserve0)
+  token1.ammTradeLiquidity = token1.ammTradeLiquidity.plus(ammPair.reserve1)
 
   // save entities
   ammPair.save()
@@ -291,9 +310,9 @@ export function handleSync(event: SyncEvent): void {
 }
 
 // noinspection JSUnusedGlobalSymbols
-export function handleMint(event: MintEvent): void {
+export function handleMint(event: AmmMintEvent): void {
   let transaction = Transaction.load(event.transaction.hash.toHexString()) as Transaction
-  let mints = transaction.intermitentMints
+  let mints = transaction.intermitentAmmMints
   let mint = AmmMint.load(mints[mints.length - 1]) as AmmMint
 
   let pair = AmmPair.load(event.address.toHex()) as AmmPair
@@ -349,7 +368,7 @@ export function handleMint(event: MintEvent): void {
 }
 
 // noinspection JSUnusedGlobalSymbols
-export function handleBurn(event: BurnEvent): void {
+export function handleBurn(event: AmmBurnEvent): void {
   let transaction = Transaction.load(event.transaction.hash.toHexString())
 
   // safety check
@@ -357,7 +376,7 @@ export function handleBurn(event: BurnEvent): void {
     return
   }
 
-  let burns = transaction.intermitentBurns
+  let burns = transaction.intermitentAmmBurns
   let burn = AmmBurn.load(burns[burns.length - 1]) as AmmBurn
 
   let ammPair = AmmPair.load(event.address.toHex()) as AmmPair
@@ -412,7 +431,7 @@ export function handleBurn(event: BurnEvent): void {
 }
 
 // noinspection JSUnusedGlobalSymbols
-export function handleSwap(event: SwapEvent): void {
+export function handleSwap(event: AmmTradeEvent): void {
   let pair = AmmPair.load(event.address.toHexString()) as AmmPair
   let token0 = Token.load(pair.token0) as Token
   let token1 = Token.load(pair.token1) as Token
@@ -472,7 +491,7 @@ export function handleSwap(event: SwapEvent): void {
   ammFactory.totalAmmVolumeUSD = ammFactory.totalAmmVolumeUSD.plus(volumeUSD)
   ammFactory.untrackedAmmVolumeUSD = ammFactory.untrackedAmmVolumeUSD.plus(derivedAmountUSD)
   ammFactory.transactionCount = ammFactory.transactionCount.plus(ONE_BI)
-  ammFactory.swapCount = ammFactory.swapCount.plus(ONE_BI)
+  ammFactory.ammTradeCount = ammFactory.ammTradeCount.plus(ONE_BI)
 
   // save entities
   pair.save()
@@ -481,27 +500,27 @@ export function handleSwap(event: SwapEvent): void {
   ammFactory.save()
 
   let transaction = getOrCreateTransaction(event)
-  let swap = new AmmSwap(getAmmEventID(event, transaction.intermitentSwaps))
+  let ammTrade = new AmmTrade(getAmmEventID(event, transaction.intermitentAmmTrades))
 
-  // update swap event
-  swap.transaction = transaction.id
-  swap.pair = pair.id
-  swap.timestamp = transaction.timestamp
-  swap.transaction = transaction.id
-  swap.sender = event.params.sender
-  swap.amount0In = amount0In
-  swap.amount1In = amount1In
-  swap.amount0Out = amount0Out
-  swap.amount1Out = amount1Out
-  swap.to = event.params.to
-  swap.from = event.transaction.from
-  swap.logIndex = event.logIndex
+  ammTrade.transaction = transaction.id
+  ammTrade.pair = pair.id
+  ammTrade.timestamp = transaction.timestamp
+  ammTrade.transaction = transaction.id
+  ammTrade.sender = event.params.sender
+  ammTrade.amount0In = amount0In
+  ammTrade.amount1In = amount1In
+  ammTrade.amount0Out = amount0Out
+  ammTrade.amount1Out = amount1Out
+  ammTrade.to = event.params.to
+  ammTrade.from = event.transaction.from
+  ammTrade.logIndex = event.logIndex
+  ammTrade.serialId = ammFactory.ammTradeCount
   // use the tracked amount if we have it
-  swap.amountUSD = volumeUSD
-  swap.save()
+  ammTrade.amountUSD = volumeUSD
+  ammTrade.save()
 
   // update the transaction
-  transaction.intermitentSwaps = transaction.intermitentSwaps.concat([swap.id])
+  transaction.intermitentAmmTrades = transaction.intermitentAmmTrades.concat([ammTrade.id])
   transaction.save()
 
   // update day entities
@@ -515,15 +534,15 @@ export function handleSwap(event: SwapEvent): void {
   let token1DayData = updateTokenDayDataForAmmEvent(token1, event)
 
   // swap specific updating
-  dolomiteDayData.dailyAmmSwapVolumeUSD = dolomiteDayData.dailyAmmSwapVolumeUSD.plus(volumeUSD)
-  dolomiteDayData.dailyAmmSwapVolumeUntracked = dolomiteDayData.dailyAmmSwapVolumeUntracked.plus(derivedAmountUSD)
-  dolomiteDayData.dailyAmmSwapCount = dolomiteDayData.dailyAmmSwapCount.plus(ONE_BI)
+  dolomiteDayData.dailyAmmTradeVolumeUSD = dolomiteDayData.dailyAmmTradeVolumeUSD.plus(volumeUSD)
+  dolomiteDayData.dailyAmmTradeVolumeUntracked = dolomiteDayData.dailyAmmTradeVolumeUntracked.plus(derivedAmountUSD)
+  dolomiteDayData.dailyAmmTradeCount = dolomiteDayData.dailyAmmTradeCount.plus(ONE_BI)
   dolomiteDayData.save()
 
   // swap specific updating
-  dolomiteHourData.hourlyAmmSwapVolumeUSD = dolomiteHourData.hourlyAmmSwapVolumeUSD.plus(volumeUSD)
-  dolomiteHourData.hourlyAmmSwapVolumeUntracked = dolomiteHourData.hourlyAmmSwapVolumeUntracked.plus(derivedAmountUSD)
-  dolomiteHourData.hourlyAmmSwapCount = dolomiteHourData.hourlyAmmSwapCount.plus(ONE_BI)
+  dolomiteHourData.hourlyAmmTradeVolumeUSD = dolomiteHourData.hourlyAmmTradeVolumeUSD.plus(volumeUSD)
+  dolomiteHourData.hourlyAmmTradeVolumeUntracked = dolomiteHourData.hourlyAmmTradeVolumeUntracked.plus(derivedAmountUSD)
+  dolomiteHourData.hourlyAmmTradeCount = dolomiteHourData.hourlyAmmTradeCount.plus(ONE_BI)
   dolomiteHourData.save()
 
   // swap specific updating for pair
@@ -539,24 +558,28 @@ export function handleSwap(event: SwapEvent): void {
   ammPairHourData.save()
 
   // swap specific updating for token0
-  token0DayData.dailyAmmSwapVolumeToken = token0DayData.dailyAmmSwapVolumeToken.plus(amount0Total)
-  token0DayData.dailyAmmSwapVolumeUSD = token0DayData.dailyAmmSwapVolumeUSD.plus(amount0Total.times(token0PriceUSD))
-  token0DayData.dailyAmmSwapCount = token0DayData.dailyAmmSwapCount.plus(ONE_BI)
+  token0DayData.dailyAmmTradeVolumeToken = token0DayData.dailyAmmTradeVolumeToken.plus(amount0Total)
+  token0DayData.dailyAmmTradeVolumeUSD = token0DayData.dailyAmmTradeVolumeUSD.plus(amount0Total.times(token0PriceUSD))
+  token0DayData.dailyAmmTradeCount = token0DayData.dailyAmmTradeCount.plus(ONE_BI)
   token0DayData.save()
 
-  token0HourData.hourlyAmmSwapVolumeToken = token0HourData.hourlyAmmSwapVolumeToken.plus(amount0Total)
-  token0HourData.hourlyAmmSwapVolumeUSD = token0HourData.hourlyAmmSwapVolumeUSD.plus(amount0Total.times(token0PriceUSD))
-  token0HourData.hourlyAmmSwapCount = token0HourData.hourlyAmmSwapCount.plus(ONE_BI)
+  token0HourData.hourlyAmmTradeVolumeToken = token0HourData.hourlyAmmTradeVolumeToken.plus(amount0Total)
+  token0HourData.hourlyAmmTradeVolumeUSD = token0HourData.hourlyAmmTradeVolumeUSD.plus(amount0Total.times(token0PriceUSD))
+  token0HourData.hourlyAmmTradeCount = token0HourData.hourlyAmmTradeCount.plus(ONE_BI)
   token0HourData.save()
 
   // swap specific updating
-  token1DayData.dailyAmmSwapVolumeToken = token1DayData.dailyAmmSwapVolumeToken.plus(amount1Total)
-  token1DayData.dailyAmmSwapVolumeUSD = token1DayData.dailyAmmSwapVolumeUSD.plus(amount1Total.times(token1PriceUSD))
-  token1DayData.dailyAmmSwapCount = token1DayData.dailyAmmSwapCount.plus(ONE_BI)
+  token1DayData.dailyAmmTradeVolumeToken = token1DayData.dailyAmmTradeVolumeToken.plus(amount1Total)
+  token1DayData.dailyAmmTradeVolumeUSD = token1DayData.dailyAmmTradeVolumeUSD.plus(amount1Total.times(token1PriceUSD))
+  token1DayData.dailyAmmTradeCount = token1DayData.dailyAmmTradeCount.plus(ONE_BI)
   token1DayData.save()
 
-  token1HourData.hourlyAmmSwapVolumeToken = token1HourData.hourlyAmmSwapVolumeToken.plus(amount1Total)
-  token1HourData.hourlyAmmSwapVolumeUSD = token1HourData.hourlyAmmSwapVolumeUSD.plus(amount1Total.times(token1PriceUSD))
-  token1HourData.hourlyAmmSwapCount = token1HourData.hourlyAmmSwapCount.plus(ONE_BI)
+  token1HourData.hourlyAmmTradeVolumeToken = token1HourData.hourlyAmmTradeVolumeToken.plus(amount1Total)
+  token1HourData.hourlyAmmTradeVolumeUSD = token1HourData.hourlyAmmTradeVolumeUSD.plus(amount1Total.times(token1PriceUSD))
+  token1HourData.hourlyAmmTradeCount = token1HourData.hourlyAmmTradeCount.plus(ONE_BI)
   token1HourData.save()
+
+  let user = User.load(ammTrade.to.toHexString()) as User
+  user.totalUsdAmmTraded = user.totalUsdAmmTraded.plus(volumeUSD)
+  user.save()
 }

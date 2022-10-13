@@ -17,6 +17,8 @@ type AmmFactory @entity {
   # transactions
   transactionCount: BigInt!
   ammTradeCount: BigInt!
+  ammMintCount: BigInt!
+  ammBurnCount: BigInt!
 }
 
 type DolomiteMargin @entity {
@@ -206,6 +208,7 @@ type AmmMint @entity {
   id: ID!
   transaction: Transaction!
   timestamp: BigInt! # need this to pull recent txns for specific token or pair
+  serialId: BigInt!
   pair: AmmPair!
 
   # populated from the primary Transfer event
@@ -231,6 +234,7 @@ type AmmBurn @entity {
   transaction: Transaction!
   timestamp: BigInt! # need this to pull recent txns for specific token or pair
   pair: AmmPair!
+  serialId: BigInt!
 
   # populated from the primary Transfer event
   liquidity: BigDecimal!
@@ -268,6 +272,7 @@ type AmmTrade @entity {
   amount1Out: BigDecimal!
   to: Bytes!
   logIndex: BigInt!
+  serialId: BigInt!
 
   # derived info
   amountUSD: BigDecimal!
@@ -419,7 +424,7 @@ type DolomiteHourData @entity {
 
   # Hourly Figures
   ## Hourly Volume Figures USD
-  hourlyAmmSwapVolumeUSD: BigDecimal!
+  hourlyAmmTradeVolumeUSD: BigDecimal!
   hourlyBorrowVolumeUSD: BigDecimal!
   hourlyLiquidationVolumeUSD: BigDecimal!
   hourlySupplyVolumeUSD: BigDecimal!
@@ -427,7 +432,7 @@ type DolomiteHourData @entity {
   hourlyVaporizationVolumeUSD: BigDecimal!
 
   ## Hourly Volume Figures Untracked
-  hourlyAmmSwapVolumeUntracked: BigDecimal!
+  hourlyAmmTradeVolumeUntracked: BigDecimal!
 
   ## Closing liquidity on the hour
   ammLiquidityUSD: BigDecimal!
@@ -435,14 +440,14 @@ type DolomiteHourData @entity {
   supplyLiquidityUSD: BigDecimal!
 
   ## Hourly Counts
-  hourlyAmmSwapCount: BigInt!
+  hourlyAmmTradeCount: BigInt!
   hourlyLiquidationCount: BigInt!
   hourlyTradeCount: BigInt!
   hourlyVaporizationCount: BigInt!
 
   ## Running Total Counts
   totalAllTransactionCount: BigInt!
-  totalAmmSwapCount: BigInt!
+  totalAmmTradeCount: BigInt!
   totalLiquidationCount: BigInt!
   totalTradeCount: BigInt!
   totalVaporizationCount: BigInt!

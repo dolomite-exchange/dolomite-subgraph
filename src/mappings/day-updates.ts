@@ -34,7 +34,7 @@ function setupDolomiteDayData(dolomiteDayData: DolomiteDayData): DolomiteDayData
 
   // # Daily Figures
   // ## Daily Volume Figures USD
-  dolomiteDayData.dailyAmmSwapVolumeUSD = ZERO_BD
+  dolomiteDayData.dailyAmmTradeVolumeUSD = ZERO_BD
   dolomiteDayData.dailyBorrowVolumeUSD = ZERO_BD
   dolomiteDayData.dailyLiquidationVolumeUSD = ZERO_BD
   dolomiteDayData.dailySupplyVolumeUSD = ZERO_BD
@@ -42,7 +42,7 @@ function setupDolomiteDayData(dolomiteDayData: DolomiteDayData): DolomiteDayData
   dolomiteDayData.dailyVaporizationVolumeUSD = ZERO_BD
 
   // ## Daily Volume Figures Untracked
-  dolomiteDayData.dailyAmmSwapVolumeUntracked = ZERO_BD
+  dolomiteDayData.dailyAmmTradeVolumeUntracked = ZERO_BD
 
   // ## Daily Liquidity
   dolomiteDayData.ammLiquidityUSD = ZERO_BD
@@ -50,14 +50,14 @@ function setupDolomiteDayData(dolomiteDayData: DolomiteDayData): DolomiteDayData
   dolomiteDayData.supplyLiquidityUSD = ZERO_BD
 
   // ## Daily Counts
-  dolomiteDayData.dailyAmmSwapCount = ZERO_BI
+  dolomiteDayData.dailyAmmTradeCount = ZERO_BI
   dolomiteDayData.dailyLiquidationCount = ZERO_BI
   dolomiteDayData.dailyTradeCount = ZERO_BI
   dolomiteDayData.dailyVaporizationCount = ZERO_BI
 
   // ## Running Total Counts
   dolomiteDayData.totalAllTransactionCount = ZERO_BI
-  dolomiteDayData.totalAmmSwapCount = ZERO_BI
+  dolomiteDayData.totalAmmTradeCount = ZERO_BI
   dolomiteDayData.totalLiquidationCount = ZERO_BI
   dolomiteDayData.totalTradeCount = ZERO_BI
   dolomiteDayData.totalVaporizationCount = ZERO_BI
@@ -70,7 +70,7 @@ function setupDolomiteHourData(dolomiteHourData: DolomiteHourData): DolomiteHour
 
   // # Daily Figures
   // ## Daily Volume Figures USD
-  dolomiteHourData.hourlyAmmSwapVolumeUSD = ZERO_BD
+  dolomiteHourData.hourlyAmmTradeVolumeUSD = ZERO_BD
   dolomiteHourData.hourlyBorrowVolumeUSD = ZERO_BD
   dolomiteHourData.hourlyLiquidationVolumeUSD = ZERO_BD
   dolomiteHourData.hourlySupplyVolumeUSD = ZERO_BD
@@ -78,7 +78,7 @@ function setupDolomiteHourData(dolomiteHourData: DolomiteHourData): DolomiteHour
   dolomiteHourData.hourlyVaporizationVolumeUSD = ZERO_BD
 
   // ## Daily Volume Figures Untracked
-  dolomiteHourData.hourlyAmmSwapVolumeUntracked = ZERO_BD
+  dolomiteHourData.hourlyAmmTradeVolumeUntracked = ZERO_BD
 
   // ## Daily Liquidity
   dolomiteHourData.ammLiquidityUSD = ZERO_BD
@@ -86,14 +86,14 @@ function setupDolomiteHourData(dolomiteHourData: DolomiteHourData): DolomiteHour
   dolomiteHourData.supplyLiquidityUSD = ZERO_BD
 
   // ## Daily Counts
-  dolomiteHourData.hourlyAmmSwapCount = ZERO_BI
+  dolomiteHourData.hourlyAmmTradeCount = ZERO_BI
   dolomiteHourData.hourlyLiquidationCount = ZERO_BI
   dolomiteHourData.hourlyTradeCount = ZERO_BI
   dolomiteHourData.hourlyVaporizationCount = ZERO_BI
 
   // ## Running Total Counts
   dolomiteHourData.totalAllTransactionCount = ZERO_BI
-  dolomiteHourData.totalAmmSwapCount = ZERO_BI
+  dolomiteHourData.totalAmmTradeCount = ZERO_BI
   dolomiteHourData.totalLiquidationCount = ZERO_BI
   dolomiteHourData.totalTradeCount = ZERO_BI
   dolomiteHourData.totalVaporizationCount = ZERO_BI
@@ -119,7 +119,7 @@ export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
 
   // ## Total Counts
   dolomiteDayData.totalAllTransactionCount = dolomiteMargin.transactionCount
-  dolomiteDayData.totalAmmSwapCount = factory.transactionCount
+  dolomiteDayData.totalAmmTradeCount = factory.transactionCount
   dolomiteDayData.totalLiquidationCount = dolomiteMargin.liquidationCount
   dolomiteDayData.totalTradeCount = dolomiteMargin.tradeCount
   dolomiteDayData.totalVaporizationCount = dolomiteMargin.vaporizationCount
@@ -147,7 +147,7 @@ export function updateDolomiteHourData(event: ethereum.Event): DolomiteHourData 
 
   // ## Total Counts
   dolomiteHourData.totalAllTransactionCount = dolomiteMargin.transactionCount
-  dolomiteHourData.totalAmmSwapCount = factory.transactionCount
+  dolomiteHourData.totalAmmTradeCount = factory.transactionCount
   dolomiteHourData.totalLiquidationCount = dolomiteMargin.liquidationCount
   dolomiteHourData.totalTradeCount = dolomiteMargin.tradeCount
   dolomiteHourData.totalVaporizationCount = dolomiteMargin.vaporizationCount
@@ -224,14 +224,14 @@ function setupTokenHourData(
 
   // # Hourly Figures
   // ## Hourly Volume Figures USD
-  tokenHourData.hourlyAmmSwapVolumeUSD = ZERO_BD
+  tokenHourData.hourlyAmmTradeVolumeUSD = ZERO_BD
   tokenHourData.hourlyBorrowVolumeUSD = ZERO_BD
   tokenHourData.hourlyLiquidationVolumeUSD = ZERO_BD
   tokenHourData.hourlyTradeVolumeUSD = ZERO_BD
   tokenHourData.hourlyVaporizationVolumeUSD = ZERO_BD
 
   // ## Hourly Volume Figures Token
-  tokenHourData.hourlyAmmSwapVolumeToken = ZERO_BD
+  tokenHourData.hourlyAmmTradeVolumeToken = ZERO_BD
   tokenHourData.hourlyBorrowVolumeToken = ZERO_BD
   tokenHourData.hourlyLiquidationVolumeToken = ZERO_BD
   tokenHourData.hourlyTradeVolumeToken = ZERO_BD
@@ -249,7 +249,7 @@ function setupTokenHourData(
 
   // ## Hourly Counts
   tokenHourData.hourlyAllTransactionCount = ZERO_BI
-  tokenHourData.hourlyAmmSwapCount = ZERO_BI
+  tokenHourData.hourlyAmmTradeCount = ZERO_BI
   tokenHourData.hourlyLiquidationCount = ZERO_BI
   tokenHourData.hourlyTradeCount = ZERO_BI
   tokenHourData.hourlyVaporizationCount = ZERO_BI
@@ -301,8 +301,8 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Eve
   }
 
   tokenHourData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
-  tokenHourData.ammLiquidityToken = token.ammSwapLiquidity
-  tokenHourData.ammLiquidityUSD = token.ammSwapLiquidity.times(tokenPriceUSD).truncate(18)
+  tokenHourData.ammLiquidityToken = token.ammTradeLiquidity
+  tokenHourData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(18)
   tokenHourData.hourlyAllTransactionCount = tokenHourData.hourlyAllTransactionCount.plus(ONE_BI)
   tokenHourData.save()
 
@@ -321,14 +321,14 @@ function setupTokenDayData(
 
   // # Daily Figures
   // ## Daily Volume Figures USD
-  tokenDayData.dailyAmmSwapVolumeUSD = ZERO_BD
+  tokenDayData.dailyAmmTradeVolumeUSD = ZERO_BD
   tokenDayData.dailyBorrowVolumeUSD = ZERO_BD
   tokenDayData.dailyLiquidationVolumeUSD = ZERO_BD
   tokenDayData.dailyTradeVolumeUSD = ZERO_BD
   tokenDayData.dailyVaporizationVolumeUSD = ZERO_BD
 
   // ## Daily Volume Figures Token
-  tokenDayData.dailyAmmSwapVolumeToken = ZERO_BD
+  tokenDayData.dailyAmmTradeVolumeToken = ZERO_BD
   tokenDayData.dailyBorrowVolumeToken = ZERO_BD
   tokenDayData.dailyLiquidationVolumeToken = ZERO_BD
   tokenDayData.dailyTradeVolumeToken = ZERO_BD
@@ -346,7 +346,7 @@ function setupTokenDayData(
 
   // ## Daily Counts
   tokenDayData.dailyAllTransactionCount = ZERO_BI
-  tokenDayData.dailyAmmSwapCount = ZERO_BI
+  tokenDayData.dailyAmmTradeCount = ZERO_BI
   tokenDayData.dailyLiquidationCount = ZERO_BI
   tokenDayData.dailyTradeCount = ZERO_BI
   tokenDayData.dailyVaporizationCount = ZERO_BI
@@ -392,8 +392,8 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Even
   }
 
   tokenDayData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
-  tokenDayData.ammLiquidityToken = token.ammSwapLiquidity
-  tokenDayData.ammLiquidityUSD = token.ammSwapLiquidity.times(tokenPriceUSD).truncate(18)
+  tokenDayData.ammLiquidityToken = token.ammTradeLiquidity
+  tokenDayData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(18)
   tokenDayData.dailyAllTransactionCount = tokenDayData.dailyAllTransactionCount.plus(ONE_BI)
   tokenDayData.save()
 
@@ -421,8 +421,8 @@ export function updateAndReturnTokenHourDataForMarginEvent(token: Token, event: 
 
     // Initialize the AMM data
     tokenHourData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
-    tokenHourData.ammLiquidityToken = token.ammSwapLiquidity
-    tokenHourData.ammLiquidityUSD = token.ammSwapLiquidity.times(tokenPriceUSD).truncate(18)
+    tokenHourData.ammLiquidityToken = token.ammTradeLiquidity
+    tokenHourData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(18)
   }
 
   tokenHourData.borrowLiquidityToken = token.borrowLiquidity
@@ -453,8 +453,8 @@ export function updateAndReturnTokenDayDataForMarginEvent(token: Token, event: e
 
     // Initialize the AMM data
     tokenDayData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
-    tokenDayData.ammLiquidityToken = token.ammSwapLiquidity
-    tokenDayData.ammLiquidityUSD = token.ammSwapLiquidity.times(tokenPriceUSD).truncate(18)
+    tokenDayData.ammLiquidityToken = token.ammTradeLiquidity
+    tokenDayData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(18)
   }
 
   tokenDayData.borrowLiquidityToken = token.borrowLiquidity

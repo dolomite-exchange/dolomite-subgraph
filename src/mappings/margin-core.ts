@@ -24,8 +24,9 @@ import {
   TokenMarketIdReverseMap,
   Trade,
   Transfer,
+  User,
   Vaporization,
-  Withdrawal,
+  Withdrawal
 } from '../types/schema'
 import { getOrCreateTransaction } from './amm-core'
 import { convertStructToDecimalAppliedValue, convertTokenToDecimal } from './amm-helpers'
@@ -853,6 +854,14 @@ export function handleTrade(event: TradeEvent): void {
       MarginPositionStatus.Expired,
     )
   }
+
+  let makerUser = User.load(makerMarginAccount.user) as User
+  makerUser.totalUsdTraded = makerUser.totalUsdTraded.plus(trade.amountUSD)
+  makerUser.save()
+
+  let takerUser = User.load(takerMarginAccount.user) as User
+  takerUser.totalUsdTraded = takerUser.totalUsdTraded.plus(trade.amountUSD)
+  takerUser.save()
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -1062,6 +1071,9 @@ export function handleLiquidate(event: LiquidationEvent): void {
   }
 
   updateBorrowPositionForLiquidation(liquidMarginAccount, event)
+
+  let liquidUser = User.load(liquidMarginAccount.user)
+  liquidUser.totalUsdLiquidated = liquidUser.totalUsdLiquidated.plus(liquidation.heldTokenAmountUSD)
 }
 
 // noinspection JSUnusedGlobalSymbols

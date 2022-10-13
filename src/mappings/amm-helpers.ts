@@ -131,7 +131,7 @@ export function initializeToken(token: Token, marketId: BigInt): void {
   token.tradeVolume = ZERO_BD
   token.tradeVolumeUSD = ZERO_BD
   token.untrackedVolumeUSD = ZERO_BD
-  token.ammSwapLiquidity = ZERO_BD
+  token.ammTradeLiquidity = ZERO_BD
   token.borrowLiquidity = ZERO_BD
   token.borrowLiquidityUSD = ZERO_BD
   token.supplyLiquidity = ZERO_BD
@@ -170,7 +170,7 @@ export function createUserIfNecessary(address: Address): void {
     user = new User(address.toHexString())
     user.totalUsdBorrowed = ZERO_BD
     user.totalUsdLiquidated = ZERO_BD
-    user.totalUsdSwapped = ZERO_BD
+    user.totalUsdAmmTraded = ZERO_BD
     user.totalUsdTraded = ZERO_BD
     user.save()
   }
