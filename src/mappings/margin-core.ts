@@ -488,6 +488,11 @@ export function handleBuy(event: BuyEvent): void {
   )
 
   invalidateMarginPosition(marginAccount)
+
+  let user = User.load(marginAccount.user) as User
+  user.totalUsdTraded = user.totalUsdTraded.plus(trade.amountUSD)
+  user.totalTradeCount = user.totalTradeCount.plus(ONE_BI)
+  user.save()
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -622,6 +627,11 @@ export function handleSell(event: SellEvent): void {
   )
 
   invalidateMarginPosition(marginAccount)
+
+  let user = User.load(marginAccount.user) as User
+  user.totalUsdTraded = user.totalUsdTraded.plus(trade.amountUSD)
+  user.totalTradeCount = user.totalTradeCount.plus(ONE_BI)
+  user.save()
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -857,10 +867,12 @@ export function handleTrade(event: TradeEvent): void {
 
   let makerUser = User.load(makerMarginAccount.user) as User
   makerUser.totalUsdTraded = makerUser.totalUsdTraded.plus(trade.amountUSD)
+  makerUser.totalTradeCount = makerUser.totalTradeCount.plus(ONE_BI)
   makerUser.save()
 
   let takerUser = User.load(takerMarginAccount.user) as User
   takerUser.totalUsdTraded = takerUser.totalUsdTraded.plus(trade.amountUSD)
+  takerUser.totalTradeCount = takerUser.totalTradeCount.plus(ONE_BI)
   takerUser.save()
 }
 
@@ -1072,8 +1084,11 @@ export function handleLiquidate(event: LiquidationEvent): void {
 
   updateBorrowPositionForLiquidation(liquidMarginAccount, event)
 
-  let liquidUser = User.load(liquidMarginAccount.user)
-  liquidUser.totalUsdLiquidated = liquidUser.totalUsdLiquidated.plus(liquidation.heldTokenAmountUSD)
+  let liquidUser = User.load(liquidMarginAccount.user) as User
+  // heldTokenAmountUSD in this case is the amount of held collateral seized + the liquidation reward
+  liquidUser.totalUsdCollateralLiquidated = liquidUser.totalUsdCollateralLiquidated.plus(liquidation.heldTokenAmountUSD)
+  liquidUser.totalLiquidationCount = liquidUser.totalLiquidationCount.plus(ONE_BI)
+  liquidUser.save()
 }
 
 // noinspection JSUnusedGlobalSymbols

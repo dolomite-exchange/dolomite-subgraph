@@ -8,10 +8,10 @@ import {
   InterestIndex,
   MarginAccount,
   MarginPosition,
-  Token
+  Token, User,
 } from '../types/schema'
 import { convertStructToDecimalAppliedValue } from './amm-helpers'
-import { ZERO_BD } from './generated/constants'
+import { ONE_BI, ZERO_BD } from './generated/constants'
 import { absBD } from './helpers'
 import {
   getOrCreateMarginAccount,
@@ -157,6 +157,11 @@ function updateMarginPositionForTrade(
 // noinspection JSUnusedGlobalSymbols
 export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
   let marginAccount = getOrCreateMarginAccount(event.params.user, event.params.accountIndex, event.block)
+
+  let user = User.load(event.params.user.toHexString()) as User
+  user.totalMarginPositionCount = user.totalMarginPositionCount.plus(ONE_BI)
+  user.save()
+
   let marginPosition = getOrCreateMarginPosition(event, marginAccount)
   let positionChangeEvent = new PositionChangeEvent(
     event.params.user,

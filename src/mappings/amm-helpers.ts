@@ -169,9 +169,14 @@ export function createUserIfNecessary(address: Address): void {
   if (user === null) {
     user = new User(address.toHexString())
     user.totalUsdBorrowed = ZERO_BD
-    user.totalUsdLiquidated = ZERO_BD
+    user.totalUsdCollateralLiquidated = ZERO_BD
     user.totalUsdAmmTraded = ZERO_BD
     user.totalUsdTraded = ZERO_BD
+
+    user.totalBorrowPositionCount = ZERO_BI
+    user.totalLiquidationCount = ZERO_BI
+    user.totalMarginPositionCount = ZERO_BI
+    user.totalTradeCount = ZERO_BI
     user.save()
   }
 }

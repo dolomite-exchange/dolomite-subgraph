@@ -13,7 +13,7 @@ import {
   MarginPosition,
   MarketRiskInfo, MostRecentTrade,
   Token,
-  TotalPar, Trade, Transfer,
+  TotalPar, Trade, Transfer, User,
 } from '../types/schema'
 import { convertStructToDecimalAppliedValue, createUserIfNecessary } from './amm-helpers'
 import {
@@ -319,6 +319,21 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
     marginAccount.borrowTokens = marginAccount.borrowTokens.concat([balanceUpdate.token.id])
   }
   marginAccount.hasBorrowValue = marginAccount.borrowTokens.length > 0
+
+  if (balanceUpdate.valuePar.lt(ZERO_BD) && balanceUpdate.valuePar.lt(tokenValue.valuePar)) {
+    // The user is borrowing capital. The amount borrowed is capped at `neg(balanceUpdate.valuePar)`
+    let amountParBorrowed = absBD(balanceUpdate.valuePar).minus(tokenValue.valuePar)
+    if (amountParBorrowed.gt(absBD(balanceUpdate.valuePar))) {
+      amountParBorrowed = absBD(balanceUpdate.valuePar)
+    }
+    let interestIndex = InterestIndex.load(token.id) as InterestIndex
+    let priceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
+    let amountBorrowedUSD = parToWei(amountParBorrowed, interestIndex, token.decimals).times(priceUSD).truncate(18)
+
+    let user = User.load(marginAccount.user) as User
+    user.totalUsdBorrowed = user.totalUsdBorrowed.plus(amountBorrowedUSD)
+    user.save()
+  }
 
   tokenValue.valuePar = balanceUpdate.valuePar
   log.info(

@@ -2,9 +2,10 @@ import {
   BorrowPositionOpen as BorrowPositionOpenEvent,
 } from '../types/BorrowPositionProxy/BorrowPositionProxy'
 import { BorrowPositionStatus, getBorrowPositionId } from './borrow-position-helpers'
-import { BorrowPosition } from '../types/schema'
+import { BorrowPosition, User } from '../types/schema'
 import { getOrCreateMarginAccount } from './margin-helpers'
 import { getOrCreateTransaction } from './amm-core'
+import { ONE_BI } from './generated/constants'
 
 
 export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
@@ -13,6 +14,10 @@ export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
   if (borrowPosition == null) {
     let marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountIndex, event.block)
     marginAccount.save()
+
+    let user = User.load(event.params.accountOwner.toHexString()) as User
+    user.totalBorrowPositionCount = user.totalBorrowPositionCount.plus(ONE_BI)
+    user.save()
 
     borrowPosition = new BorrowPosition(id)
     borrowPosition.marginAccount = marginAccount.id

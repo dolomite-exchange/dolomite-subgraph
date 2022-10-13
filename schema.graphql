@@ -152,10 +152,16 @@ type User @entity {
   id: ID! # the user's address
   liquidityPositions: [AmmLiquidityPosition!] @derivedFrom(field: "user")
   marginAccounts: [MarginAccount!] @derivedFrom(field: "user")
+
   totalUsdBorrowed: BigDecimal!
-  totalUsdLiquidated: BigDecimal!
+  totalUsdCollateralLiquidated: BigDecimal!
   totalUsdAmmTraded: BigDecimal!
   totalUsdTraded: BigDecimal!
+
+  totalBorrowPositionCount: BigInt!
+  totalLiquidationCount: BigInt!
+  totalMarginPositionCount: BigInt!
+  totalTradeCount: BigInt!
 }
 
 type AmmLiquidityPosition @entity {
