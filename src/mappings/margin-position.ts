@@ -97,10 +97,7 @@ function updateMarginPositionForTrade(
       .truncate(36)
 
     marginPosition.initialHeldAmountPar = heldTokenNewPar
-    marginPosition.initialHeldAmountWei = heldAmountWei
-    if (marginPosition.heldToken == positionChangeEvent.depositToken.id) {
-      marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(positionChangeEvent.depositWei)
-    }
+    marginPosition.initialHeldAmountWei = heldAmountWei.plus(positionChangeEvent.depositWei)
     marginPosition.initialHeldPrice = absBD(owedAmountWei)
       .div(absBD(heldAmountWei))
       .truncate(36)
@@ -109,8 +106,16 @@ function updateMarginPositionForTrade(
     marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountWei.times(marginPosition.initialHeldPriceUSD)
       .truncate(36)
 
+    // set the margin deposit here and the initial held amount. We do it here, because the `isInitialized` GUARD
+    // STATEMENT executes, disallowing the initial values to be set when the position is opened
     marginPosition.marginDeposit = positionChangeEvent.depositWei
     marginPosition.marginDepositUSD = positionChangeEvent.depositWei.times(marginPosition.initialHeldPriceUSD)
+
+    // Needs to be initialized
+    marginPosition.initialMarginDeposit = positionChangeEvent.depositWei
+    marginPosition.initialMarginDepositUSD = positionChangeEvent.depositWei.times(marginPosition.initialHeldPriceUSD)
+
+    marginPosition.isInitialized = true
   }
 
 

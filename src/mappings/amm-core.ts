@@ -38,10 +38,11 @@ import {
 } from './pricing'
 import {
   updateDolomiteDayData,
+  updateDolomiteHourData,
   updatePairDayData,
   updatePairHourData,
   updateTokenDayDataForAmmEvent,
-  updateTokenHourDataForAmmEvent
+  updateTokenHourDataForAmmEvent,
 } from './day-updates'
 import {
   ADDRESS_ZERO,
@@ -66,6 +67,7 @@ export function getOrCreateTransaction(event: ethereum.Event): Transaction {
     transaction.intermitentMints = []
     transaction.intermitentBurns = []
     transaction.intermitentSwaps = []
+    transaction.save()
   }
 
   return transaction as Transaction
@@ -217,8 +219,6 @@ export function handleERC20Transfer(event: TransferEvent): void {
     toUserLiquidityPosition.save()
     createLiquiditySnapshot(toUserLiquidityPosition, event)
   }
-
-  transaction.save()
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -341,6 +341,7 @@ export function handleMint(event: MintEvent): void {
   updatePairDayData(event)
   updatePairHourData(event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
   updateTokenHourDataForAmmEvent(token0, event)
   updateTokenHourDataForAmmEvent(token1, event)
   updateTokenDayDataForAmmEvent(token0, event)
@@ -405,6 +406,7 @@ export function handleBurn(event: BurnEvent): void {
   updatePairDayData(event)
   updatePairHourData(event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
   updateTokenDayDataForAmmEvent(token0, event)
   updateTokenDayDataForAmmEvent(token1, event)
 }
@@ -506,6 +508,9 @@ export function handleSwap(event: SwapEvent): void {
   let ammPairDayData = updatePairDayData(event)
   let ammPairHourData = updatePairHourData(event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
+  let token0HourData = updateTokenHourDataForAmmEvent(token0, event)
+  let token1HourData = updateTokenHourDataForAmmEvent(token1, event)
   let token0DayData = updateTokenDayDataForAmmEvent(token0, event)
   let token1DayData = updateTokenDayDataForAmmEvent(token1, event)
 
@@ -514,6 +519,12 @@ export function handleSwap(event: SwapEvent): void {
   dolomiteDayData.dailyAmmSwapVolumeUntracked = dolomiteDayData.dailyAmmSwapVolumeUntracked.plus(derivedAmountUSD)
   dolomiteDayData.dailyAmmSwapCount = dolomiteDayData.dailyAmmSwapCount.plus(ONE_BI)
   dolomiteDayData.save()
+
+  // swap specific updating
+  dolomiteHourData.hourlyAmmSwapVolumeUSD = dolomiteHourData.hourlyAmmSwapVolumeUSD.plus(volumeUSD)
+  dolomiteHourData.hourlyAmmSwapVolumeUntracked = dolomiteHourData.hourlyAmmSwapVolumeUntracked.plus(derivedAmountUSD)
+  dolomiteHourData.hourlyAmmSwapCount = dolomiteHourData.hourlyAmmSwapCount.plus(ONE_BI)
+  dolomiteHourData.save()
 
   // swap specific updating for pair
   ammPairDayData.dailyVolumeToken0 = ammPairDayData.dailyVolumeToken0.plus(amount0Total)
@@ -533,9 +544,19 @@ export function handleSwap(event: SwapEvent): void {
   token0DayData.dailyAmmSwapCount = token0DayData.dailyAmmSwapCount.plus(ONE_BI)
   token0DayData.save()
 
+  token0HourData.hourlyAmmSwapVolumeToken = token0HourData.hourlyAmmSwapVolumeToken.plus(amount0Total)
+  token0HourData.hourlyAmmSwapVolumeUSD = token0HourData.hourlyAmmSwapVolumeUSD.plus(amount0Total.times(token0PriceUSD))
+  token0HourData.hourlyAmmSwapCount = token0HourData.hourlyAmmSwapCount.plus(ONE_BI)
+  token0HourData.save()
+
   // swap specific updating
   token1DayData.dailyAmmSwapVolumeToken = token1DayData.dailyAmmSwapVolumeToken.plus(amount1Total)
   token1DayData.dailyAmmSwapVolumeUSD = token1DayData.dailyAmmSwapVolumeUSD.plus(amount1Total.times(token1PriceUSD))
   token1DayData.dailyAmmSwapCount = token1DayData.dailyAmmSwapCount.plus(ONE_BI)
   token1DayData.save()
+
+  token1HourData.hourlyAmmSwapVolumeToken = token1HourData.hourlyAmmSwapVolumeToken.plus(amount1Total)
+  token1HourData.hourlyAmmSwapVolumeUSD = token1HourData.hourlyAmmSwapVolumeUSD.plus(amount1Total.times(token1PriceUSD))
+  token1HourData.hourlyAmmSwapCount = token1HourData.hourlyAmmSwapCount.plus(ONE_BI)
+  token1HourData.save()
 }

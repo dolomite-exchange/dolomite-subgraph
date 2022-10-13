@@ -13,26 +13,28 @@ import {
   MarginPosition,
   MarketRiskInfo, MostRecentTrade,
   Token,
-  TotalPar, Trade,
+  TotalPar, Trade, Transfer,
 } from '../types/schema'
 import { convertStructToDecimalAppliedValue, createUserIfNecessary } from './amm-helpers'
 import {
   DOLOMITE_MARGIN_ADDRESS,
   EXPIRY_ADDRESS,
   FIVE_BD,
+  _100_BI,
   ONE_BD,
   ONE_BI,
   ONE_ETH_BD,
   TEN_BI,
   ZERO_BD,
   ZERO_BI,
-  ZERO_BYTES
+  ZERO_BYTES,
 } from './generated/constants'
 import { absBD } from './helpers'
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
 import { updateTimeDataForBorrow } from './day-updates'
 import { updateInterestRate } from './interest-setter'
+import { updateBorrowPositionForBalanceUpdate } from './borrow-position-helpers'
 
 export function getIDForEvent(event: ethereum.Event): string {
   return `${event.transaction.hash.toHexString()}-${event.logIndex.toString()}`
@@ -99,6 +101,7 @@ export function getOrCreateMarginPosition(event: ethereum.Event, account: Margin
   if (marginPosition === null) {
     marginPosition = new MarginPosition(account.id)
     marginPosition.marginAccount = account.id
+    marginPosition.isInitialized = false
     marginPosition.status = MarginPositionStatus.Open
 
     marginPosition.openTimestamp = event.block.timestamp
@@ -106,6 +109,8 @@ export function getOrCreateMarginPosition(event: ethereum.Event, account: Margin
 
     marginPosition.marginDeposit = ZERO_BD
     marginPosition.marginDepositUSD = ZERO_BD
+    marginPosition.initialMarginDeposit = ZERO_BD
+    marginPosition.initialMarginDepositUSD = ZERO_BD
 
     marginPosition.initialHeldAmountPar = ZERO_BD
     marginPosition.initialHeldAmountWei = ZERO_BD
@@ -140,18 +145,12 @@ export function getOrCreateDolomiteMarginForCall(
     if (protocolType === ProtocolType.Core) {
       let marginProtocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
       let expiryProtocol = DolomiteMarginExpiryCoreProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
+      let riskParams = marginProtocol.getRiskParams()
 
-      let liquidationRatioBD = new BigDecimal(marginProtocol.getMarginRatio().value)
-      let liquidationRewardBD = new BigDecimal(marginProtocol.getLiquidationSpread().value)
-      let earningsRateBD = new BigDecimal(marginProtocol.getEarningsRate().value)
-      let minBorrowedValueBD = new BigDecimal(marginProtocol.getMinBorrowedValue().value)
-      let maxNumberOfMarketsWithBalancesAndDebt: BigInt
-      let result = marginProtocol.try_getMaxNumberOfMarketsWithBalancesAndDebt()
-      if (result.reverted) {
-        maxNumberOfMarketsWithBalancesAndDebt = BigInt.fromI32(32)
-      } else {
-        maxNumberOfMarketsWithBalancesAndDebt = result.value
-      }
+      let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
+      let liquidationRewardBD = new BigDecimal(riskParams.liquidationSpread.value)
+      let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
+      let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
 
       dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
@@ -160,23 +159,17 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
         .div(ONE_ETH_BD)
-      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = maxNumberOfMarketsWithBalancesAndDebt
+      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = riskParams.maxNumberOfMarketsWithBalancesAndDebt
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     } else if (protocolType == ProtocolType.Admin) {
       let marginProtocol = DolomiteMarginAdminProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
       let expiryProtocol = DolomiteMarginExpiryAdminProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
+      let riskParams = marginProtocol.getRiskParams()
 
-      let liquidationRatioBD = new BigDecimal(marginProtocol.getMarginRatio().value)
-      let liquidationRewardBD = new BigDecimal(marginProtocol.getLiquidationSpread().value)
-      let earningsRateBD = new BigDecimal(marginProtocol.getEarningsRate().value)
-      let minBorrowedValueBD = new BigDecimal(marginProtocol.getMinBorrowedValue().value)
-      let maxNumberOfMarketsWithBalancesAndDebt: BigInt
-      let result = marginProtocol.try_getMaxNumberOfMarketsWithBalancesAndDebt()
-      if (result.reverted) {
-        maxNumberOfMarketsWithBalancesAndDebt = BigInt.fromI32(32)
-      } else {
-        maxNumberOfMarketsWithBalancesAndDebt = result.value
-      }
+      let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
+      let liquidationRewardBD = new BigDecimal(riskParams.liquidationSpread.value)
+      let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
+      let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
 
       dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
@@ -185,23 +178,17 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
         .div(ONE_ETH_BD)
-      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = maxNumberOfMarketsWithBalancesAndDebt
+      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = riskParams.maxNumberOfMarketsWithBalancesAndDebt
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     } else {
       let marginProtocol = DolomiteMarginExpiryProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
       let expiryProtocol = DolomiteMarginExpiryExpiryProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
+      let riskParams = marginProtocol.getRiskParams()
 
-      let liquidationRatioBD = new BigDecimal(marginProtocol.getMarginRatio().value)
-      let liquidationRewardBD = new BigDecimal(marginProtocol.getLiquidationSpread().value)
-      let earningsRateBD = new BigDecimal(marginProtocol.getEarningsRate().value)
-      let minBorrowedValueBD = new BigDecimal(marginProtocol.getMinBorrowedValue().value)
-      let maxNumberOfMarketsWithBalancesAndDebt: BigInt
-      let result = marginProtocol.try_getMaxNumberOfMarketsWithBalancesAndDebt()
-      if (result.reverted) {
-        maxNumberOfMarketsWithBalancesAndDebt = BigInt.fromI32(32)
-      } else {
-        maxNumberOfMarketsWithBalancesAndDebt = result.value
-      }
+      let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
+      let liquidationRewardBD = new BigDecimal(riskParams.liquidationSpread.value)
+      let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
+      let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
 
       dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
@@ -210,7 +197,7 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
         .div(ONE_ETH_BD)
-      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = maxNumberOfMarketsWithBalancesAndDebt
+      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = riskParams.maxNumberOfMarketsWithBalancesAndDebt
       dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
     }
 
@@ -253,6 +240,10 @@ export function roundHalfUp(value: BigDecimal, decimals: BigInt): BigDecimal {
     return value.plus(amountToAdd)
       .truncate(decimals.toI32())
   }
+}
+
+export function canBeMarginPosition(marginAccount: MarginAccount): boolean {
+  return marginAccount.accountNumber.ge(_100_BI)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -304,9 +295,9 @@ function handleTotalParChange(
 
 export function handleDolomiteMarginBalanceUpdateForAccount(
   balanceUpdate: BalanceUpdate,
-  block: ethereum.Block
+  event: ethereum.Event
 ): MarginAccount {
-  let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, block)
+  let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, event.block)
   let tokenValue = getOrCreateTokenValue(marginAccount, balanceUpdate.token)
   let token = Token.load(tokenValue.token) as Token
 
@@ -339,6 +330,8 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
   if (!deleteTokenValueIfNecessary(tokenValue)) {
     tokenValue.save()
   }
+
+  updateBorrowPositionForBalanceUpdate(marginAccount, balanceUpdate, event)
 
   return marginAccount
 }
@@ -427,9 +420,9 @@ export function changeProtocolBalance(
 }
 
 export function invalidateMarginPosition(marginAccount: MarginAccount): void {
-  if (marginAccount.accountNumber.notEqual(ZERO_BI)) {
+  if (canBeMarginPosition(marginAccount)) {
     let position = MarginPosition.load(marginAccount.id)
-    if (position !== null) {
+    if (position !== null && position.isInitialized) {
       position.status = MarginPositionStatus.Unknown
       position.save()
     }
@@ -449,4 +442,89 @@ export function getLiquidationSpreadForPair(
   liquidationSpread = liquidationSpread.times(ONE_BD.plus(owedRiskInfo.liquidationRewardPremium))
 
   return liquidationSpread
+}
+
+export function updateMarginPositionForTransfer(
+  marginAccount1: MarginAccount,
+  marginAccount2: MarginAccount,
+  balanceUpdate1: BalanceUpdate,
+  balanceUpdate2: BalanceUpdate,
+  transfer: Transfer,
+  event: ethereum.Event,
+  token: Token,
+  priceUSD: BigDecimal,
+): void {
+  if (marginAccount1.user == marginAccount2.user) {
+    if (
+      (!canBeMarginPosition(marginAccount1) && canBeMarginPosition(marginAccount2)) ||
+      (!canBeMarginPosition(marginAccount2) && canBeMarginPosition(marginAccount1))
+    ) {
+      // The user is transferring from
+      let marginPosition: MarginPosition
+      if (canBeMarginPosition(marginAccount1)) {
+        marginPosition = getOrCreateMarginPosition(event, marginAccount1)
+      } else {
+        marginPosition = getOrCreateMarginPosition(event, marginAccount2)
+      }
+
+      if (!marginPosition.isInitialized) {
+        // GUARD STATEMENT
+        return
+      }
+
+      // This is a real margin position
+      transfer.isTransferForMarginPosition = true
+      transfer.save()
+
+      if (marginPosition.heldToken == token.id) {
+        marginPosition.heldAmountPar = balanceUpdate1.marginAccount == marginPosition.marginAccount
+          ? absBD(balanceUpdate1.valuePar)
+          : absBD(balanceUpdate2.valuePar)
+        if (
+          marginPosition.status == MarginPositionStatus.Open
+          && marginPosition.marginAccount == transfer.toMarginAccount
+          && marginPosition.heldAmountPar.notEqual(ZERO_BD)
+        ) {
+          log.info(
+            "Upsizing margin deposit for position {} with value {}",
+            [marginAccount1.id, transfer.amountDeltaWei.toString()]
+          )
+
+          marginPosition.initialHeldAmountPar = marginPosition.heldAmountPar
+          marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(transfer.amountDeltaWei)
+          marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(transfer.amountUSDDeltaWei).truncate(18)
+          marginPosition.marginDeposit = marginPosition.marginDeposit.plus(transfer.amountDeltaWei)
+          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(18)
+        } else if (
+          marginPosition.status == MarginPositionStatus.Open
+          && marginPosition.marginAccount == transfer.fromMarginAccount
+          && marginPosition.heldAmountPar.notEqual(ZERO_BD)
+        ) {
+          log.info(
+            "Downsizing margin deposit for position {} with value {}",
+            [marginAccount1.id, transfer.amountDeltaWei.toString()]
+          )
+
+          if (transfer.amountDeltaWei.ge(marginPosition.marginDeposit)) {
+            // Don't let the margin deposit go negative. Zero it out instead
+            marginPosition.marginDeposit = ZERO_BD
+          } else {
+            marginPosition.marginDeposit = marginPosition.marginDeposit.minus(transfer.amountDeltaWei)
+            marginPosition.initialHeldAmountPar = marginPosition.heldAmountPar
+            marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.minus(transfer.amountDeltaWei)
+            marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD
+              .minus(transfer.amountDeltaWei.times(marginPosition.initialHeldPriceUSD))
+              .truncate(18)
+          }
+          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(18)
+        }
+      } else if (token.id == marginPosition.owedToken) {
+        marginPosition.owedAmountPar = balanceUpdate1.marginAccount == marginPosition.marginAccount
+          ? absBD(balanceUpdate1.valuePar)
+          : absBD(balanceUpdate2.valuePar)
+      }
+
+      marginPosition.save()
+    }
+  }
 }

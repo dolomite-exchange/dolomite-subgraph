@@ -33,11 +33,12 @@ import {
   updateAndReturnTokenDayDataForMarginEvent,
   updateAndReturnTokenHourDataForMarginEvent,
   updateDolomiteDayData,
+  updateDolomiteHourData,
   updateTimeDataForLiquidation,
   updateTimeDataForTrade,
   updateTimeDataForVaporization,
 } from './day-updates'
-import { _18_BI, EXPIRY_ADDRESS, ONE_BI, ZERO_BD, ZERO_BI } from './generated/constants'
+import { _18_BI, EXPIRY_ADDRESS, ONE_BI, ZERO_BI } from './generated/constants'
 import { absBD } from './helpers'
 import {
   changeProtocolBalance,
@@ -46,14 +47,14 @@ import {
   getOrCreateDolomiteMarginForCall,
   getOrCreateMarginPosition,
   handleDolomiteMarginBalanceUpdateForAccount,
-  invalidateMarginPosition,
+  invalidateMarginPosition, canBeMarginPosition,
   parToWei,
   roundHalfUp,
-  saveMostRecentTrade,
+  saveMostRecentTrade, updateMarginPositionForTransfer,
 } from './margin-helpers'
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
-import { dataSource } from '@graphprotocol/graph-ts/index'
+import { updateBorrowPositionForLiquidation } from './borrow-position-helpers'
 
 // noinspection JSUnusedGlobalSymbols,JSUnusedLocalSymbols
 export function handleOperation(event: OperationEvent): void {
@@ -77,28 +78,6 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
   index.supplyIndex = convertTokenToDecimal(event.params.index.supply, _18_BI)
   index.lastUpdate = event.params.index.lastUpdate
   index.save()
-
-  if (dataSource.network() == 'mumbai') {
-    // On mumbai, the OraclePriceEvent does not exist, so we index the protocol balance change here
-    log.debug('Indexing protocol balance changes for {} network', [dataSource.network()])
-    let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Core)
-    let token = Token.load(tokenAddress) as Token
-
-    changeProtocolBalance(
-      event,
-      token,
-      ValueStruct.fromFields(false, ZERO_BI),
-      ValueStruct.fromFields(false, ZERO_BI),
-      index,
-      true,
-      ProtocolType.Core,
-      dolomiteMargin,
-    )
-
-    updateAndReturnTokenHourDataForMarginEvent(token, event)
-    updateAndReturnTokenDayDataForMarginEvent(token, event)
-    updateDolomiteDayData(event)
-  }
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -136,6 +115,7 @@ export function handleOraclePriceUpdate(event: OraclePriceEvent): void {
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -152,9 +132,11 @@ export function handleDeposit(event: DepositEvent): void {
     event.params.accountNumber,
     event.params.update.newPar.value,
     event.params.update.newPar.sign,
+    event.params.update.deltaWei.value,
+    event.params.update.deltaWei.sign,
     token,
   )
-  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -196,11 +178,11 @@ export function handleDeposit(event: DepositEvent): void {
 
   marginAccount.save()
   deposit.save()
-  transaction.save()
 
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -217,9 +199,11 @@ export function handleWithdraw(event: WithdrawEvent): void {
     event.params.accountNumber,
     event.params.update.newPar.value,
     event.params.update.newPar.sign,
+    event.params.update.deltaWei.value,
+    event.params.update.deltaWei.sign,
     token,
   )
-  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -248,7 +232,6 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
   marginAccount.save()
   withdrawal.save()
-  transaction.save()
 
   let marketIndex = InterestIndex.load(token.id) as InterestIndex
   let isVirtualTransfer = false
@@ -266,6 +249,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -277,23 +261,27 @@ export function handleTransfer(event: TransferEvent): void {
 
   let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.token) as Token
 
-  let balanceUpdateOne = new BalanceUpdate(
+  let balanceUpdate1 = new BalanceUpdate(
     event.params.accountOneOwner,
     event.params.accountOneNumber,
     event.params.updateOne.newPar.value,
     event.params.updateOne.newPar.sign,
+    event.params.updateOne.deltaWei.value,
+    event.params.updateOne.deltaWei.sign,
     token,
   )
-  let marginAccount1 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  let marginAccount1 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate1, event)
 
-  let balanceUpdateTwo = new BalanceUpdate(
+  let balanceUpdate2 = new BalanceUpdate(
     event.params.accountTwoOwner,
     event.params.accountTwoNumber,
     event.params.updateTwo.newPar.value,
     event.params.updateTwo.newPar.sign,
+    event.params.updateTwo.deltaWei.value,
+    event.params.updateTwo.deltaWei.sign,
     token,
   )
-  let marginAccount2 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let marginAccount2 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate2, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -303,6 +291,7 @@ export function handleTransfer(event: TransferEvent): void {
   let transfer = Transfer.load(transferID)
   if (transfer === null) {
     transfer = new Transfer(transferID)
+    transfer.isTransferForMarginPosition = false
     transfer.serialId = dolomiteMargin.actionCount
   }
 
@@ -325,7 +314,6 @@ export function handleTransfer(event: TransferEvent): void {
   marginAccount1.save()
   marginAccount2.save()
   transfer.save()
-  transaction.save()
 
   let marketIndex = InterestIndex.load(token.id) as InterestIndex
   let isVirtualTransfer = true
@@ -350,37 +338,21 @@ export function handleTransfer(event: TransferEvent): void {
     dolomiteMargin,
   )
 
-  if (marginAccount1.user == marginAccount2.user) {
-    if (marginAccount1.accountNumber.equals(ZERO_BI) && marginAccount2.accountNumber.notEqual(ZERO_BI)) {
-      let marginPosition = getOrCreateMarginPosition(event, marginAccount2)
-      if (marginPosition.marginDeposit.notEqual(ZERO_BD)) {
-        // The user is transferring collateral
-        if (marginPosition.status == MarginPositionStatus.Open && marginPosition.heldToken == token.id) {
-          marginPosition.heldAmountPar = balanceUpdateTwo.valuePar
-        } else if (marginPosition.status == MarginPositionStatus.Open && token.id == marginPosition.owedToken) {
-          marginPosition.owedAmountPar = absBD(balanceUpdateOne.valuePar)
-        }
-
-        marginPosition.save()
-      }
-    } else if (marginAccount2.accountNumber.equals(ZERO_BI) && marginAccount1.accountNumber.notEqual(ZERO_BI)) {
-      let marginPosition = getOrCreateMarginPosition(event, marginAccount1)
-      if (marginPosition.marginDeposit.notEqual(ZERO_BD)) {
-        // The user is removing collateral
-        if (token.id == marginPosition.heldToken) {
-          marginPosition.heldAmountPar = balanceUpdateOne.valuePar
-        } else if (marginPosition.status == MarginPositionStatus.Open && token.id == marginPosition.owedToken) {
-          marginPosition.owedAmountPar = absBD(balanceUpdateOne.valuePar)
-        }
-
-        marginPosition.save()
-      }
-    }
-  }
+  updateMarginPositionForTransfer(
+    marginAccount1,
+    marginAccount2,
+    balanceUpdate1,
+    balanceUpdate2,
+    transfer,
+    event,
+    token,
+    priceUSD
+  )
 
   updateAndReturnTokenHourDataForMarginEvent(token, event)
   updateAndReturnTokenDayDataForMarginEvent(token, event)
   updateDolomiteDayData(event)
+  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -398,19 +370,23 @@ export function handleBuy(event: BuyEvent): void {
     event.params.accountNumber,
     event.params.makerUpdate.newPar.value,
     event.params.makerUpdate.newPar.sign,
+    event.params.makerUpdate.deltaWei.value,
+    event.params.makerUpdate.deltaWei.sign,
     makerToken,
   )
   // Don't do a variable assignment here since it's overwritten below
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
     event.params.takerUpdate.newPar.value,
     event.params.takerUpdate.newPar.sign,
+    event.params.takerUpdate.deltaWei.value,
+    event.params.takerUpdate.deltaWei.sign,
     takerToken,
   )
-  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -425,6 +401,7 @@ export function handleBuy(event: BuyEvent): void {
   }
 
   trade.transaction = transaction.id
+  trade.timestamp = transaction.timestamp
   trade.logIndex = event.logIndex
 
   trade.takerMarginAccount = marginAccount.id
@@ -449,7 +426,6 @@ export function handleBuy(event: BuyEvent): void {
 
   marginAccount.save()
   trade.save()
-  transaction.save()
   dolomiteMargin.save()
 
   saveMostRecentTrade(trade)
@@ -482,16 +458,18 @@ export function handleBuy(event: BuyEvent): void {
     dolomiteMargin,
   )
 
-  let inputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(makerToken, event)
-  let outputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
-  let inputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
-  let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
+  let makerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(makerToken, event)
+  let takerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
+  let makerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
+  let takerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
 
   updateTimeDataForTrade(
     dolomiteDayData,
-    inputTokenDayData,
-    inputTokenHourData,
+    dolomiteHourData,
+    makerTokenDayData,
+    makerTokenHourData,
     makerToken,
     takerToken,
     event,
@@ -499,8 +477,9 @@ export function handleBuy(event: BuyEvent): void {
   )
   updateTimeDataForTrade(
     dolomiteDayData,
-    outputTokenDayData,
-    outputTokenHourData,
+    dolomiteHourData,
+    takerTokenDayData,
+    takerTokenHourData,
     takerToken,
     makerToken,
     event,
@@ -525,19 +504,23 @@ export function handleSell(event: SellEvent): void {
     event.params.accountNumber,
     event.params.makerUpdate.newPar.value,
     event.params.makerUpdate.newPar.sign,
+    event.params.makerUpdate.deltaWei.value,
+    event.params.makerUpdate.deltaWei.sign,
     makerToken,
   )
   // Don't do a variable assignment here since it's overwritten below
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
     event.params.takerUpdate.newPar.value,
     event.params.takerUpdate.newPar.sign,
+    event.params.takerUpdate.deltaWei.value,
+    event.params.takerUpdate.deltaWei.sign,
     takerToken,
   )
-  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -552,6 +535,7 @@ export function handleSell(event: SellEvent): void {
   }
 
   trade.transaction = transaction.id
+  trade.timestamp = transaction.timestamp
   trade.logIndex = event.logIndex
 
   trade.takerMarginAccount = marginAccount.id
@@ -576,7 +560,6 @@ export function handleSell(event: SellEvent): void {
 
   marginAccount.save()
   trade.save()
-  transaction.save()
   dolomiteMargin.save()
 
   saveMostRecentTrade(trade)
@@ -609,16 +592,18 @@ export function handleSell(event: SellEvent): void {
     dolomiteMargin,
   )
 
-  let inputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(makerToken, event)
-  let outputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
-  let inputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
-  let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
+  let makerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(makerToken, event)
+  let takerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
+  let makerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
+  let takerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
 
   updateTimeDataForTrade(
     dolomiteDayData,
-    inputTokenDayData,
-    inputTokenHourData,
+    dolomiteHourData,
+    makerTokenDayData,
+    makerTokenHourData,
     makerToken,
     takerToken,
     event,
@@ -626,8 +611,9 @@ export function handleSell(event: SellEvent): void {
   )
   updateTimeDataForTrade(
     dolomiteDayData,
-    outputTokenDayData,
-    outputTokenHourData,
+    dolomiteHourData,
+    takerTokenDayData,
+    takerTokenHourData,
     takerToken,
     makerToken,
     event,
@@ -652,36 +638,44 @@ export function handleTrade(event: TradeEvent): void {
     event.params.makerAccountNumber,
     event.params.makerInputUpdate.newPar.value,
     event.params.makerInputUpdate.newPar.sign,
+    event.params.makerInputUpdate.deltaWei.value,
+    event.params.makerInputUpdate.deltaWei.sign,
     inputToken,
   )
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.makerAccountOwner,
     event.params.makerAccountNumber,
     event.params.makerOutputUpdate.newPar.value,
     event.params.makerOutputUpdate.newPar.sign,
+    event.params.makerOutputUpdate.deltaWei.value,
+    event.params.makerOutputUpdate.deltaWei.sign,
     outputToken,
   )
-  let makerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let makerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.takerAccountOwner,
     event.params.takerAccountNumber,
     event.params.takerInputUpdate.newPar.value,
     event.params.takerInputUpdate.newPar.sign,
+    event.params.takerInputUpdate.deltaWei.value,
+    event.params.takerInputUpdate.deltaWei.sign,
     inputToken,
   )
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event)
 
   let balanceUpdateFour = new BalanceUpdate(
     event.params.takerAccountOwner,
     event.params.takerAccountNumber,
     event.params.takerOutputUpdate.newPar.value,
     event.params.takerOutputUpdate.newPar.sign,
+    event.params.takerOutputUpdate.deltaWei.value,
+    event.params.takerOutputUpdate.deltaWei.sign,
     outputToken,
   )
-  let takerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event.block)
+  let takerMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -696,6 +690,7 @@ export function handleTrade(event: TradeEvent): void {
   }
 
   trade.transaction = transaction.id
+  trade.timestamp = transaction.timestamp
   trade.logIndex = event.logIndex
 
   trade.takerMarginAccount = takerMarginAccount.id
@@ -721,7 +716,6 @@ export function handleTrade(event: TradeEvent): void {
   takerMarginAccount.save()
   makerMarginAccount.save()
   trade.save()
-  transaction.save()
   dolomiteMargin.save()
 
   saveMostRecentTrade(trade)
@@ -785,9 +779,11 @@ export function handleTrade(event: TradeEvent): void {
   let inputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(inputToken, event)
   let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(outputToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
 
   updateTimeDataForTrade(
     dolomiteDayData,
+    dolomiteHourData,
     outputTokenDayData,
     outputTokenHourData,
     outputToken,
@@ -797,6 +793,7 @@ export function handleTrade(event: TradeEvent): void {
   )
   updateTimeDataForTrade(
     dolomiteDayData,
+    dolomiteHourData,
     inputTokenDayData,
     inputTokenHourData,
     inputToken,
@@ -841,7 +838,7 @@ export function handleTrade(event: TradeEvent): void {
       ? makerOutputDeltaWeiStruct
       : makerInputDeltaWeiStruct
 
-    handleLiquidatePosition(
+    handleLiquidateMarginPosition(
       marginPosition,
       event,
       heldPrice,
@@ -873,36 +870,44 @@ export function handleLiquidate(event: LiquidationEvent): void {
     event.params.liquidAccountNumber,
     event.params.liquidHeldUpdate.newPar.value,
     event.params.liquidHeldUpdate.newPar.sign,
+    event.params.liquidHeldUpdate.deltaWei.value,
+    event.params.liquidHeldUpdate.deltaWei.sign,
     heldToken,
   )
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.liquidAccountOwner,
     event.params.liquidAccountNumber,
     event.params.liquidOwedUpdate.newPar.value,
     event.params.liquidOwedUpdate.newPar.sign,
+    event.params.liquidOwedUpdate.deltaWei.value,
+    event.params.liquidOwedUpdate.deltaWei.sign,
     owedToken,
   )
-  let liquidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  let liquidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.solidAccountOwner,
     event.params.solidAccountNumber,
     event.params.solidHeldUpdate.newPar.value,
     event.params.solidHeldUpdate.newPar.sign,
+    event.params.solidHeldUpdate.deltaWei.value,
+    event.params.solidHeldUpdate.deltaWei.sign,
     heldToken,
   )
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event)
 
   let balanceUpdateFour = new BalanceUpdate(
     event.params.solidAccountOwner,
     event.params.solidAccountNumber,
     event.params.solidOwedUpdate.newPar.value,
     event.params.solidOwedUpdate.newPar.sign,
+    event.params.solidOwedUpdate.deltaWei.value,
+    event.params.solidOwedUpdate.deltaWei.sign,
     owedToken,
   )
-  let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event.block)
+  let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateFour, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -1022,9 +1027,11 @@ export function handleLiquidate(event: LiquidationEvent): void {
   let owedTokenHourData = updateAndReturnTokenHourDataForMarginEvent(owedToken, event)
   let owedTokenDayData = updateAndReturnTokenDayDataForMarginEvent(owedToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
 
   updateTimeDataForLiquidation(
     dolomiteDayData,
+    dolomiteHourData,
     owedTokenDayData,
     owedTokenHourData,
     owedToken,
@@ -1035,11 +1042,10 @@ export function handleLiquidate(event: LiquidationEvent): void {
   liquidMarginAccount.save()
   solidMarginAccount.save()
   liquidation.save()
-  transaction.save()
 
-  if (liquidMarginAccount.accountNumber.notEqual(ZERO_BI)) {
+  if (canBeMarginPosition(liquidMarginAccount)) {
     let marginPosition = getOrCreateMarginPosition(event, liquidMarginAccount)
-    handleLiquidatePosition(
+    handleLiquidateMarginPosition(
       marginPosition,
       event,
       heldPriceUSD,
@@ -1054,6 +1060,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
       MarginPositionStatus.Liquidated,
     )
   }
+
+  updateBorrowPositionForLiquidation(liquidMarginAccount, event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -1071,27 +1079,33 @@ export function handleVaporize(event: VaporizationEvent): void {
     event.params.vaporAccountNumber,
     event.params.vaporOwedUpdate.newPar.value,
     event.params.vaporOwedUpdate.newPar.sign,
+    event.params.vaporOwedUpdate.deltaWei.value,
+    event.params.vaporOwedUpdate.deltaWei.sign,
     owedToken,
   )
-  let vaporMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event.block)
+  let vaporMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.solidAccountOwner,
     event.params.solidAccountNumber,
     event.params.solidHeldUpdate.newPar.value,
     event.params.solidHeldUpdate.newPar.sign,
+    event.params.solidHeldUpdate.deltaWei.value,
+    event.params.solidHeldUpdate.deltaWei.sign,
     heldToken,
   )
-  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event.block)
+  handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let balanceUpdateThree = new BalanceUpdate(
     event.params.solidAccountOwner,
     event.params.solidAccountNumber,
     event.params.solidOwedUpdate.newPar.value,
     event.params.solidOwedUpdate.newPar.sign,
+    event.params.solidOwedUpdate.deltaWei.value,
+    event.params.solidOwedUpdate.deltaWei.sign,
     owedToken,
   )
-  let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event.block)
+  let solidMarginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateThree, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -1182,9 +1196,11 @@ export function handleVaporize(event: VaporizationEvent): void {
   let owedTokenHourData = updateAndReturnTokenHourDataForMarginEvent(owedToken, event)
   let owedTokenDayData = updateAndReturnTokenDayDataForMarginEvent(owedToken, event)
   let dolomiteDayData = updateDolomiteDayData(event)
+  let dolomiteHourData = updateDolomiteHourData(event)
 
   updateTimeDataForVaporization(
     dolomiteDayData,
+    dolomiteHourData,
     owedTokenDayData,
     owedTokenHourData,
     owedToken,
@@ -1192,9 +1208,10 @@ export function handleVaporize(event: VaporizationEvent): void {
     vaporization as Vaporization,
   )
 
-  if (vaporMarginAccount.accountNumber.notEqual(ZERO_BI)) {
+  if (canBeMarginPosition(vaporMarginAccount)) {
     let marginPosition = getOrCreateMarginPosition(event, vaporMarginAccount)
     if (marginPosition.status == MarginPositionStatus.Liquidated) {
+      // vaporized accounts must be liquidated before being vaporized
       // when an account is vaporized, the vaporHeldAmount is zero, so it's not updated
       marginPosition.owedAmountPar = convertStructToDecimalAppliedValue(vaporOwedNewParStruct, owedToken.decimals)
       marginPosition.save()
@@ -1204,7 +1221,6 @@ export function handleVaporize(event: VaporizationEvent): void {
   vaporMarginAccount.save()
   solidMarginAccount.save()
   vaporization.save()
-  transaction.save()
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -1221,7 +1237,7 @@ export function handleCall(event: CallEvent): void {
 /**
  * Handles liquidations via the liquidation action and liquidation via expiration
  */
-function handleLiquidatePosition(
+function handleLiquidateMarginPosition(
   marginPosition: MarginPosition,
   event: ethereum.Event,
   heldPrice: BigDecimal,
@@ -1236,9 +1252,11 @@ function handleLiquidatePosition(
   status: string,
 ): void {
   if (
-    marginPosition.status == MarginPositionStatus.Open ||
-    marginPosition.status == MarginPositionStatus.Liquidated ||
-    marginPosition.status == MarginPositionStatus.Expired
+    marginPosition.isInitialized && (
+      marginPosition.status == MarginPositionStatus.Open ||
+      marginPosition.status == MarginPositionStatus.Liquidated ||
+      marginPosition.status == MarginPositionStatus.Expired
+    )
   ) {
     log.info('Setting position {} to {}', [marginPosition.id, status])
     marginPosition.status = status

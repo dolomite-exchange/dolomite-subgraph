@@ -413,6 +413,41 @@ type DolomiteDayData @entity {
   totalVaporizationCount: BigInt!
 }
 
+type DolomiteHourData @entity {
+  id: ID! # timestamp rounded to current day by dividing by 86400
+  hourStartUnix: Int!
+
+  # Hourly Figures
+  ## Hourly Volume Figures USD
+  hourlyAmmSwapVolumeUSD: BigDecimal!
+  hourlyBorrowVolumeUSD: BigDecimal!
+  hourlyLiquidationVolumeUSD: BigDecimal!
+  hourlySupplyVolumeUSD: BigDecimal!
+  hourlyTradeVolumeUSD: BigDecimal!
+  hourlyVaporizationVolumeUSD: BigDecimal!
+
+  ## Hourly Volume Figures Untracked
+  hourlyAmmSwapVolumeUntracked: BigDecimal!
+
+  ## Closing liquidity on the hour
+  ammLiquidityUSD: BigDecimal!
+  borrowLiquidityUSD: BigDecimal!
+  supplyLiquidityUSD: BigDecimal!
+
+  ## Hourly Counts
+  hourlyAmmSwapCount: BigInt!
+  hourlyLiquidationCount: BigInt!
+  hourlyTradeCount: BigInt!
+  hourlyVaporizationCount: BigInt!
+
+  ## Running Total Counts
+  totalAllTransactionCount: BigInt!
+  totalAmmSwapCount: BigInt!
+  totalLiquidationCount: BigInt!
+  totalTradeCount: BigInt!
+  totalVaporizationCount: BigInt!
+}
+
 type AmmPairHourData @entity {
   id: ID!
   hourStartUnix: Int! # unix timestamp for start of hour
@@ -481,6 +516,7 @@ type MarketRiskInfo @entity {
   liquidationRewardPremium: BigDecimal!
   isBorrowingDisabled: Boolean!
   maxWei: BigDecimal!
+  oracle: Bytes! # address of the price oracle
 }
 
 type TotalPar @entity {
@@ -568,7 +604,8 @@ type Transfer @entity {
   fromMarginAccount: MarginAccount!
   toMarginAccount: MarginAccount!
   isSelfTransfer: Boolean!
-  walletsConcatenated: String! # concatenated wallets for querying on being a sender/receiver 0x...F-0x...F
+  walletsConcatenated: String! # concatenated wallets for querying on being a sender/receiver 0x0...F-0x0...F
+  isTransferForMarginPosition: Boolean!
 
   token: Token!
 
@@ -627,6 +664,7 @@ type Trade @entity {
   logIndex: BigInt!
   serialId: BigInt!
   traderAddress: Bytes!
+  timestamp: BigInt!
 
   takerMarginAccount: MarginAccount!
   makerMarginAccount: MarginAccount # NULLABLE
@@ -651,6 +689,7 @@ type MostRecentTrade @entity {
 type MarginPosition @entity {
   id: ID! # Defined as "userAddress-accountNumber"
   marginAccount: MarginAccount!
+  isInitialized: Boolean!
 
   openTimestamp: BigInt!
   openTransaction: Transaction!
@@ -658,6 +697,8 @@ type MarginPosition @entity {
   heldToken: Token
   marginDeposit: BigDecimal!
   marginDepositUSD: BigDecimal!
+  initialMarginDeposit: BigDecimal!
+  initialMarginDepositUSD: BigDecimal!
 
   # set for tracking interest accrued. This number is only set initially
   initialHeldAmountPar: BigDecimal!
@@ -694,4 +735,28 @@ type MarginPosition @entity {
   closeTimestamp: BigInt
   closeTransaction: Transaction
   expirationTimestamp: BigInt
+}
+
+type BorrowPositionAmount @entity {
+  id: ID! # Defined as "userAddress-accountNumber-tokenAddress"
+  token: Token!
+
+  # the summation of all supplies or borrows. This is used for tracking interest accrued. Interest accrued can be
+  # calculated by taking the delta of the `totalAmountWei` from `parToWei(positionPar)`
+  amountWei: BigDecimal!
+  amountPar: BigDecimal!
+}
+
+type BorrowPosition @entity {
+  id: ID! # Defined as "userAddress-accountNumber"
+  marginAccount: MarginAccount!
+  openTimestamp: BigInt!
+  closeTimestamp: BigInt
+  status: String! # one of OPEN, CLOSED, LIQUIDATED
+
+  openTransaction: Transaction!
+  closeTransaction: Transaction
+
+  # user held amounts for each token in the position. Negative means the value is debt.
+  amounts: [BorrowPositionAmount!]!
 }

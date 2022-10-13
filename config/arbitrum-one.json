@@ -1,17 +1,19 @@
 {
   "network": "arbitrum-one",
-  "startBlock": "7354240",
+  "startBlock": "28220369",
+  "borrowPositionProxyAddress": "0x144DcFcd3287cF4372887Ef55225696924A82511",
   "daiAddress": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
-  "dolomiteAmmFactoryAddress": "0x38fF2f1B4f104eE4830D7A46ADbF74Fa7EA07a7E",
-  "dolomiteAmmRouterProxyAddress": "0xE6Ef4f0B2455bAB92ce7cC78E35324ab58917De8",
-  "dolomiteMarginAddress": "0xb7576f7A382B8f446846EF72FEdB6C3E6D699E7e",
-  "expiryAddress": "0x2CE1Af2108f34128eff476D56F930D8E06B30304",
+  "dolomiteAmmFactoryAddress": "0xD99c21C96103F36BC1FA26DD6448af4DA030c1EF",
+  "dolomiteAmmRouterProxyAddress": "0xa09B4a3FC92965E587a94539ee8B35ECf42D5A08",
+  "dolomiteMarginAddress": "0x6Bd780E7fDf01D77e4d475c821f1e7AE05409072",
+  "expiryAddress": "0xDEc1ae3b570ac3c57871BBD7bFeacC807f973Bea",
   "linkAddress": "0xf97f4df75117a78c1A5a0DBb814Af92458539FB4",
   "maticAddress": "0x0000000000000000000000000000000000000000",
   "usdcAddress": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+  "usdtAddress": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
   "wbtcAddress": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
   "wethAddress": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-  "wethDaiAddress": "0xbe2C9DA1A1CC43797b7E177249114BdA8218c1B2",
-  "wethUsdcAddress": "0x3691Fef3c820E4D401c55471C7be635ff5e5441c",
-  "wethUsdtAddress": ""
+  "wethDaiAddress": "0xfb1D1115ac867acB7347638C4cCdA4Ac2122D1Da",
+  "wethUsdcAddress": "0xb77a493A4950cAd1b049E222d62BCE14fF423c6F",
+  "wethUsdtAddress": "0xca7B324e5A15dEd8980beF68A91629FADf2AB171"
 }

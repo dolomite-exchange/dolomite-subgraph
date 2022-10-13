@@ -12,6 +12,7 @@ import {
 
 const MAINNET_NETWORK = 'mainnet'
 const MUMBAI_NETWORK = 'mumbai'
+const ARBITRUM_GOERLI_NETWORK = 'arbitrum-goerli'
 const ARBITRUM_MAINNET_NETWORK = 'arbitrum-one'
 const ARBITRUM_RINKEBY_NETWORK = 'arbitrum-rinkeby'
 
@@ -28,6 +29,8 @@ export const ONE_BD = BigDecimal.fromString('1')
 export const FIVE_BD = BigDecimal.fromString('5')
 
 export const TEN_BI = BigInt.fromI32(10)
+
+export const _100_BI = BigInt.fromI32(100)
 
 export const _18_BI = BigInt.fromI32(18)
 
@@ -52,6 +55,8 @@ export const DAI_ADDRESS = '{{daiAddress}}'.toLowerCase()
 export const LINK_ADDRESS = '{{linkAddress}}'.toLowerCase()
 
 export const USDC_ADDRESS = '{{usdcAddress}}'.toLowerCase()
+
+export const USDT_ADDRESS = '{{usdtAddress}}'.toLowerCase()
 
 export const WBTC_ADDRESS = '{{wbtcAddress}}'.toLowerCase()
 
@@ -93,6 +98,14 @@ WHITELISTS.set(MUMBAI_NETWORK, [
   MATIC_ADDRESS
 ])
 WHITELISTS.set(ARBITRUM_MAINNET_NETWORK, [
+  WETH_ADDRESS,
+  USDC_ADDRESS,
+  USDT_ADDRESS,
+  DAI_ADDRESS,
+  WBTC_ADDRESS,
+  LINK_ADDRESS,
+])
+WHITELISTS.set(ARBITRUM_GOERLI_NETWORK, [
   WETH_ADDRESS,
   USDC_ADDRESS,
   DAI_ADDRESS,
