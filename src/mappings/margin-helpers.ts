@@ -141,6 +141,9 @@ export function getOrCreateDolomiteMarginForCall(
     dolomiteMargin.borrowLiquidityUSD = ZERO_BD
 
     dolomiteMargin.numberOfMarkets = 0
+    dolomiteMargin.userCount = ZERO_BI
+    dolomiteMargin.marginPositionCount = ZERO_BI
+    dolomiteMargin.borrowPositionCount = ZERO_BI
 
     if (protocolType === ProtocolType.Core) {
       let marginProtocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))

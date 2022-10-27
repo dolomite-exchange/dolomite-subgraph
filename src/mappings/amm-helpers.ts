@@ -5,16 +5,16 @@ import {
   AmmLiquidityPosition,
   AmmLiquidityPositionSnapshot,
   AmmPair,
-  Bundle,
+  Bundle, DolomiteMargin,
   Token,
   TokenMarketIdReverseMap,
-  User
+  User,
 } from '../types/schema'
 import { ValueStruct } from './margin-types'
 import {
   ZERO_BI,
   ZERO_BD,
-  ONE_BI
+  ONE_BI, DOLOMITE_MARGIN_ADDRESS,
 } from './generated/constants'
 
 export function exponentToBigDecimal(decimals: BigInt): BigDecimal {
@@ -178,6 +178,10 @@ export function createUserIfNecessary(address: Address): void {
     user.totalMarginPositionCount = ZERO_BI
     user.totalTradeCount = ZERO_BI
     user.save()
+
+    let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
+    dolomiteMargin.userCount = dolomiteMargin.userCount.plus(ONE_BI)
+    dolomiteMargin.save()
   }
 }
 

@@ -74,7 +74,7 @@ function updateBorrowAndSupplyTokens(
 }
 
 function isTokenArraysEmpty(borrowPosition: BorrowPosition): boolean {
-  return borrowPosition.amounts.length == 0
+  return borrowPosition.amounts.length === 0
 }
 
 export function updateBorrowPositionForBalanceUpdate(

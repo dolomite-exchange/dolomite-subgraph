@@ -2,10 +2,10 @@ import {
   BorrowPositionOpen as BorrowPositionOpenEvent,
 } from '../types/BorrowPositionProxy/BorrowPositionProxy'
 import { BorrowPositionStatus, getBorrowPositionId } from './borrow-position-helpers'
-import { BorrowPosition, User } from '../types/schema'
+import { BorrowPosition, DolomiteMargin, User } from '../types/schema'
 import { getOrCreateMarginAccount } from './margin-helpers'
 import { getOrCreateTransaction } from './amm-core'
-import { ONE_BI } from './generated/constants'
+import { DOLOMITE_MARGIN_ADDRESS, ONE_BI } from './generated/constants'
 
 
 export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
@@ -26,5 +26,9 @@ export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
     borrowPosition.status = BorrowPositionStatus.Open
     borrowPosition.amounts = []
     borrowPosition.save()
+
+    let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
+    dolomiteMargin.borrowPositionCount = dolomiteMargin.borrowPositionCount.plus(ONE_BI)
+    dolomiteMargin.save()
   }
 }

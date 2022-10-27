@@ -5,13 +5,14 @@ import {
   MarginPositionOpen as MarginPositionOpenEvent
 } from '../types/DolomiteAmmRouter/DolomiteAmmRouterProxy'
 import {
+  DolomiteMargin,
   InterestIndex,
   MarginAccount,
   MarginPosition,
   Token, User,
 } from '../types/schema'
 import { convertStructToDecimalAppliedValue } from './amm-helpers'
-import { ONE_BI, ZERO_BD } from './generated/constants'
+import { DOLOMITE_MARGIN_ADDRESS, ONE_BI, ZERO_BD } from './generated/constants'
 import { absBD } from './helpers'
 import {
   getOrCreateMarginAccount,
@@ -192,6 +193,10 @@ export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
     outputIndex
   )
   marginPosition.save()
+
+  let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
+  dolomiteMargin.marginPositionCount = dolomiteMargin.marginPositionCount.plus(ONE_BI)
+  dolomiteMargin.save()
 }
 
 // noinspection JSUnusedGlobalSymbols

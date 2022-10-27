@@ -49,6 +49,10 @@ type DolomiteMargin @entity {
   totalTradeVolumeUSD: BigDecimal!
   totalVaporizationVolumeUSD: BigDecimal!
 
+  userCount: BigInt!
+  marginPositionCount: BigInt!
+  borrowPositionCount: BigInt!
+
   actionCount: BigInt!
   liquidationCount: BigInt!
   tradeCount: BigInt!
