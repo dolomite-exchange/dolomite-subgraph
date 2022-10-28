@@ -1,5 +1,5 @@
 import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts'
-import { BorrowPosition, MarginAccount, Token, BorrowPositionAmount } from '../types/schema'
+import { BorrowPosition, BorrowPositionAmount, MarginAccount, Token } from '../types/schema'
 import { BalanceUpdate } from './margin-types'
 import { ZERO_BD } from './generated/constants'
 import { getOrCreateTokenValue } from './margin-helpers'
@@ -73,20 +73,20 @@ function updateBorrowAndSupplyTokens(
   }
 }
 
-function isTokenArraysEmpty(borrowPosition: BorrowPosition): boolean {
-  return borrowPosition.amounts.length === 0
+function isAmountsEmpty(borrowPosition: BorrowPosition): boolean {
+  return borrowPosition.amounts.length == 0
 }
 
 export function updateBorrowPositionForBalanceUpdate(
   marginAccount: MarginAccount,
   balanceUpdate: BalanceUpdate,
-  event: ethereum.Event
+  event: ethereum.Event,
 ): void {
   let id = getBorrowPositionId(Address.fromString(marginAccount.user), marginAccount.accountNumber)
   let position = BorrowPosition.load(id)
   if (position !== null) {
     updateBorrowAndSupplyTokens(position, marginAccount, balanceUpdate)
-    if (position.status === BorrowPositionStatus.Open && isTokenArraysEmpty(position)) {
+    if (position.status == BorrowPositionStatus.Open && isAmountsEmpty(position)) {
       position.status = BorrowPositionStatus.Closed
       position.closeTimestamp = event.block.timestamp
       position.closeTransaction = getOrCreateTransaction(event).id
@@ -97,7 +97,7 @@ export function updateBorrowPositionForBalanceUpdate(
 
 export function updateBorrowPositionForLiquidation(
   marginAccount: MarginAccount,
-  event: ethereum.Event
+  event: ethereum.Event,
 ): void {
   let id = getBorrowPositionId(Address.fromString(marginAccount.user), marginAccount.accountNumber)
   let position = BorrowPosition.load(id)
