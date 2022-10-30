@@ -40,7 +40,7 @@ import {
   ONE_ETH_BD,
   DOLOMITE_MARGIN_ADDRESS,
   ONE_BD,
-  ZERO_BD,
+  ZERO_BD, INTEREST_PRECISION,
 } from './generated/constants'
 import { getOrCreateDolomiteMarginForCall } from './margin-helpers'
 import { ProtocolType } from './margin-types'
@@ -151,9 +151,9 @@ export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
       // THEN multiply by the new earnings rate to get the NEW supply rate
       interestRate.supplyInterestRate = interestRate.supplyInterestRate
         .div(adj)
-        .truncate(18)
+        .truncate(INTEREST_PRECISION)
         .times(dolomiteMargin.earningsRate)
-        .truncate(18)
+        .truncate(INTEREST_PRECISION)
       interestRate.save()
     }
   }

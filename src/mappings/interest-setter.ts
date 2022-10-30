@@ -1,6 +1,6 @@
 import { BigDecimal, BigInt, Bytes, ethereum, log } from '@graphprotocol/graph-ts'
 import { DolomiteMargin, InterestIndex, InterestRate, Token, TotalPar } from '../types/schema'
-import { ONE_ETH_BD, ONE_ETH_BI, SECONDS_IN_YEAR, TEN_BI, ZERO_BI } from './generated/constants'
+import { INTEREST_PRECISION, ONE_ETH_BD, ONE_ETH_BI, SECONDS_IN_YEAR, TEN_BI, ZERO_BI } from './generated/constants'
 import { absBD } from './helpers'
 import { parToWei } from './margin-helpers'
 
@@ -67,14 +67,14 @@ export function updateInterestRate(
     // the interest owed must be scaled down by the supplied we vs owed wei
     interestRate.supplyInterestRate = interestRate.borrowInterestRate
       .times(dolomiteMargin.earningsRate)
-      .truncate(18)
+      .truncate(INTEREST_PRECISION)
       .times(borrowWei)
       .div(supplyWei)
-      .truncate(18)
+      .truncate(INTEREST_PRECISION)
   } else {
     interestRate.supplyInterestRate = interestRate.borrowInterestRate
       .times(dolomiteMargin.earningsRate)
-      .truncate(18)
+      .truncate(INTEREST_PRECISION)
   }
 
   interestRate.save()

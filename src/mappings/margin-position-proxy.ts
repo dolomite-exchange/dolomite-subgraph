@@ -2,29 +2,14 @@ import { ethereum } from '@graphprotocol/graph-ts'
 import { BigDecimal } from '@graphprotocol/graph-ts/index'
 import {
   MarginPositionClose as MarginPositionCloseEvent,
-  MarginPositionOpen as MarginPositionOpenEvent
+  MarginPositionOpen as MarginPositionOpenEvent,
 } from '../types/DolomiteAmmRouter/DolomiteAmmRouterProxy'
-import {
-  DolomiteMargin,
-  InterestIndex,
-  MarginAccount,
-  MarginPosition,
-  Token, User,
-} from '../types/schema'
+import { DolomiteMargin, InterestIndex, MarginAccount, MarginPosition, Token, User } from '../types/schema'
 import { convertStructToDecimalAppliedValue } from './amm-helpers'
-import { DOLOMITE_MARGIN_ADDRESS, ONE_BI, ZERO_BD } from './generated/constants'
+import { DOLOMITE_MARGIN_ADDRESS, ONE_BI, USD_PRECISION, ZERO_BD } from './generated/constants'
 import { absBD } from './helpers'
-import {
-  getOrCreateMarginAccount,
-  getOrCreateMarginPosition,
-  getOrCreateTokenValue
-} from './margin-helpers'
-import {
-  MarginPositionStatus,
-  PositionChangeEvent,
-  ProtocolType,
-  ValueStruct
-} from './margin-types'
+import { getOrCreateMarginAccount, getOrCreateMarginPosition, getOrCreateTokenValue } from './margin-helpers'
+import { MarginPositionStatus, PositionChangeEvent, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
 
 function updateMarginPositionForTrade(
@@ -34,7 +19,7 @@ function updateMarginPositionForTrade(
   inputTokenNewPar: ValueStruct,
   outputTokenNewPar: ValueStruct,
   inputTokenIndex: InterestIndex,
-  outputTokenIndex: InterestIndex
+  outputTokenIndex: InterestIndex,
 ): void {
   let isPositionBeingOpened = false
   if (marginPosition.owedToken === null || marginPosition.heldToken === null) {
@@ -91,7 +76,7 @@ function updateMarginPositionForTrade(
     marginPosition.initialOwedAmountWei = owedAmountWei
     marginPosition.initialOwedPrice = absBD(heldAmountWei)
       .div(absBD(owedAmountWei))
-      .truncate(36)
+      .truncate(18)
     marginPosition.initialOwedPriceUSD = marginPosition.initialOwedPrice.times(heldPriceUSD)
       .truncate(36)
     marginPosition.initialOwedAmountUSD = owedAmountWei.times(marginPosition.initialOwedPriceUSD)
@@ -101,20 +86,22 @@ function updateMarginPositionForTrade(
     marginPosition.initialHeldAmountWei = heldAmountWei.plus(positionChangeEvent.depositWei)
     marginPosition.initialHeldPrice = absBD(owedAmountWei)
       .div(absBD(heldAmountWei))
-      .truncate(36)
+      .truncate(18)
     marginPosition.initialHeldPriceUSD = marginPosition.initialHeldPrice.times(owedPriceUSD)
-      .truncate(36)
+      .truncate(USD_PRECISION)
     marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountWei.times(marginPosition.initialHeldPriceUSD)
-      .truncate(36)
+      .truncate(USD_PRECISION)
 
     // set the margin deposit here and the initial held amount. We do it here, because the `isInitialized` GUARD
     // STATEMENT executes, disallowing the initial values to be set when the position is opened
     marginPosition.marginDeposit = positionChangeEvent.depositWei
     marginPosition.marginDepositUSD = positionChangeEvent.depositWei.times(marginPosition.initialHeldPriceUSD)
+      .truncate(USD_PRECISION)
 
     // Needs to be initialized
     marginPosition.initialMarginDeposit = positionChangeEvent.depositWei
     marginPosition.initialMarginDepositUSD = positionChangeEvent.depositWei.times(marginPosition.initialHeldPriceUSD)
+      .truncate(USD_PRECISION)
 
     marginPosition.isInitialized = true
   }
@@ -131,10 +118,10 @@ function updateMarginPositionForTrade(
     marginPosition.closeHeldPrice = owedAmountWei.div(heldAmountWei)
       .truncate(18)
     marginPosition.closeHeldPriceUSD = (marginPosition.closeHeldPrice as BigDecimal).times(owedPriceUSD)
-      .truncate(36)
+      .truncate(USD_PRECISION)
     marginPosition.closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(heldTokenIndex.supplyIndex)
     marginPosition.closeHeldAmountUSD = (marginPosition.closeHeldAmountWei as BigDecimal).times(heldPriceUSD)
-      .truncate(36)
+      .truncate(USD_PRECISION)
     marginPosition.closeHeldAmountSeized = ZERO_BD
     marginPosition.closeHeldAmountSeizedUSD = ZERO_BD
 
@@ -176,7 +163,7 @@ export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
     true,
     event.block.number,
     event.block.timestamp,
-    event.transaction.hash
+    event.transaction.hash,
   )
   let inputBalanceUpdate = new ValueStruct(event.params.inputBalanceUpdate.newPar)
   let outputBalanceUpdate = new ValueStruct(event.params.outputBalanceUpdate.newPar)
@@ -190,7 +177,7 @@ export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
     inputBalanceUpdate,
     outputBalanceUpdate,
     inputIndex,
-    outputIndex
+    outputIndex,
   )
   marginPosition.save()
 
@@ -215,7 +202,7 @@ export function handleMarginPositionClose(event: MarginPositionCloseEvent): void
     false,
     event.block.number,
     event.block.timestamp,
-    event.transaction.hash
+    event.transaction.hash,
   )
   let inputBalanceUpdate = new ValueStruct(event.params.inputBalanceUpdate.newPar)
   let outputBalanceUpdate = new ValueStruct(event.params.outputBalanceUpdate.newPar)
@@ -229,7 +216,7 @@ export function handleMarginPositionClose(event: MarginPositionCloseEvent): void
     inputBalanceUpdate,
     outputBalanceUpdate,
     inputIndex,
-    outputIndex
+    outputIndex,
   )
   marginPosition.save()
 }

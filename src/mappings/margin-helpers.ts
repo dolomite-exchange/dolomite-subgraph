@@ -27,7 +27,7 @@ import {
   TEN_BI,
   ZERO_BD,
   ZERO_BI,
-  ZERO_BYTES,
+  ZERO_BYTES, USD_PRECISION,
 } from './generated/constants'
 import { absBD } from './helpers'
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
@@ -331,7 +331,7 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
     }
     let interestIndex = InterestIndex.load(token.id) as InterestIndex
     let priceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
-    let amountBorrowedUSD = parToWei(amountParBorrowed, interestIndex, token.decimals).times(priceUSD).truncate(18)
+    let amountBorrowedUSD = parToWei(amountParBorrowed, interestIndex, token.decimals).times(priceUSD).truncate(USD_PRECISION)
 
     let user = User.load(marginAccount.user) as User
     user.totalUsdBorrowed = user.totalUsdBorrowed.plus(amountBorrowedUSD)
@@ -510,9 +510,9 @@ export function updateMarginPositionForTransfer(
 
           marginPosition.initialHeldAmountPar = marginPosition.heldAmountPar
           marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(transfer.amountDeltaWei)
-          marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(transfer.amountUSDDeltaWei).truncate(18)
+          marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(transfer.amountUSDDeltaWei).truncate(USD_PRECISION)
           marginPosition.marginDeposit = marginPosition.marginDeposit.plus(transfer.amountDeltaWei)
-          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(18)
+          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(USD_PRECISION)
         } else if (
           marginPosition.status == MarginPositionStatus.Open
           && marginPosition.marginAccount == transfer.fromMarginAccount
@@ -532,9 +532,9 @@ export function updateMarginPositionForTransfer(
             marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.minus(transfer.amountDeltaWei)
             marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD
               .minus(transfer.amountDeltaWei.times(marginPosition.initialHeldPriceUSD))
-              .truncate(18)
+              .truncate(USD_PRECISION)
           }
-          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(18)
+          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(USD_PRECISION)
         }
       } else if (token.id == marginPosition.owedToken) {
         marginPosition.owedAmountPar = balanceUpdate1.marginAccount == marginPosition.marginAccount

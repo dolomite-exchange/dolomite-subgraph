@@ -39,7 +39,7 @@ import {
   updateTimeDataForTrade,
   updateTimeDataForVaporization,
 } from './day-updates'
-import { _18_BI, EXPIRY_ADDRESS, ONE_BI, ZERO_BI } from './generated/constants'
+import { _18_BI, EXPIRY_ADDRESS, ONE_BI, USD_PRECISION, ZERO_BI } from './generated/constants'
 import { absBD } from './helpers'
 import {
   changeProtocolBalance,
@@ -160,7 +160,7 @@ export function handleDeposit(event: DepositEvent): void {
   deposit.from = event.params.from
   deposit.amountDeltaWei = convertStructToDecimalAppliedValue(deltaWeiStruct, token.decimals)
   deposit.amountUSDDeltaWei = deposit.amountDeltaWei.times(getTokenOraclePriceUSD(token, event, ProtocolType.Core))
-    .truncate(18)
+    .truncate(USD_PRECISION)
 
   dolomiteMargin.totalSupplyVolumeUSD = dolomiteMargin.totalSupplyVolumeUSD.plus(deposit.amountUSDDeltaWei)
 
@@ -229,7 +229,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   withdrawal.amountDeltaWei = convertStructToDecimalAppliedValue(deltaWeiStructAbs, token.decimals)
   withdrawal.amountUSDDeltaWei = withdrawal.amountDeltaWei
     .times(getTokenOraclePriceUSD(token, event, ProtocolType.Core))
-    .truncate(18)
+    .truncate(USD_PRECISION)
 
   marginAccount.save()
   withdrawal.save()
@@ -310,7 +310,7 @@ export function handleTransfer(event: TransferEvent): void {
   let priceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
   transfer.amountDeltaWei = convertStructToDecimalAppliedValue(amountDeltaWei.abs(), token.decimals)
   transfer.amountUSDDeltaWei = transfer.amountDeltaWei.times(priceUSD)
-    .truncate(18)
+    .truncate(USD_PRECISION)
 
   marginAccount1.save()
   marginAccount2.save()
@@ -420,7 +420,7 @@ export function handleBuy(event: BuyEvent): void {
 
   trade.amountUSD = trade.takerTokenDeltaWei
     .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
-    .truncate(18)
+    .truncate(USD_PRECISION)
 
   dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
   dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.plus(ONE_BI)
@@ -559,7 +559,7 @@ export function handleSell(event: SellEvent): void {
 
   trade.amountUSD = trade.takerTokenDeltaWei
     .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
-    .truncate(18)
+    .truncate(USD_PRECISION)
 
   dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
   dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.plus(ONE_BI)
@@ -719,7 +719,7 @@ export function handleTrade(event: TradeEvent): void {
 
   trade.amountUSD = trade.takerTokenDeltaWei
     .times(getTokenOraclePriceUSD(inputToken, event, ProtocolType.Core))
-    .truncate(18)
+    .truncate(USD_PRECISION)
 
   dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
   dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.plus(ONE_BI)
@@ -985,14 +985,14 @@ export function handleLiquidate(event: LiquidationEvent): void {
   )
 
   liquidation.borrowedTokenAmountUSD = liquidation.borrowedTokenAmountDeltaWei.times(owedPriceUSD)
-    .truncate(18)
+    .truncate(USD_PRECISION)
 
   liquidation.heldTokenAmountUSD = liquidation.heldTokenAmountDeltaWei.times(heldPriceUSD)
-    .truncate(18)
+    .truncate(USD_PRECISION)
 
   liquidation.heldTokenLiquidationRewardUSD =
     liquidation.heldTokenLiquidationRewardWei.times(heldPriceUSD)
-      .truncate(18)
+      .truncate(USD_PRECISION)
 
   dolomiteMargin.liquidationCount = dolomiteMargin.liquidationCount.plus(ONE_BI)
   dolomiteMargin.totalLiquidationVolumeUSD =
@@ -1179,7 +1179,7 @@ export function handleVaporize(event: VaporizationEvent): void {
 
   let vaporOwedDeltaWeiBD = convertStructToDecimalAppliedValue(vaporOwedDeltaWeiStruct, owedToken.decimals)
   vaporization.amountUSDVaporized = vaporOwedDeltaWeiBD.times(owedPriceUSD)
-    .truncate(18)
+    .truncate(USD_PRECISION)
 
   dolomiteMargin.vaporizationCount = dolomiteMargin.vaporizationCount.plus(ONE_BI)
   dolomiteMargin.totalVaporizationVolumeUSD = dolomiteMargin.totalVaporizationVolumeUSD.plus(vaporization.amountUSDVaporized)
@@ -1297,7 +1297,7 @@ function handleLiquidateMarginPosition(
       heldToken.decimals,
     )
 
-    let heldTokenLiquidationRewardUSD = heldTokenLiquidationRewardWei.times(heldPrice).truncate(18)
+    let heldTokenLiquidationRewardUSD = heldTokenLiquidationRewardWei.times(heldPrice).truncate(USD_PRECISION)
 
     marginPosition.heldAmountPar = heldNewPar
     marginPosition.owedAmountPar = owedNewPar
@@ -1309,10 +1309,10 @@ function handleLiquidateMarginPosition(
       let closeHeldAmountWei = parToWei(marginPosition.initialHeldAmountPar, heldIndex, heldToken.decimals)
       let closeOwedAmountWei = parToWei(marginPosition.initialOwedAmountPar.neg(), owedIndex, owedToken.decimals).neg()
 
-      marginPosition.closeHeldPrice = heldPriceUSD.div(owedPriceUSD).truncate(18)
-      marginPosition.closeHeldPriceUSD = heldPriceUSD.truncate(36)
+      marginPosition.closeHeldPrice = heldPriceUSD.div(owedPriceUSD).truncate(USD_PRECISION)
+      marginPosition.closeHeldPriceUSD = heldPriceUSD.truncate(USD_PRECISION)
       marginPosition.closeHeldAmountWei = closeHeldAmountWei
-      marginPosition.closeHeldAmountUSD = closeHeldAmountWei.times(heldPriceUSD).truncate(36)
+      marginPosition.closeHeldAmountUSD = closeHeldAmountWei.times(heldPriceUSD).truncate(USD_PRECISION)
 
       let closeHeldAmountSeized = marginPosition.closeHeldAmountSeized
       let closeHeldAmountSeizedUSD = marginPosition.closeHeldAmountSeizedUSD
@@ -1324,10 +1324,10 @@ function handleLiquidateMarginPosition(
         marginPosition.closeHeldAmountSeizedUSD = heldTokenLiquidationRewardUSD
       }
 
-      marginPosition.closeOwedPrice = owedPriceUSD.div(heldPriceUSD).truncate(18)
-      marginPosition.closeOwedPriceUSD = owedPriceUSD.truncate(36)
+      marginPosition.closeOwedPrice = owedPriceUSD.div(heldPriceUSD).truncate(USD_PRECISION)
+      marginPosition.closeOwedPriceUSD = owedPriceUSD.truncate(USD_PRECISION)
       marginPosition.closeOwedAmountWei = closeOwedAmountWei
-      marginPosition.closeOwedAmountUSD = closeOwedAmountWei.times(owedPriceUSD).truncate(36)
+      marginPosition.closeOwedAmountUSD = closeOwedAmountWei.times(owedPriceUSD).truncate(USD_PRECISION)
     }
 
     marginPosition.save()

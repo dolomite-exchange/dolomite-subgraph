@@ -14,7 +14,15 @@ import {
   Vaporization,
 } from '../types/schema'
 import { BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts'
-import { DOLOMITE_MARGIN_ADDRESS, FACTORY_ADDRESS, ONE_BI, WETH_ADDRESS, ZERO_BD, ZERO_BI } from './generated/constants'
+import {
+  DOLOMITE_MARGIN_ADDRESS,
+  FACTORY_ADDRESS,
+  ONE_BI,
+  USD_PRECISION,
+  WETH_ADDRESS,
+  ZERO_BD,
+  ZERO_BI,
+} from './generated/constants'
 import { absBD } from './helpers'
 import { getTokenOraclePriceUSD } from './pricing'
 import { ProtocolType } from './margin-types'
@@ -300,9 +308,9 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Eve
     )
   }
 
-  tokenHourData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
+  tokenHourData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(USD_PRECISION)
   tokenHourData.ammLiquidityToken = token.ammTradeLiquidity
-  tokenHourData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(18)
+  tokenHourData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
   tokenHourData.hourlyAllTransactionCount = tokenHourData.hourlyAllTransactionCount.plus(ONE_BI)
   tokenHourData.save()
 
@@ -391,9 +399,9 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Even
     setupTokenDayData(tokenDayData as TokenDayData, BigInt.fromString(dayId).toI32(), token, event, ProtocolType.Amm)
   }
 
-  tokenDayData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
+  tokenDayData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(USD_PRECISION)
   tokenDayData.ammLiquidityToken = token.ammTradeLiquidity
-  tokenDayData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(18)
+  tokenDayData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
   tokenDayData.dailyAllTransactionCount = tokenDayData.dailyAllTransactionCount.plus(ONE_BI)
   tokenDayData.save()
 
@@ -420,9 +428,9 @@ export function updateAndReturnTokenHourDataForMarginEvent(token: Token, event: 
     let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
 
     // Initialize the AMM data
-    tokenHourData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
+    tokenHourData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(USD_PRECISION)
     tokenHourData.ammLiquidityToken = token.ammTradeLiquidity
-    tokenHourData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(18)
+    tokenHourData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
   }
 
   tokenHourData.borrowLiquidityToken = token.borrowLiquidity
@@ -452,9 +460,9 @@ export function updateAndReturnTokenDayDataForMarginEvent(token: Token, event: e
     let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
 
     // Initialize the AMM data
-    tokenDayData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(18)
+    tokenDayData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(USD_PRECISION)
     tokenDayData.ammLiquidityToken = token.ammTradeLiquidity
-    tokenDayData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(18)
+    tokenDayData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
   }
 
   tokenDayData.borrowLiquidityToken = token.borrowLiquidity
@@ -527,7 +535,7 @@ export function updateTimeDataForTrade(
   // IE: BUY 4 ETH @ $300 --> outputDeltaWei = $1200; inputDeltaWei = 4 ETH; takerToken = USD; makerToken = ETH
   // IE: SELL 4 ETH @ $300 --> outputDeltaWei = 4 ETH; inputDeltaWei = $1200; takerToken = ETH; makerToken = USD
   if (trade.takerToken == token.id) {
-    let amountUSD = trade.takerTokenDeltaWei.times(oraclePriceUSD).truncate(18)
+    let amountUSD = trade.takerTokenDeltaWei.times(oraclePriceUSD).truncate(USD_PRECISION)
 
     // we don't want to double count trade volume, so keep it with the taker token
     dolomiteDayData.dailyTradeVolumeUSD = dolomiteDayData.dailyTradeVolumeUSD.plus(amountUSD)
@@ -543,7 +551,7 @@ export function updateTimeDataForTrade(
     tokenHourData.hourlyTradeVolumeUSD = tokenHourData.hourlyTradeVolumeUSD.plus(amountUSD)
   } else {
     // trade.makerToken == token.id
-    let amountUSD = trade.makerTokenDeltaWei.times(oraclePriceUSD).truncate(18)
+    let amountUSD = trade.makerTokenDeltaWei.times(oraclePriceUSD).truncate(USD_PRECISION)
 
     tokenDayData.dailyTradeVolumeToken = tokenDayData.dailyTradeVolumeToken.plus(trade.makerTokenDeltaWei)
     tokenDayData.dailyTradeVolumeUSD = tokenDayData.dailyTradeVolumeUSD.plus(amountUSD)
@@ -598,7 +606,7 @@ export function updateTimeDataForLiquidation(
     let liquidationVolumeToken = liquidation.borrowedTokenAmountDeltaWei
 
     let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
-    let liquidationVolumeUSD = liquidationVolumeToken.times(tokenPriceUSD).truncate(18)
+    let liquidationVolumeUSD = liquidationVolumeToken.times(tokenPriceUSD).truncate(USD_PRECISION)
 
     tokenDayData.dailyLiquidationVolumeToken = tokenDayData.dailyLiquidationVolumeToken.plus(liquidationVolumeToken)
     tokenDayData.dailyLiquidationVolumeUSD = tokenDayData.dailyLiquidationVolumeUSD.plus(liquidationVolumeUSD)
@@ -641,7 +649,7 @@ export function updateTimeDataForVaporization(
     let vaporizationVolumeToken = absBD(vaporization.borrowedTokenAmountDeltaWei)
 
     let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
-    let vaporizationVolumeUSD = vaporizationVolumeToken.times(tokenPriceUSD).truncate(18)
+    let vaporizationVolumeUSD = vaporizationVolumeToken.times(tokenPriceUSD).truncate(USD_PRECISION)
 
     tokenDayData.dailyVaporizationVolumeToken = tokenDayData.dailyVaporizationVolumeToken.plus(vaporizationVolumeToken)
     tokenDayData.dailyVaporizationVolumeUSD = tokenDayData.dailyVaporizationVolumeUSD.plus(vaporizationVolumeUSD)

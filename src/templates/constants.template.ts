@@ -36,6 +36,10 @@ export const _18_BI = BigInt.fromI32(18)
 
 export const ONE_ETH_BI = TEN_BI.pow(18)
 
+export const INTEREST_PRECISION = 18
+
+export const USD_PRECISION = 18
+
 export const ONE_ETH_BD = new BigDecimal(ONE_ETH_BI)
 
 export const SECONDS_IN_YEAR = BigInt.fromI32(31536000)
