@@ -27,7 +27,8 @@ import {
   TEN_BI,
   ZERO_BD,
   ZERO_BI,
-  ZERO_BYTES, USD_PRECISION,
+  ZERO_BYTES,
+  USD_PRECISION,
 } from './generated/constants'
 import { absBD } from './helpers'
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
@@ -267,7 +268,9 @@ export function parToWei(
   index: InterestIndex,
   decimals: BigInt
 ): BigDecimal {
-  if (par.ge(ZERO_BD)) {
+  if (par.equals(ZERO_BD)) {
+    return ZERO_BD
+  } else if (par.gt(ZERO_BD)) {
     return roundHalfUp(par.times(index.supplyIndex), decimals)
   } else {
     return roundHalfUp(par.times(index.borrowIndex), decimals)
@@ -392,33 +395,27 @@ export function changeProtocolBalance(
 
   let tokenPriceUSD = getTokenOraclePriceUSD(token, event, protocolType)
 
-  let newPar = convertStructToDecimalAppliedValue(newParStruct, token.decimals)
-  let newWei = parToWei(newPar, index, token.decimals)
   let deltaWei = convertStructToDecimalAppliedValue(deltaWeiStruct, token.decimals)
-
-  if (newPar.lt(ZERO_BD) && deltaWei.lt(ZERO_BD)) {
-    // the user borrowed funds
-
-    let borrowVolumeToken = absBD(deltaWei)
-    if (absBD(newWei) < absBD(deltaWei)) {
-      // the user withdrew from a positive balance to a negative one. Range cap it by newWei for borrow volume
-      borrowVolumeToken = absBD(newWei)
-    }
-
-    let borrowVolumeUsd = borrowVolumeToken.times(tokenPriceUSD)
-    dolomiteMargin.totalBorrowVolumeUSD = dolomiteMargin.totalBorrowVolumeUSD.plus(borrowVolumeUsd)
-
-    updateTimeDataForBorrow(token, event, borrowVolumeToken, borrowVolumeUsd)
-  }
 
   // temporarily get rid of the old USD liquidity
   dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
   dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
 
-  token.borrowLiquidity = absBD(parToWei(totalPar.borrowPar.neg(), index, token.decimals))
-  token.borrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
+  let tokenBorrowLiquidity = absBD(parToWei(totalPar.borrowPar.neg(), index, token.decimals))
+  let tokenBorrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
+
+  if (tokenBorrowLiquidity.gt(token.borrowLiquidity)) {
+    let borrowVolumeToken = tokenBorrowLiquidity.minus(token.borrowLiquidity)
+    let borrowVolumeUsd = borrowVolumeToken.times(tokenPriceUSD).truncate(USD_PRECISION)
+    dolomiteMargin.totalBorrowVolumeUSD = dolomiteMargin.totalBorrowVolumeUSD.plus(borrowVolumeUsd)
+
+    updateTimeDataForBorrow(token, event, borrowVolumeToken, borrowVolumeUsd)
+  }
+
+  token.borrowLiquidity = tokenBorrowLiquidity
+  token.borrowLiquidityUSD = tokenBorrowLiquidityUSD
   token.supplyLiquidity = parToWei(totalPar.supplyPar, index, token.decimals)
-  token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
+  token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
 
   // add the new liquidity back in
   dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)

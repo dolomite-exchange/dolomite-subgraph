@@ -36,7 +36,7 @@ export function convertTokenToDecimal(tokenAmount: BigInt, exchangeDecimals: Big
 export function convertStructToDecimalAppliedValue(struct: ValueStruct, exchangeDecimals: BigInt): BigDecimal {
   let value = struct.sign ? struct.value : struct.value.neg()
   if (exchangeDecimals.equals(ZERO_BI)) {
-    return value.toBigDecimal()
+    return ZERO_BD
   } else {
     return value.toBigDecimal().div(exponentToBigDecimal(exchangeDecimals))
   }

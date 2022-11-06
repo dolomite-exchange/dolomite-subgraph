@@ -485,13 +485,42 @@ export function updateTimeDataForBorrow(
   borrowAmountUSD: BigDecimal,
 ): void {
   let hourId = getHourId(event.block.timestamp)
-  let tokenHourData = TokenHourData.load(`${token.id}-${hourId}`) as TokenHourData
+  let tokenHourData = TokenHourData.load(`${token.id}-${hourId}`)
+  if (tokenHourData === null) {
+    tokenHourData = new TokenHourData(`${token.id}-${hourId}`)
+    setupTokenHourData(
+      tokenHourData as TokenHourData,
+      BigInt.fromString(hourId).toI32(),
+      token,
+      event,
+      ProtocolType.Core,
+    )
+  }
 
   let dayId = getDayId(event.block.timestamp)
-  let tokenDayData = TokenDayData.load(`${token.id}-${dayId}`) as TokenDayData
+  let tokenDayData = TokenDayData.load(`${token.id}-${dayId}`)
+  if (tokenDayData === null) {
+    tokenDayData = new TokenDayData(`${token.id}-${dayId}`)
+    setupTokenDayData(
+      tokenDayData as TokenDayData,
+      BigInt.fromString(dayId).toI32(),
+      token,
+      event,
+      ProtocolType.Core,
+    )
+  }
 
-  let dolomiteDayData = DolomiteDayData.load(dayId) as DolomiteDayData
-  let dolomiteHourData = DolomiteHourData.load(hourId) as DolomiteHourData
+  let dolomiteDayData = DolomiteDayData.load(dayId)
+  if (dolomiteDayData === null) {
+    dolomiteDayData = new DolomiteDayData(dayId)
+    setupDolomiteDayData(dolomiteDayData)
+  }
+
+  let dolomiteHourData = DolomiteHourData.load(hourId)
+  if (dolomiteHourData === null) {
+    dolomiteHourData = new DolomiteHourData(hourId)
+    setupDolomiteHourData(dolomiteHourData)
+  }
 
   tokenHourData.hourlyBorrowVolumeToken = tokenHourData.hourlyBorrowVolumeToken.plus(borrowAmountToken)
   tokenHourData.hourlyBorrowVolumeUSD = tokenHourData.hourlyBorrowVolumeUSD.plus(borrowAmountUSD)
