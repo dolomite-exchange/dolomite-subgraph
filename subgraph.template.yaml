@@ -119,7 +119,6 @@ dataSources:
     name: DolomiteAmmRouter
     network: {{network}}
     source:
-      address: '{{dolomiteAmmRouterProxyAddress}}'
       abi: DolomiteAmmRouterProxy
       startBlock: {{startBlock}}
     mapping:

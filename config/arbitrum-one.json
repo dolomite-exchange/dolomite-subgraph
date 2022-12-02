@@ -1,10 +1,11 @@
 {
   "network": "arbitrum-one",
   "startBlock": "28220369",
-  "borrowPositionProxyAddress": "0x144DcFcd3287cF4372887Ef55225696924A82511",
+  "borrowPositionProxyAddress": "0xe43638797513ef7A6d326a95E8647d86d2f5a099",
   "daiAddress": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
   "dolomiteAmmFactoryAddress": "0xD99c21C96103F36BC1FA26DD6448af4DA030c1EF",
-  "dolomiteAmmRouterProxyAddress": "0xa09B4a3FC92965E587a94539ee8B35ECf42D5A08",
+  "dolomiteAmmRouterProxyV1Address": "0xa09B4a3FC92965E587a94539ee8B35ECf42D5A08",
+  "dolomiteAmmRouterProxyV2Address": "0x03809ae9a86061D8901f020f8778bCe1Ce8c44F0",
   "dolomiteMarginAddress": "0x6Bd780E7fDf01D77e4d475c821f1e7AE05409072",
   "expiryAddress": "0xDEc1ae3b570ac3c57871BBD7bFeacC807f973Bea",
   "linkAddress": "0xf97f4df75117a78c1A5a0DBb814Af92458539FB4",

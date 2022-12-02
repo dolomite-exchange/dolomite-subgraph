@@ -1,10 +1,11 @@
 {
   "network": "arbitrum-goerli",
   "startBlock": "500449",
-  "borrowPositionProxyAddress": "0xC6a645a979035D8Aac9B3f56f0589E5CcB3f0AB7",
+  "borrowPositionProxyAddress": "0xaD6bAE6EF017ad733fF5F59DD2B6E52d26b06e31",
   "daiAddress": "0xE65A051E0ae02eB66a11c73B2BA14021B5aadAEE",
   "dolomiteAmmFactoryAddress": "0xa712182078dD19642C00fB1f49A5D9a2D7283a5b",
-  "dolomiteAmmRouterProxyAddress": "0x7aB43E8b8d662920576a5cB446c816cae9Fcffaf",
+  "dolomiteAmmRouterProxyV1Address": "0x7aB43E8b8d662920576a5cB446c816cae9Fcffaf",
+  "dolomiteAmmRouterProxyV2Address": "0x10a759D18Ffef4dd6909589C2d9c2DAfE66C2404",
   "dolomiteMarginAddress": "0xb4de6b0Aa8c1187633Ab33a73eF0c840bC9B6D49",
   "expiryAddress": "0x16Ec03D86cC8B8bb57646b533d6fBda07D992229",
   "linkAddress": "0x2d3B3F17d6694d5AA643Cb89A82Ac9214a41536d",

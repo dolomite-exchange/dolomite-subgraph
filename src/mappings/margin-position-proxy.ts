@@ -1,4 +1,4 @@
-import { ethereum } from '@graphprotocol/graph-ts'
+import { Address, ethereum, log } from '@graphprotocol/graph-ts'
 import { BigDecimal } from '@graphprotocol/graph-ts/index'
 import {
   MarginPositionClose as MarginPositionCloseEvent,
@@ -6,7 +6,13 @@ import {
 } from '../types/DolomiteAmmRouter/DolomiteAmmRouterProxy'
 import { DolomiteMargin, InterestIndex, MarginAccount, MarginPosition, Token, User } from '../types/schema'
 import { convertStructToDecimalAppliedValue } from './amm-helpers'
-import { DOLOMITE_MARGIN_ADDRESS, ONE_BI, USD_PRECISION, ZERO_BD } from './generated/constants'
+import {
+  DOLOMITE_AMM_ROUTER_PROXY_V1_ADDRESS, DOLOMITE_AMM_ROUTER_PROXY_V2_ADDRESS,
+  DOLOMITE_MARGIN_ADDRESS,
+  ONE_BI,
+  USD_PRECISION,
+  ZERO_BD,
+} from './generated/constants'
 import { absBD } from './helpers'
 import { getOrCreateMarginAccount, getOrCreateMarginPosition, getOrCreateTokenValue } from './margin-helpers'
 import { MarginPositionStatus, PositionChangeEvent, ProtocolType, ValueStruct } from './margin-types'
@@ -142,8 +148,18 @@ function updateMarginPositionForTrade(
   marginPosition.save()
 }
 
+function isContractUnknown(event: ethereum.Event): boolean {
+  return event.address.notEqual(Address.fromHexString(DOLOMITE_AMM_ROUTER_PROXY_V1_ADDRESS))
+    && event.address.notEqual(Address.fromHexString(DOLOMITE_AMM_ROUTER_PROXY_V2_ADDRESS))
+}
+
 // noinspection JSUnusedGlobalSymbols
 export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
+  if (isContractUnknown(event)) {
+    log.warning('Ignoring event from unknown contract: {}', [event.address.toHexString()])
+    return
+  }
+
   let marginAccount = getOrCreateMarginAccount(event.params.user, event.params.accountIndex, event.block)
 
   let user = User.load(event.params.user.toHexString()) as User
@@ -188,6 +204,11 @@ export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
 
 // noinspection JSUnusedGlobalSymbols
 export function handleMarginPositionClose(event: MarginPositionCloseEvent): void {
+  if (isContractUnknown(event)) {
+    log.warning('Ignoring event from unknown contract: {}', [event.address.toHexString()])
+    return
+  }
+
   let marginAccount = getOrCreateMarginAccount(event.params.user, event.params.accountIndex, event.block)
   let marginPosition = getOrCreateMarginPosition(event, marginAccount)
   let positionChangeEvent = new PositionChangeEvent(

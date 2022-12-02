@@ -50,6 +50,10 @@ export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'.toLower
 
 export const FACTORY_ADDRESS = '{{dolomiteAmmFactoryAddress}}'.toLowerCase()
 
+export const DOLOMITE_AMM_ROUTER_PROXY_V1_ADDRESS = '{{dolomiteAmmRouterProxyV1Address}}'.toLowerCase()
+
+export const DOLOMITE_AMM_ROUTER_PROXY_V2_ADDRESS = '{{dolomiteAmmRouterProxyV2Address}}'.toLowerCase()
+
 export const DOLOMITE_MARGIN_ADDRESS = '{{dolomiteMarginAddress}}'.toLowerCase()
 
 export const EXPIRY_ADDRESS = '{{expiryAddress}}'.toLowerCase()
