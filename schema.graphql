@@ -530,7 +530,7 @@ type MarketRiskInfo @entity {
   marginPremium: BigDecimal!
   liquidationRewardPremium: BigDecimal!
   isBorrowingDisabled: Boolean!
-  maxSupplyWei: BigDecimal!
+  supplyMaxWei: BigDecimal!
   oracle: Bytes! # address of the price oracle
 }
 
