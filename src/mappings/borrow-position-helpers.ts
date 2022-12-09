@@ -85,11 +85,18 @@ export function updateBorrowPositionForBalanceUpdate(
   let id = getBorrowPositionId(Address.fromString(marginAccount.user), marginAccount.accountNumber)
   let position = BorrowPosition.load(id)
   if (position !== null) {
+    let isPositionEmptyBefore = isAmountsEmpty(position)
     updateBorrowAndSupplyTokens(position, marginAccount, balanceUpdate)
-    if (position.status == BorrowPositionStatus.Open && isAmountsEmpty(position)) {
+    if (isAmountsEmpty(position) && position.status != BorrowPositionStatus.Closed) {
       position.status = BorrowPositionStatus.Closed
       position.closeTimestamp = event.block.timestamp
       position.closeTransaction = getOrCreateTransaction(event).id
+      position.save()
+    } else if (isPositionEmptyBefore && !isAmountsEmpty(position)) {
+      // the user reopened the position... not sure why they would want to do this, but whatever.
+      position.status = BorrowPositionStatus.Open
+      position.closeTimestamp = null
+      position.closeTransaction = null
       position.save()
     }
   }
