@@ -20,7 +20,7 @@ export function handleNewPair(event: PairCreated): void {
   let factoryAddress = FACTORY_ADDRESS
   if (event.address.toHexString() != factoryAddress) {
     log.error('Invalid Factory address, found {} and {}', [event.address.toHexString(), factoryAddress])
-    throw new Error()
+    return
   }
 
   // load factory (create if first exchange)

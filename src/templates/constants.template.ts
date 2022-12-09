@@ -3,12 +3,10 @@
 import {
   BigDecimal,
   BigInt,
-  Bytes
-} from '@graphprotocol/graph-ts'
-import {
+  Bytes,
   dataSource,
-  TypedMap
-} from '@graphprotocol/graph-ts/index'
+  TypedMap,
+} from '@graphprotocol/graph-ts'
 
 const MAINNET_NETWORK = 'mainnet'
 const MUMBAI_NETWORK = 'mumbai'
@@ -16,7 +14,7 @@ const ARBITRUM_GOERLI_NETWORK = 'arbitrum-goerli'
 const ARBITRUM_MAINNET_NETWORK = 'arbitrum-one'
 const ARBITRUM_RINKEBY_NETWORK = 'arbitrum-rinkeby'
 
-export const ZERO_BYTES = new Bytes(0)
+export const ZERO_BYTES = Bytes.empty()
 
 export const ZERO_BI = BigInt.fromI32(0)
 

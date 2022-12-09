@@ -1,5 +1,4 @@
-import { Address, ethereum, log } from '@graphprotocol/graph-ts'
-import { BigDecimal } from '@graphprotocol/graph-ts/index'
+import { Address, BigDecimal, ethereum, log } from '@graphprotocol/graph-ts'
 import {
   MarginPositionClose as MarginPositionCloseEvent,
   MarginPositionOpen as MarginPositionOpenEvent,
@@ -7,7 +6,8 @@ import {
 import { DolomiteMargin, InterestIndex, MarginAccount, MarginPosition, Token, User } from '../types/schema'
 import { convertStructToDecimalAppliedValue } from './amm-helpers'
 import {
-  DOLOMITE_AMM_ROUTER_PROXY_V1_ADDRESS, DOLOMITE_AMM_ROUTER_PROXY_V2_ADDRESS,
+  DOLOMITE_AMM_ROUTER_PROXY_V1_ADDRESS,
+  DOLOMITE_AMM_ROUTER_PROXY_V2_ADDRESS,
   DOLOMITE_MARGIN_ADDRESS,
   ONE_BI,
   USD_PRECISION,

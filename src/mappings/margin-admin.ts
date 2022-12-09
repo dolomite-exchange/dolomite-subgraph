@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
-  BigInt, Bytes,
+  BigInt,
+  Bytes,
   store,
-} from '@graphprotocol/graph-ts'
-import {
   Address,
   BigDecimal,
-  log
-} from '@graphprotocol/graph-ts/index'
+  log,
+} from '@graphprotocol/graph-ts'
 import {
   DolomiteMargin as DolomiteMarginProtocol,
   LogAddMarket as AddMarketEvent,
@@ -85,7 +84,7 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   riskInfo.marginPremium = ZERO_BD
   riskInfo.isBorrowingDisabled = false
   riskInfo.oracle = Bytes.empty()
-  riskInfo.maxWei = ZERO_BD
+  riskInfo.maxSupplyWei = ZERO_BD
   riskInfo.save()
 
   let oraclePrice = new OraclePrice(token.id)
@@ -272,7 +271,7 @@ export function handleSetMaxWei(event: MaxWeiUpdateEvent): void {
   let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
   let token = Token.load(tokenAddress) as Token
   let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
-  marketInfo.maxWei = convertTokenToDecimal(event.params.maxWei.value, token.decimals)
+  marketInfo.maxSupplyWei = convertTokenToDecimal(event.params.maxWei.value, token.decimals)
   marketInfo.save()
 }
 

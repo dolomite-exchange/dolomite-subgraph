@@ -1,4 +1,4 @@
-import { BigDecimal, BigInt, Bytes, ethereum, log } from '@graphprotocol/graph-ts'
+import { BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
 import { DolomiteMargin, InterestIndex, InterestRate, Token, TotalPar } from '../types/schema'
 import { INTEREST_PRECISION, ONE_ETH_BD, ONE_ETH_BI, SECONDS_IN_YEAR, TEN_BI, ZERO_BI } from './generated/constants'
 import { absBD } from './helpers'
@@ -37,7 +37,7 @@ function getDoubleExponentInterestRate(borrowWei: BigInt, supplyWei: BigInt): Bi
  * @param totalPar
  * @param index
  * @param dolomiteMargin
- * @param event           Used for getting the block number so we can potentially calculate the interest rate
+ * @param event           Used for getting the block number,so we can potentially calculate the interest rate
  *                        differently, if another interest setter implementation is set in the future.
  */
 export function updateInterestRate(
