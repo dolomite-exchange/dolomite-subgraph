@@ -391,7 +391,7 @@ export function changeProtocolBalance(
   }
 
   let totalPar = TotalPar.load(token.id) as TotalPar
-  updateInterestRate(token, totalPar, index, dolomiteMargin, event)
+  updateInterestRate(token, totalPar, index, dolomiteMargin)
 
   let tokenPriceUSD = getTokenOraclePriceUSD(token, event, protocolType)
 

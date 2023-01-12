@@ -115,6 +115,8 @@ dataSources:
           handler: handleSetMaxWei
         - event: LogSetPriceOracle(uint256,address)
           handler: handleSetPriceOracle
+        - event: LogSetInterestSetter(uint256,address)
+          handler: handleSetInterestSetter
   - kind: ethereum/contract
     name: DolomiteAmmRouter
     network: {{network}}

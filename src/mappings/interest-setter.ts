@@ -1,13 +1,58 @@
-import { BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
 import { DolomiteMargin, InterestIndex, InterestRate, Token, TotalPar } from '../types/schema'
-import { INTEREST_PRECISION, ONE_ETH_BD, ONE_ETH_BI, SECONDS_IN_YEAR, TEN_BI, ZERO_BI } from './generated/constants'
+import {
+  AAVE_ALT_COIN_COPY_CAT_V1_ADDRESS, AAVE_STABLE_COIN_COPY_CAT_V1_ADDRESS,
+  DOUBLE_EXPONENT_INTEREST_SETTER_V1_ADDRESS,
+  INTEREST_PRECISION,
+  ONE_ETH_BD,
+  ONE_ETH_BI,
+  SECONDS_IN_YEAR,
+  TEN_BI,
+  ZERO_BI,
+} from './generated/constants'
 import { absBD } from './helpers'
 import { parToWei } from './margin-helpers'
 
 const SECONDS_IN_YEAR_BI = BigInt.fromString('31536000')
 const PERCENT = BigInt.fromString('100')
 
-function getDoubleExponentInterestRate(borrowWei: BigInt, supplyWei: BigInt): BigInt {
+export function getAAVECopyCatInterestRatePerSecond(
+  isStableCoin: boolean,
+  borrowWei: BigInt,
+  supplyWei: BigInt,
+): BigInt {
+  const BASE = ONE_ETH_BI // 100%
+  if (borrowWei.equals(ZERO_BI)) {
+    return ZERO_BI
+  }
+  if (supplyWei.equals(ZERO_BI)) {
+    // totalBorrowed > 0
+    // return BASE.dividedToIntegerBy(INTEGERS.ONE_YEAR_IN_SECONDS).div(BASE);
+    return BASE.div(SECONDS_IN_YEAR_BI).times(PERCENT)
+  }
+
+  // const utilization = DolomiteMarginMath.getPartial(BASE, totals.totalBorrowed.abs(), totals.totalSupply);
+  const utilization = BASE.times(borrowWei).div(supplyWei)
+  const NINETY_PERCENT = BASE.times(BigInt.fromI32(90)).div(PERCENT)
+  const TEN_PERCENT = BASE.times(BigInt.fromI32(10)).div(PERCENT)
+  const INITIAL_GOAL = BASE.times(isStableCoin ? BigInt.fromI32(4) : BigInt.fromI32(7)).div(PERCENT)
+
+  if (utilization.ge(BASE)) {
+    // return BASE.dividedToIntegerBy(INTEGERS.ONE_YEAR_IN_SECONDS).div(BASE);
+    return BASE.div(SECONDS_IN_YEAR_BI).div(BASE).times(PERCENT)
+  }
+  if (utilization.gt(NINETY_PERCENT)) {
+    // interest is equal to 4% + linear progress to 100% APR
+    const deltaToGoal = BASE.minus(INITIAL_GOAL)
+    const interestToAdd = deltaToGoal.times(utilization.minus(NINETY_PERCENT)).div(TEN_PERCENT)
+    return interestToAdd.plus(INITIAL_GOAL).div(SECONDS_IN_YEAR_BI).div(BASE)
+  }
+  return INITIAL_GOAL.times(utilization).div(NINETY_PERCENT)
+    .div(SECONDS_IN_YEAR_BI)
+    .div(BASE)
+}
+
+function getDoubleExponentInterestRatePerSecond(borrowWei: BigInt, supplyWei: BigInt): BigInt {
   if (borrowWei.equals(ZERO_BI)) {
     return ZERO_BI
   }
@@ -17,7 +62,7 @@ function getDoubleExponentInterestRate(borrowWei: BigInt, supplyWei: BigInt): Bi
     return maxAPR.div(SECONDS_IN_YEAR_BI)
   }
 
-  let coefficients = [0, 20, 0, 0, 0, 0, 20, 60]
+  let coefficients: Array<i32> = [0, 20, 0, 0, 0, 0, 20, 60]
   let result = BigInt.fromI32(coefficients[0]).times(ONE_ETH_BI)
   let polynomial = ONE_ETH_BI.times(borrowWei).div(supplyWei)
   for (let i = 1; i < coefficients.length; i++) {
@@ -32,20 +77,33 @@ function getDoubleExponentInterestRate(borrowWei: BigInt, supplyWei: BigInt): Bi
   return result.times(maxAPR).div(SECONDS_IN_YEAR_BI.times(ONE_ETH_BI).times(PERCENT))
 }
 
+function getInterestRatePerSecond(
+  borrowWeiBI: BigInt,
+  supplyWeiBI: BigInt,
+  interestSetter: Address,
+): BigInt {
+  if (interestSetter.equals(Address.fromString(DOUBLE_EXPONENT_INTEREST_SETTER_V1_ADDRESS))) {
+    return getDoubleExponentInterestRatePerSecond(borrowWeiBI, supplyWeiBI)
+  } else if (interestSetter.equals(Address.fromString(AAVE_ALT_COIN_COPY_CAT_V1_ADDRESS))) {
+    return getAAVECopyCatInterestRatePerSecond(false, borrowWeiBI, supplyWeiBI)
+  } else if (interestSetter.equals(Address.fromString(AAVE_STABLE_COIN_COPY_CAT_V1_ADDRESS))) {
+    return getAAVECopyCatInterestRatePerSecond(true, borrowWeiBI, supplyWeiBI)
+  } else {
+    throw new Error('Invalid interest setter: ' + interestSetter.toHexString())
+  }
+}
+
 /**
  * @param token
  * @param totalPar
  * @param index
  * @param dolomiteMargin
- * @param event           Used for getting the block number,so we can potentially calculate the interest rate
- *                        differently, if another interest setter implementation is set in the future.
  */
 export function updateInterestRate(
   token: Token,
   totalPar: TotalPar,
   index: InterestIndex,
   dolomiteMargin: DolomiteMargin,
-  event: ethereum.Event
 ): void {
   let borrowWei = absBD(parToWei(totalPar.borrowPar.neg(), index, token.decimals))
   let supplyWei = parToWei(totalPar.supplyPar, index, token.decimals)
@@ -57,7 +115,11 @@ export function updateInterestRate(
   let supplyWeiBI = supplyWei.digits.times(TEN_BI.pow(supplyWei.exp.toI32() as u8))
 
   let interestRate = InterestRate.load(index.token) as InterestRate
-  let interestRatePerSecond = getDoubleExponentInterestRate(borrowWeiBI, supplyWeiBI)
+  let interestRatePerSecond = getInterestRatePerSecond(
+    borrowWeiBI,
+    supplyWeiBI,
+    Address.fromString(interestRate.interestSetter.toHexString()),
+  )
   let interestPerYearBD = new BigDecimal(interestRatePerSecond.times(SECONDS_IN_YEAR))
   interestRate.borrowInterestRate = interestPerYearBD.div(ONE_ETH_BD)
 

@@ -20,6 +20,7 @@ import {
   LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent,
   LogSetMaxWei as MaxWeiUpdateEvent,
   LogSetPriceOracle as PriceOracleUpdateEvent,
+  LogSetInterestSetter as InterestSetterUpdateEvent,
   LogSetMaxNumberOfMarketsWithBalancesAndDebt as MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent
 } from '../types/MarginAdmin/DolomiteMargin'
 import {
@@ -39,7 +40,7 @@ import {
   ONE_ETH_BD,
   DOLOMITE_MARGIN_ADDRESS,
   ONE_BD,
-  ZERO_BD, INTEREST_PRECISION,
+  ZERO_BD, INTEREST_PRECISION, ADDRESS_ZERO,
 } from './generated/constants'
 import { getOrCreateDolomiteMarginForCall } from './margin-helpers'
 import { ProtocolType } from './margin-types'
@@ -75,6 +76,7 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   let interestRate = new InterestRate(token.id)
   interestRate.borrowInterestRate = ZERO_BD
   interestRate.supplyInterestRate = ZERO_BD
+  interestRate.interestSetter = Address.fromString(ADDRESS_ZERO)
   interestRate.token = token.id
   interestRate.save()
 
@@ -278,7 +280,7 @@ export function handleSetMaxWei(event: MaxWeiUpdateEvent): void {
 // noinspection JSUnusedGlobalSymbols
 export function handleSetPriceOracle(event: PriceOracleUpdateEvent): void {
   log.info(
-    'Handling oracle change change for hash and index: {}-{}',
+    'Handling oracle change for hash and index: {}-{}',
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
@@ -287,4 +289,18 @@ export function handleSetPriceOracle(event: PriceOracleUpdateEvent): void {
   let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   marketInfo.oracle = event.params.priceOracle
   marketInfo.save()
+}
+
+// noinspection JSUnusedGlobalSymbols
+export function handleSetInterestSetter(event: InterestSetterUpdateEvent): void {
+  log.info(
+    'Handling interest setter change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()]
+  )
+
+  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let interestRate = InterestRate.load(token.id) as InterestRate
+  interestRate.interestSetter = event.params.interestSetter
+  interestRate.save()
 }

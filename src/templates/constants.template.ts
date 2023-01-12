@@ -46,6 +46,14 @@ export const NETWORK = dataSource.network()
 
 export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'.toLowerCase()
 
+// ========================= Interest Setter Contract Addresses =========================
+
+export const DOUBLE_EXPONENT_INTEREST_SETTER_V1_ADDRESS = '{{doubleExponentInterestSetterV1}}'.toLowerCase()
+export const AAVE_ALT_COIN_COPY_CAT_V1_ADDRESS = '{{aaveAltCoinCopyCatV1}}'.toLowerCase()
+export const AAVE_STABLE_COIN_COPY_CAT_V1_ADDRESS = '{{aaveStableCoinCopyCatV1}}'.toLowerCase()
+
+// ========================= Protocol Contract Addresses =========================
+
 export const FACTORY_ADDRESS = '{{dolomiteAmmFactoryAddress}}'.toLowerCase()
 
 export const DOLOMITE_AMM_ROUTER_PROXY_V1_ADDRESS = '{{dolomiteAmmRouterProxyV1Address}}'.toLowerCase()
@@ -55,6 +63,8 @@ export const DOLOMITE_AMM_ROUTER_PROXY_V2_ADDRESS = '{{dolomiteAmmRouterProxyV2A
 export const DOLOMITE_MARGIN_ADDRESS = '{{dolomiteMarginAddress}}'.toLowerCase()
 
 export const EXPIRY_ADDRESS = '{{expiryAddress}}'.toLowerCase()
+
+// ========================= Token Addresses =========================
 
 export const DAI_ADDRESS = '{{daiAddress}}'.toLowerCase()
 
