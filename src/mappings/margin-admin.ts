@@ -24,13 +24,14 @@ import {
   LogSetMaxNumberOfMarketsWithBalancesAndDebt as MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent
 } from '../types/MarginAdmin/DolomiteMargin'
 import {
+  DolomiteMargin,
   InterestIndex,
   InterestRate,
   MarketRiskInfo,
   OraclePrice,
   Token,
   TokenMarketIdReverseMap,
-  TotalPar
+  TotalPar,
 } from '../types/schema'
 import {
   convertTokenToDecimal,
@@ -44,6 +45,7 @@ import {
 } from './generated/constants'
 import { getOrCreateDolomiteMarginForCall } from './margin-helpers'
 import { ProtocolType } from './margin-types'
+import { updateInterestRate } from './interest-setter'
 
 // noinspection JSUnusedGlobalSymbols
 export function handleMarketAdded(event: AddMarketEvent): void {
@@ -303,4 +305,9 @@ export function handleSetInterestSetter(event: InterestSetterUpdateEvent): void 
   let interestRate = InterestRate.load(token.id) as InterestRate
   interestRate.interestSetter = event.params.interestSetter
   interestRate.save()
+
+  let totalPar = TotalPar.load(token.id) as TotalPar
+  let index = InterestIndex.load(token.id) as InterestIndex
+  let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
+  updateInterestRate(token, totalPar, index, dolomiteMargin)
 }
