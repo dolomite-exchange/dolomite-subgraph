@@ -49,7 +49,7 @@ export function getAAVECopyCatInterestRatePerSecond(
     aprBI = INITIAL_GOAL.times(utilization).div(NINETY_PERCENT)
   }
 
-  return aprBI.div(SECONDS_IN_YEAR_BI).times(PERCENT)
+  return aprBI.div(SECONDS_IN_YEAR_BI)
 }
 
 function getDoubleExponentInterestRatePerSecond(borrowWei: BigInt, supplyWei: BigInt): BigInt {
