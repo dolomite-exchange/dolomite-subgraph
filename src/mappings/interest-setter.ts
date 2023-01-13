@@ -31,25 +31,25 @@ export function getAAVECopyCatInterestRatePerSecond(
     return BASE.div(SECONDS_IN_YEAR_BI).times(PERCENT)
   }
 
-  // const utilization = DolomiteMarginMath.getPartial(BASE, totals.totalBorrowed.abs(), totals.totalSupply);
   const utilization = BASE.times(borrowWei).div(supplyWei)
   const NINETY_PERCENT = BASE.times(BigInt.fromI32(90)).div(PERCENT)
   const TEN_PERCENT = BASE.times(BigInt.fromI32(10)).div(PERCENT)
   const INITIAL_GOAL = BASE.times(isStableCoin ? BigInt.fromI32(4) : BigInt.fromI32(7)).div(PERCENT)
 
+  let aprBI: BigInt // expressed as 1.0 == 1e18 or 0.1 = 1e17
   if (utilization.ge(BASE)) {
-    // return BASE.dividedToIntegerBy(INTEGERS.ONE_YEAR_IN_SECONDS).div(BASE);
-    return BASE.div(SECONDS_IN_YEAR_BI).div(BASE).times(PERCENT)
-  }
-  if (utilization.gt(NINETY_PERCENT)) {
-    // interest is equal to 4% + linear progress to 100% APR
+    // utilization exceeds 100%
+    aprBI = BASE
+  } else if (utilization.gt(NINETY_PERCENT)) {
+    // interest is equal to INITIAL_GOAL% + linear progress to 100% APR
     const deltaToGoal = BASE.minus(INITIAL_GOAL)
     const interestToAdd = deltaToGoal.times(utilization.minus(NINETY_PERCENT)).div(TEN_PERCENT)
-    return interestToAdd.plus(INITIAL_GOAL).div(SECONDS_IN_YEAR_BI).div(BASE)
+    aprBI = interestToAdd.plus(INITIAL_GOAL)
+  } else {
+    aprBI = INITIAL_GOAL.times(utilization).div(NINETY_PERCENT)
   }
-  return INITIAL_GOAL.times(utilization).div(NINETY_PERCENT)
-    .div(SECONDS_IN_YEAR_BI)
-    .div(BASE)
+
+  return aprBI.div(SECONDS_IN_YEAR_BI).times(PERCENT)
 }
 
 function getDoubleExponentInterestRatePerSecond(borrowWei: BigInt, supplyWei: BigInt): BigInt {
