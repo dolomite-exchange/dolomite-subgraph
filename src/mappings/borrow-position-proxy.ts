@@ -5,10 +5,24 @@ import { BorrowPositionStatus, getBorrowPositionId } from './borrow-position-hel
 import { BorrowPosition, DolomiteMargin, User } from '../types/schema'
 import { getOrCreateMarginAccount } from './margin-helpers'
 import { getOrCreateTransaction } from './amm-core'
-import { DOLOMITE_MARGIN_ADDRESS, ONE_BI } from './generated/constants'
+import {
+  BORROW_POSITION_PROXY_V1_ADDRESS,
+  BORROW_POSITION_PROXY_V2_ADDRESS,
+  DOLOMITE_MARGIN_ADDRESS,
+  ONE_BI,
+} from './generated/constants'
+import { Address, log } from '@graphprotocol/graph-ts'
 
 
 export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
+  if (
+    event.address.notEqual(Address.fromString(BORROW_POSITION_PROXY_V1_ADDRESS))
+    && event.address.notEqual(Address.fromString(BORROW_POSITION_PROXY_V2_ADDRESS))
+  ) {
+    log.warning('handleOpenBorrowPosition: event address does not match any known BorrowPositionProxy address', [])
+    return
+  }
+
   let id = getBorrowPositionId(event.params.accountOwner, event.params.accountIndex)
   let borrowPosition = BorrowPosition.load(id)
   if (borrowPosition == null) {

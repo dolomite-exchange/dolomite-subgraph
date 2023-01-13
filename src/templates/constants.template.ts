@@ -54,7 +54,9 @@ export const AAVE_STABLE_COIN_COPY_CAT_V1_ADDRESS = '{{aaveStableCoinCopyCatV1}}
 
 // ========================= Protocol Contract Addresses =========================
 
-export const FACTORY_ADDRESS = '{{dolomiteAmmFactoryAddress}}'.toLowerCase()
+export const BORROW_POSITION_PROXY_V1_ADDRESS = '{{borrowPositionProxyV1Address}}'.toLowerCase()
+
+export const BORROW_POSITION_PROXY_V2_ADDRESS = '{{borrowPositionProxyV2Address}}'.toLowerCase()
 
 export const DOLOMITE_AMM_ROUTER_PROXY_V1_ADDRESS = '{{dolomiteAmmRouterProxyV1Address}}'.toLowerCase()
 
@@ -63,6 +65,8 @@ export const DOLOMITE_AMM_ROUTER_PROXY_V2_ADDRESS = '{{dolomiteAmmRouterProxyV2A
 export const DOLOMITE_MARGIN_ADDRESS = '{{dolomiteMarginAddress}}'.toLowerCase()
 
 export const EXPIRY_ADDRESS = '{{expiryAddress}}'.toLowerCase()
+
+export const FACTORY_ADDRESS = '{{dolomiteAmmFactoryAddress}}'.toLowerCase()
 
 // ========================= Token Addresses =========================
 

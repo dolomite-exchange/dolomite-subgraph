@@ -170,7 +170,6 @@ dataSources:
     name: BorrowPositionProxy
     network: {{network}}
     source:
-      address: '{{borrowPositionProxyAddress}}'
       abi: BorrowPositionProxy
       startBlock: {{startBlock}}
     mapping:
