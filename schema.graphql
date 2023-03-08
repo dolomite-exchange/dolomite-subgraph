@@ -63,6 +63,7 @@ type DolomiteMargin @entity {
 type Token @entity {
   # token address
   id: ID!
+  chainId: Int!
 
   # mirrored from the smart contract
   symbol: String!

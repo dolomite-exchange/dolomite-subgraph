@@ -90,6 +90,13 @@ export const DAI_WETH_PAIR = '{{wethDaiAddress}}'.toLowerCase()
 
 export const USDT_WETH_PAIR = '{{wethUsdtAddress}}'.toLowerCase()
 
+const CHAIN_IDS: TypedMap<string, BigInt> = new TypedMap<string, BigInt>()
+CHAIN_IDS.set(MAINNET_NETWORK, BigInt.fromI32(1))
+CHAIN_IDS.set(MUMBAI_NETWORK, BigInt.fromI32(80001))
+CHAIN_IDS.set(ARBITRUM_GOERLI_NETWORK, BigInt.fromI32(421613))
+CHAIN_IDS.set(ARBITRUM_MAINNET_NETWORK, BigInt.fromI32(42161))
+CHAIN_IDS.set(ARBITRUM_RINKEBY_NETWORK, BigInt.fromI32(421611))
+
 const WHITELISTS: TypedMap<string, string[]> = new TypedMap<string, string[]>()
 WHITELISTS.set(MAINNET_NETWORK, [
   // token where amounts should contribute to tracked volume and liquidity
@@ -139,7 +146,9 @@ WHITELISTS.set(ARBITRUM_RINKEBY_NETWORK, [
   WBTC_ADDRESS,
   LINK_ADDRESS,
 ])
-export const WHITELIST = WHITELISTS.get(NETWORK) as string[]
+export const WHITELIST: string[] = WHITELISTS.get(NETWORK) as string[]
+
+export const CHAIN_ID: i32 = (CHAIN_IDS.get(NETWORK) as BigInt).toI32()
 
 if (WHITELIST.filter(value => value.toLowerCase() === ADDRESS_ZERO || value.length === 0).length > 0) {
   throw new Error('Invalid item found in whitelist!')

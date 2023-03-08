@@ -14,8 +14,9 @@ import { ValueStruct } from './margin-types'
 import {
   ZERO_BI,
   ZERO_BD,
-  ONE_BI, DOLOMITE_MARGIN_ADDRESS,
+  ONE_BI, DOLOMITE_MARGIN_ADDRESS, NETWORK,
 } from './generated/constants'
+import { CHAIN_ID } from '../templates/constants.template'
 
 export function exponentToBigDecimal(decimals: BigInt): BigDecimal {
   let bd = BigDecimal.fromString('1')
@@ -116,6 +117,7 @@ export function fetchTokenDecimals(tokenAddress: Address): BigInt {
 
 export function initializeToken(token: Token, marketId: BigInt): void {
   let tokenAddress = Address.fromString(token.id)
+  token.chainId = CHAIN_ID
   token.symbol = fetchTokenSymbol(tokenAddress)
   token.name = fetchTokenName(tokenAddress)
   let decimals = fetchTokenDecimals(tokenAddress)
