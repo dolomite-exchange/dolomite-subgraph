@@ -58,9 +58,45 @@ function updateBorrowAndSupplyTokens(
       borrowPosition.amounts = copy
       updated = true
     }
+
+    index = borrowPosition.allTokens.indexOf(borrowPositionAmount.token)
+    if (index != -1) {
+      let copy = borrowPosition.allTokens
+      copy.splice(index, 1)
+      borrowPosition.allTokens = copy
+      updated = true
+    }
+
+    if (borrowPositionAmount.amountPar.gt(ZERO_BD)) {
+      index = borrowPosition.supplyTokens.indexOf(borrowPositionAmount.token)
+      if (index != -1) {
+        let copy = borrowPosition.supplyTokens
+        copy.splice(index, 1)
+        borrowPosition.supplyTokens = copy
+        updated = true
+      }
+    } else {
+      index = borrowPosition.borrowTokens.indexOf(borrowPositionAmount.token)
+      if (index != -1) {
+        let copy = borrowPosition.borrowTokens
+        copy.splice(index, 1)
+        borrowPosition.borrowTokens = copy
+        updated = true
+      }
+    }
+
   } else if (borrowPositionAmount.amountPar.equals(ZERO_BD) && !balanceUpdate.valuePar.equals(ZERO_BD)) {
     // The user is going from not having a balance to having one. Add to the list
     borrowPosition.amounts = borrowPosition.amounts.concat([borrowPositionAmount.id])
+
+    borrowPosition.allTokens = borrowPosition.allTokens.concat([borrowPositionAmount.token])
+
+    if (balanceUpdate.valuePar.gt(ZERO_BD)) {
+      borrowPosition.supplyTokens = borrowPosition.supplyTokens.concat([borrowPositionAmount.token])
+    } else {
+      borrowPosition.borrowTokens = borrowPosition.borrowTokens.concat([borrowPositionAmount.token])
+    }
+
     updated = true
   }
 
