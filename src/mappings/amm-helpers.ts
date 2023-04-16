@@ -139,6 +139,11 @@ export function initializeToken(token: Token, marketId: BigInt): void {
   token.supplyLiquidity = ZERO_BD
   token.supplyLiquidityUSD = ZERO_BD
   token.transactionCount = ZERO_BI
+
+  if (CHAIN_ID === 421613 && token.symbol == 'dPTSynInd') {
+    // this token says it has 18 decimals on-chain but that's incorrect
+    token.decimals = BigInt.fromI32(6)
+  }
   token.save()
 
   let reverseMap = new TokenMarketIdReverseMap(marketId.toString())
