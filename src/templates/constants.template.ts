@@ -48,9 +48,10 @@ export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'.toLower
 
 // ========================= Interest Setter Contract Addresses =========================
 
-export const DOUBLE_EXPONENT_INTEREST_SETTER_V1_ADDRESS = '{{doubleExponentInterestSetterV1}}'.toLowerCase()
-export const AAVE_ALT_COIN_COPY_CAT_V1_ADDRESS = '{{aaveAltCoinCopyCatV1}}'.toLowerCase()
-export const AAVE_STABLE_COIN_COPY_CAT_V1_ADDRESS = '{{aaveStableCoinCopyCatV1}}'.toLowerCase()
+export const DOUBLE_EXPONENT_V1_INTEREST_SETTER_ADDRESS = '{{doubleExponentV1InterestSetter}}'.toLowerCase()
+export const AAVE_ALT_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS = '{{aaveAltCoinCopyCatV1InterestSetter}}'.toLowerCase()
+export const AAVE_STABLE_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS = '{{aaveStableCoinCopyCatV1InterestSetter}}'.toLowerCase()
+export const ALWAYS_ZERO_INTEREST_SETTER_ADDRESS = '{{alwaysZeroInterestSetter}}'.toLowerCase()
 
 // ========================= Protocol Contract Addresses =========================
 

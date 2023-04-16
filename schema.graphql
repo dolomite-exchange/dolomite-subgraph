@@ -551,8 +551,10 @@ type MarginAccount @entity {
   lastUpdatedBlockNumber: BigInt!
   tokenValues: [MarginAccountTokenValue!]! @derivedFrom(field: "marginAccount")
   borrowTokens: [Token!]!
+  supplyTokens: [Token!]!
   expirationTokens: [Token!]!
   hasBorrowValue: Boolean!
+  hasSupplyValue: Boolean!
   hasExpiration: Boolean!
 }
 
@@ -776,4 +778,9 @@ type BorrowPosition @entity {
 
   # user held amounts for each token in the position. Negative means the value is debt.
   amounts: [BorrowPositionAmount!]!
+
+  # These fields are redundantly added to make querying easier
+  allTokens: [Token!]!
+  supplyTokens: [Token!]!
+  borrowTokens: [Token!]!
 }

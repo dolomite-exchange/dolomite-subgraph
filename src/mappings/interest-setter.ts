@@ -1,8 +1,10 @@
-import { Address, BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt } from '@graphprotocol/graph-ts'
 import { DolomiteMargin, InterestIndex, InterestRate, Token, TotalPar } from '../types/schema'
 import {
-  AAVE_ALT_COIN_COPY_CAT_V1_ADDRESS, AAVE_STABLE_COIN_COPY_CAT_V1_ADDRESS,
-  DOUBLE_EXPONENT_INTEREST_SETTER_V1_ADDRESS,
+  AAVE_ALT_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS,
+  AAVE_STABLE_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS,
+  DOUBLE_EXPONENT_V1_INTEREST_SETTER_ADDRESS,
+  ALWAYS_ZERO_INTEREST_SETTER_ADDRESS,
   INTEREST_PRECISION,
   ONE_ETH_BD,
   ONE_ETH_BI,
@@ -82,12 +84,14 @@ function getInterestRatePerSecond(
   supplyWeiBI: BigInt,
   interestSetter: Address,
 ): BigInt {
-  if (interestSetter.equals(Address.fromString(DOUBLE_EXPONENT_INTEREST_SETTER_V1_ADDRESS))) {
+  if (interestSetter.equals(Address.fromString(DOUBLE_EXPONENT_V1_INTEREST_SETTER_ADDRESS))) {
     return getDoubleExponentInterestRatePerSecond(borrowWeiBI, supplyWeiBI)
-  } else if (interestSetter.equals(Address.fromString(AAVE_ALT_COIN_COPY_CAT_V1_ADDRESS))) {
+  } else if (interestSetter.equals(Address.fromString(AAVE_ALT_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS))) {
     return getAAVECopyCatInterestRatePerSecond(false, borrowWeiBI, supplyWeiBI)
-  } else if (interestSetter.equals(Address.fromString(AAVE_STABLE_COIN_COPY_CAT_V1_ADDRESS))) {
+  } else if (interestSetter.equals(Address.fromString(AAVE_STABLE_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS))) {
     return getAAVECopyCatInterestRatePerSecond(true, borrowWeiBI, supplyWeiBI)
+  } else if (interestSetter.equals(Address.fromString(ALWAYS_ZERO_INTEREST_SETTER_ADDRESS))) {
+    return ZERO_BI
   } else {
     throw new Error('Invalid interest setter: ' + interestSetter.toHexString())
   }

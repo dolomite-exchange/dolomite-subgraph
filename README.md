@@ -1,11 +1,10 @@
 # Dolomite Subgraph
 
-This sub-graph was originally forked from [Uniswap](https://uniswap.org/). Dolomite is a decentralized protocol for 
-complex financial instruments on Ethereum. Elements of Uniswap's AMM design were forked and integrated into Dolomite's 
-fork of [dYdX's Solo Margin](https://github.com/dydxprotocol/solo). 
+This subgraph was originally forked from [Uniswap](https://uniswap.org/). Dolomite is a next-generation money market 
+DeFi protocol. 
 
-This subgraph dynamically tracks all trading pairs. It tracks of the current state of Uniswap contracts, the 
-DolomiteMargin margin protocol, and contains derived stats for things like historical data and USD prices.
+This subgraph dynamically tracks all markets and trading pairs. It tracks of the current state of the Dolomite Margin 
+contracts and contains derived stats for things like historical data and USD prices.
 
 - aggregated data across pairs and tokens,
 - data on individual pairs and tokens,
@@ -28,9 +27,9 @@ playground.
 
 ## Key Entity Overviews
 
-#### UniswapFactory
+#### AmmFactory
 
-Contains data across all of Uniswap V2. This entity tracks important things like total liquidity (in ETH and USD, see 
+Contains data across all of Dolomite AMM pools. This entity tracks important things like total liquidity (in ETH and USD, see 
 below), all time volume, transaction count, number of pairs and more.
 
 #### Token
@@ -38,16 +37,16 @@ below), all time volume, transaction count, number of pairs and more.
 Contains data on a specific token. This token specific data is aggregated across all pairs, and is updated whenever 
 there is a transaction involving that token.
 
-#### Pair
+#### AmmPair
 
-Contains data on a specific pair.
+Contains data on a specific AMM pool.
 
 #### Transaction
 
 Every transaction on Dolomite is stored. Each transaction contains an array of mints, burns, and swaps that occurred 
 within it.
 
-#### Mint, Burn, Swap
+#### AmmPair, AmmMint, AmmBurn
 
 These contain specific information about a transaction. Things like which pair triggered the transaction, amounts, 
 sender, recipient, and more. Each is linked to a parent Transaction entity.
@@ -61,7 +60,7 @@ the whole protocol.
 
 ```graphql
 {
-  uniswapFactories(first: 1) {
+  ammFactories(first: 1) {
     pairCount
     totalVolumeUSD
     totalLiquidityUSD

@@ -86,8 +86,10 @@ export function getOrCreateMarginAccount(
     marginAccount.user = owner.toHexString()
     marginAccount.accountNumber = accountNumber
     marginAccount.borrowTokens = []
+    marginAccount.supplyTokens = []
     marginAccount.expirationTokens = []
     marginAccount.hasBorrowValue = false
+    marginAccount.hasSupplyValue = false
     marginAccount.hasExpiration = false
   }
 
@@ -325,6 +327,22 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
     marginAccount.borrowTokens = marginAccount.borrowTokens.concat([balanceUpdate.token.id])
   }
   marginAccount.hasBorrowValue = marginAccount.borrowTokens.length > 0
+
+  if (tokenValue.valuePar.le(ZERO_BD) && balanceUpdate.valuePar.gt(ZERO_BD)) {
+    // The user is going from a zero or negative balance to a positive one. Add to the list
+    marginAccount.supplyTokens = marginAccount.supplyTokens.concat([balanceUpdate.token.id])
+  } else if (tokenValue.valuePar.gt(ZERO_BD) && balanceUpdate.valuePar.le(ZERO_BD)) {
+    // The user is going from a positive balance to a zero or negative one, remove it from the list
+    let index = marginAccount.supplyTokens.indexOf(balanceUpdate.token.id)
+    if (index != -1) {
+      let copy = marginAccount.supplyTokens
+      copy.splice(index, 1)
+      // NOTE we must use the copy here because the return value of #splice isn't the new array. Rather, it returns the
+      // DELETED element only
+      marginAccount.supplyTokens = copy
+    }
+  }
+  marginAccount.hasSupplyValue = marginAccount.supplyTokens.length > 0
 
   if (balanceUpdate.valuePar.lt(ZERO_BD) && balanceUpdate.valuePar.lt(tokenValue.valuePar)) {
     // The user is borrowing capital. The amount borrowed is capped at `neg(balanceUpdate.valuePar)`
