@@ -14,7 +14,8 @@ import { ValueStruct } from './margin-types'
 import {
   ZERO_BI,
   ZERO_BD,
-  ONE_BI, DOLOMITE_MARGIN_ADDRESS, NETWORK,
+  ONE_BI,
+  DOLOMITE_MARGIN_ADDRESS,
 } from './generated/constants'
 import { CHAIN_ID } from '../templates/constants.template'
 
