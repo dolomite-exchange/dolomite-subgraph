@@ -33,6 +33,8 @@ export function handleNewPair(event: PairCreated): void {
     factory.ammLiquidityUSD = ZERO_BD
     factory.transactionCount = ZERO_BI
     factory.ammTradeCount = ZERO_BI
+    factory.ammMintCount = ZERO_BI
+    factory.ammBurnCount = ZERO_BI
 
     // create new bundle
     let bundle = new Bundle('1')

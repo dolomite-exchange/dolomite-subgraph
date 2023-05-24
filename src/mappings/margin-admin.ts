@@ -97,6 +97,7 @@ export function handleMarketAdded(event: AddMarketEvent): void {
     BigInt.fromI32(36 - token.decimals.toI32())
   )
   oraclePrice.blockNumber = event.block.number
+  oraclePrice.blockHash = event.block.hash
   oraclePrice.token = token.id
   oraclePrice.save()
 

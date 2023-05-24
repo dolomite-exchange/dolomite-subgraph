@@ -29,11 +29,11 @@
     "deploy:mumbai": "yarn codegen:mumbai && graph deploy --product hosted-service dolomite-exchange/dolomite-v2-mumbai",
     "deploy:arbitrum-rinkeby": "yarn codegen:arbitrum-rinkeby && graph deploy --product hosted-service dolomite-exchange/dolomite-v2-arbitrum-rinkeby",
     "deploy:arbitrum-goerli": "yarn codegen:arbitrum-goerli && graph deploy --product hosted-service dolomite-exchange/dolomite-v2-arbitrum-goerli",
-    "deploy:arbitrum-one": "yarn codegen:arbitrum-one && graph deploy --product hosted-service dolomite-exchange/dolomite-v2-arbitrum",
+    "deploy:arbitrum-one": "yarn codegen:arbitrum-one && graph deploy --studio dolomite-arbitrum",
     "watch-local": "graph deploy dolomite-exchange/dolomite-v2 --watch --debug --node http://127.0.0.1:8020/ --ipfs http://localhost:5001"
   },
   "devDependencies": {
-    "@graphprotocol/graph-ts": "^0.24.1",
+    "@graphprotocol/graph-ts": "^0.30.0",
     "@typescript-eslint/eslint-plugin": "^2.0.0",
     "@typescript-eslint/parser": "^2.0.0",
     "eslint": "^6.2.2",
