@@ -6,7 +6,7 @@ import {
 } from '../types/MarginExpiry/DolomiteMarginExpiry'
 import {
   Token,
-  TokenMarketIdReverseMap
+  TokenMarketIdReverseLookup
 } from '../types/schema'
 import {
   ZERO_BD,
@@ -31,7 +31,7 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
   let token = Token.load(tokenAddress) as Token
 
   let marginAccount = getOrCreateMarginAccount(event.params.owner, event.params.number, event.block)

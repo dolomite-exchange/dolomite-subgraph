@@ -21,12 +21,12 @@ import {
   MarginPosition,
   OraclePrice,
   Token,
-  TokenMarketIdReverseMap,
+  TokenMarketIdReverseLookup,
   Trade,
   Transfer,
   User,
   Vaporization,
-  Withdrawal
+  Withdrawal,
 } from '../types/schema'
 import { getOrCreateTransaction } from './amm-core'
 import { convertStructToDecimalAppliedValue, convertTokenToDecimal } from './amm-helpers'
@@ -42,20 +42,23 @@ import {
 import { _18_BI, EXPIRY_ADDRESS, ONE_BI, USD_PRECISION, ZERO_BI } from './generated/constants'
 import { absBD } from './helpers'
 import {
+  canBeMarginPosition,
   changeProtocolBalance,
   getIDForEvent,
   getLiquidationSpreadForPair,
   getOrCreateDolomiteMarginForCall,
   getOrCreateMarginPosition,
   handleDolomiteMarginBalanceUpdateForAccount,
-  invalidateMarginPosition, canBeMarginPosition,
+  invalidateMarginPosition,
   parToWei,
   roundHalfUp,
-  saveMostRecentTrade, updateMarginPositionForTransfer,
+  saveMostRecentTrade,
+  updateMarginPositionForTransfer,
 } from './margin-helpers'
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
 import { updateBorrowPositionForLiquidation } from './borrow-position-helpers'
+import { getEffectiveUserForAddress, getEffectiveUserForAddressString } from './isolation-mode-helpers'
 
 // noinspection JSUnusedGlobalSymbols,JSUnusedLocalSymbols
 export function handleOperation(event: OperationEvent): void {
@@ -69,7 +72,7 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let tokenAddress = TokenMarketIdReverseMap.load(event.params.market.toString())!.token
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.market.toString())!.token
   let index = InterestIndex.load(tokenAddress)
   if (index === null) {
     index = new InterestIndex(tokenAddress)
@@ -88,7 +91,7 @@ export function handleOraclePriceUpdate(event: OraclePriceEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let tokenAddress = TokenMarketIdReverseMap.load(event.params.market.toString())!.token
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.market.toString())!.token
   let token = Token.load(tokenAddress) as Token
   let oraclePrice = OraclePrice.load(tokenAddress) as OraclePrice
 
@@ -126,7 +129,7 @@ export function handleDeposit(event: DepositEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.token) as Token
+  let token = Token.load(TokenMarketIdReverseLookup.load(event.params.market.toString())!.token) as Token
 
   let balanceUpdate = new BalanceUpdate(
     event.params.accountOwner,
@@ -155,6 +158,7 @@ export function handleDeposit(event: DepositEvent): void {
 
   deposit.transaction = transaction.id
   deposit.logIndex = event.logIndex
+  deposit.effectiveUser = getEffectiveUserForAddress(event.params.accountOwner).id
   deposit.marginAccount = marginAccount.id
   deposit.token = token.id
   deposit.from = event.params.from
@@ -193,7 +197,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.token) as Token
+  let token = Token.load(TokenMarketIdReverseLookup.load(event.params.market.toString())!.token) as Token
 
   let balanceUpdate = new BalanceUpdate(
     event.params.accountOwner,
@@ -223,6 +227,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
   withdrawal.transaction = transaction.id
   withdrawal.logIndex = event.logIndex
+  withdrawal.effectiveUser = getEffectiveUserForAddress(event.params.accountOwner).id
   withdrawal.marginAccount = marginAccount.id
   withdrawal.token = token.id
   withdrawal.to = event.params.to
@@ -260,7 +265,7 @@ export function handleTransfer(event: TransferEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let token = Token.load(TokenMarketIdReverseMap.load(event.params.market.toString())!.token) as Token
+  let token = Token.load(TokenMarketIdReverseLookup.load(event.params.market.toString())!.token) as Token
 
   let balanceUpdate1 = new BalanceUpdate(
     event.params.accountOneOwner,
@@ -299,8 +304,13 @@ export function handleTransfer(event: TransferEvent): void {
   transfer.transaction = transaction.id
   transfer.logIndex = event.logIndex
 
-  transfer.fromMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount2.id : marginAccount1.id
-  transfer.toMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount1.id : marginAccount2.id
+  let fromMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount2 : marginAccount1
+  let toMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount1 : marginAccount2
+
+  transfer.fromEffectiveUser = getEffectiveUserForAddressString(fromMarginAccount.user).id
+  transfer.fromMarginAccount = fromMarginAccount.id
+  transfer.toEffectiveUser = getEffectiveUserForAddressString(toMarginAccount.user).id
+  transfer.toMarginAccount = toMarginAccount.id
   transfer.isSelfTransfer = transfer.fromMarginAccount == transfer.toMarginAccount
   transfer.walletsConcatenated = `${marginAccount1.user}_${marginAccount2.user}`
 
@@ -347,7 +357,7 @@ export function handleTransfer(event: TransferEvent): void {
     transfer,
     event,
     token,
-    priceUSD
+    priceUSD,
   )
 
   updateAndReturnTokenHourDataForMarginEvent(token, event)
@@ -363,8 +373,8 @@ export function handleBuy(event: BuyEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let makerToken = Token.load(TokenMarketIdReverseMap.load(event.params.makerMarket.toString())!.token) as Token
-  let takerToken = Token.load(TokenMarketIdReverseMap.load(event.params.takerMarket.toString())!.token) as Token
+  let makerToken = Token.load(TokenMarketIdReverseLookup.load(event.params.makerMarket.toString())!.token) as Token
+  let takerToken = Token.load(TokenMarketIdReverseLookup.load(event.params.takerMarket.toString())!.token) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
     event.params.accountOwner,
@@ -405,6 +415,7 @@ export function handleBuy(event: BuyEvent): void {
   trade.timestamp = transaction.timestamp
   trade.logIndex = event.logIndex
 
+  trade.takerEffectiveUser = getEffectiveUserForAddressString(marginAccount.user).id
   trade.takerMarginAccount = marginAccount.id
   trade.makerMarginAccount = null
   trade.walletsConcatenated = marginAccount.user
@@ -502,8 +513,8 @@ export function handleSell(event: SellEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let makerToken = Token.load(TokenMarketIdReverseMap.load(event.params.makerMarket.toString())!.token) as Token
-  let takerToken = Token.load(TokenMarketIdReverseMap.load(event.params.takerMarket.toString())!.token) as Token
+  let makerToken = Token.load(TokenMarketIdReverseLookup.load(event.params.makerMarket.toString())!.token) as Token
+  let takerToken = Token.load(TokenMarketIdReverseLookup.load(event.params.takerMarket.toString())!.token) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
     event.params.accountOwner,
@@ -544,6 +555,7 @@ export function handleSell(event: SellEvent): void {
   trade.timestamp = transaction.timestamp
   trade.logIndex = event.logIndex
 
+  trade.takerEffectiveUser = getEffectiveUserForAddressString(marginAccount.user).id
   trade.takerMarginAccount = marginAccount.id
   trade.makerMarginAccount = null
   trade.walletsConcatenated = marginAccount.user
@@ -641,8 +653,8 @@ export function handleTrade(event: TradeEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let inputToken = Token.load(TokenMarketIdReverseMap.load(event.params.inputMarket.toString())!.token) as Token
-  let outputToken = Token.load(TokenMarketIdReverseMap.load(event.params.outputMarket.toString())!.token) as Token
+  let inputToken = Token.load(TokenMarketIdReverseLookup.load(event.params.inputMarket.toString())!.token) as Token
+  let outputToken = Token.load(TokenMarketIdReverseLookup.load(event.params.outputMarket.toString())!.token) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
     event.params.makerAccountOwner,
@@ -704,7 +716,9 @@ export function handleTrade(event: TradeEvent): void {
   trade.timestamp = transaction.timestamp
   trade.logIndex = event.logIndex
 
+  trade.takerEffectiveUser = getEffectiveUserForAddressString(takerMarginAccount.user).id
   trade.takerMarginAccount = takerMarginAccount.id
+  trade.makerEffectiveUser = getEffectiveUserForAddressString(makerMarginAccount.user).id
   trade.makerMarginAccount = makerMarginAccount.id
   trade.walletsConcatenated = `${takerMarginAccount.user}_${makerMarginAccount.user}`
 
@@ -883,8 +897,8 @@ export function handleLiquidate(event: LiquidationEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let heldToken = Token.load(TokenMarketIdReverseMap.load(event.params.heldMarket.toString())!.token) as Token
-  let owedToken = Token.load(TokenMarketIdReverseMap.load(event.params.owedMarket.toString())!.token) as Token
+  let heldToken = Token.load(TokenMarketIdReverseLookup.load(event.params.heldMarket.toString())!.token) as Token
+  let owedToken = Token.load(TokenMarketIdReverseLookup.load(event.params.owedMarket.toString())!.token) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
     event.params.liquidAccountOwner,
@@ -944,7 +958,9 @@ export function handleLiquidate(event: LiquidationEvent): void {
   liquidation.transaction = transaction.id
   liquidation.logIndex = event.logIndex
 
+  liquidation.liquidEffectiveUser = getEffectiveUserForAddressString(liquidMarginAccount.user).id
   liquidation.liquidMarginAccount = liquidMarginAccount.id
+  liquidation.solidEffectiveUser = getEffectiveUserForAddressString(solidMarginAccount.user).id
   liquidation.solidMarginAccount = solidMarginAccount.id
 
   liquidation.heldToken = heldToken.id
@@ -1098,8 +1114,8 @@ export function handleVaporize(event: VaporizationEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let heldToken = Token.load(TokenMarketIdReverseMap.load(event.params.heldMarket.toString())!.token) as Token
-  let owedToken = Token.load(TokenMarketIdReverseMap.load(event.params.owedMarket.toString())!.token) as Token
+  let heldToken = Token.load(TokenMarketIdReverseLookup.load(event.params.heldMarket.toString())!.token) as Token
+  let owedToken = Token.load(TokenMarketIdReverseLookup.load(event.params.owedMarket.toString())!.token) as Token
 
   let balanceUpdateOne = new BalanceUpdate(
     event.params.vaporAccountOwner,
@@ -1157,7 +1173,9 @@ export function handleVaporize(event: VaporizationEvent): void {
   vaporization.transaction = transaction.id
   vaporization.logIndex = event.logIndex
 
+  vaporization.vaporEffectiveUser = getEffectiveUserForAddressString(vaporMarginAccount.user).id
   vaporization.vaporMarginAccount = vaporMarginAccount.id
+  vaporization.solidEffectiveUser = getEffectiveUserForAddressString(solidMarginAccount.user).id
   vaporization.solidMarginAccount = solidMarginAccount.id
 
   vaporization.heldToken = heldToken.id

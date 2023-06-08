@@ -12,6 +12,7 @@ import {
   ONE_BI,
 } from './generated/constants'
 import { Address, log } from '@graphprotocol/graph-ts'
+import { getEffectiveUserForAddressString } from './isolation-mode-helpers'
 
 
 export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
@@ -34,6 +35,7 @@ export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
     user.save()
 
     borrowPosition = new BorrowPosition(id)
+    borrowPosition.effectiveUser = getEffectiveUserForAddressString(marginAccount.user).id
     borrowPosition.marginAccount = marginAccount.id
     borrowPosition.openTimestamp = event.block.timestamp
     borrowPosition.openTransaction = getOrCreateTransaction(event).id

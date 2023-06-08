@@ -30,7 +30,7 @@ import {
   MarketRiskInfo,
   OraclePrice,
   Token,
-  TokenMarketIdReverseMap,
+  TokenMarketIdReverseLookup,
   TotalPar,
 } from '../types/schema'
 import {
@@ -119,8 +119,8 @@ export function handleMarketRemoved(event: RemoveMarketEvent): void {
   dolomiteMargin.numberOfMarkets += 1
   dolomiteMargin.save()
 
-  let id = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
-  store.remove('TokenMarketIdReverseMap', id)
+  let id = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
+  store.remove('TokenMarketIdReverseLookup', id)
   store.remove('InterestIndex', id)
   store.remove('InterestRate', id)
   store.remove('MarketRiskInfo', id)
@@ -148,7 +148,7 @@ export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
 
   let numberOfMarkets = dolomiteMargin.numberOfMarkets
   for (let i = 0; i < numberOfMarkets; i++) {
-    let map = TokenMarketIdReverseMap.load(i.toString()) // can be null for recycled markets
+    let map = TokenMarketIdReverseLookup.load(i.toString()) // can be null for recycled markets
     if (map !== null) {
       let interestRate = InterestRate.load(map.token) as InterestRate
       // First undo the OLD supply interest rate by dividing by the old earnings rate,
@@ -229,7 +229,7 @@ export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
   let token = Token.load(tokenAddress) as Token
   let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   let marginPremium = new BigDecimal(event.params.marginPremium.value)
@@ -244,7 +244,7 @@ export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpda
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
   let token = Token.load(tokenAddress) as Token
   let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   let spreadPremium = new BigDecimal(event.params.spreadPremium.value)
@@ -259,7 +259,7 @@ export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
   let token = Token.load(tokenAddress) as Token
   let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   marketInfo.isBorrowingDisabled = event.params.isClosing
@@ -273,7 +273,7 @@ export function handleSetMaxWei(event: MaxWeiUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
   let token = Token.load(tokenAddress) as Token
   let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   marketInfo.supplyMaxWei = convertTokenToDecimal(event.params.maxWei.value, token.decimals)
@@ -287,7 +287,7 @@ export function handleSetPriceOracle(event: PriceOracleUpdateEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
   let token = Token.load(tokenAddress) as Token
   let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   marketInfo.oracle = event.params.priceOracle
@@ -301,7 +301,7 @@ export function handleSetInterestSetter(event: InterestSetterUpdateEvent): void 
     [event.transaction.hash.toHexString(), event.logIndex.toString()]
   )
 
-  let tokenAddress = TokenMarketIdReverseMap.load(event.params.marketId.toString())!.token
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
   let token = Token.load(tokenAddress) as Token
   let interestRate = InterestRate.load(token.id) as InterestRate
   interestRate.interestSetter = event.params.interestSetter

@@ -36,6 +36,7 @@ import { getTokenOraclePriceUSD } from './pricing'
 import { updateTimeDataForBorrow } from './day-updates'
 import { updateInterestRate } from './interest-setter'
 import { updateBorrowPositionForBalanceUpdate } from './borrow-position-helpers'
+import { getEffectiveUserForAddressString } from './isolation-mode-helpers'
 
 export function getIDForEvent(event: ethereum.Event): string {
   return `${event.transaction.hash.toHexString()}-${event.logIndex.toString()}`
@@ -103,6 +104,7 @@ export function getOrCreateMarginPosition(event: ethereum.Event, account: Margin
   let marginPosition = MarginPosition.load(account.id)
   if (marginPosition === null) {
     marginPosition = new MarginPosition(account.id)
+    marginPosition.effectiveUser = getEffectiveUserForAddressString(account.user).id
     marginPosition.marginAccount = account.id
     marginPosition.isInitialized = false
     marginPosition.status = MarginPositionStatus.Open

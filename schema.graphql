@@ -70,6 +70,9 @@ type Token @entity {
   name: String!
   decimals: BigInt!
 
+  # taken from the name being "Dolomite Isolation:"
+  isIsolationMode: Boolean!
+
   # Taken from DolomiteMargin
   marketId: BigInt!
 
@@ -101,9 +104,16 @@ type Token @entity {
   pairQuote: [AmmPair!]! @derivedFrom(field: "token1")
 }
 
-type TokenMarketIdReverseMap @entity {
+type TokenMarketIdReverseLookup @entity {
   id: ID! # marketId.toString()
   token: Token!
+}
+
+type IsolationModeVaultReverseLookup @entity {
+  id: ID! # vaultAddress
+  token: Token!
+  vault: User!
+  owner: User!
 }
 
 type AmmPairReverseLookup @entity {
@@ -155,6 +165,7 @@ type AmmPair @entity {
 
 type User @entity {
   id: ID! # the user's address
+  effectiveUser: User! # the user's owner (differs for IsolationMode users)
   liquidityPositions: [AmmLiquidityPosition!] @derivedFrom(field: "user")
   marginAccounts: [MarginAccount!] @derivedFrom(field: "user")
 
@@ -172,6 +183,7 @@ type User @entity {
 type AmmLiquidityPosition @entity {
   id: ID! # exchangeAddress-userAddress
   user: User!
+  effectiveUser: User!
   pair: AmmPair!
   liquidityTokenBalance: BigDecimal!
 }
@@ -183,6 +195,7 @@ type AmmLiquidityPositionSnapshot @entity {
   timestamp: Int! # saved for fast historical lookups
   block: Int! # saved for fast historical lookups
   user: User! # reference to user
+  effectiveUser: User!
   pair: AmmPair! # reference to pair
   token0PriceUSD: BigDecimal! # snapshot of token0 price
   token1PriceUSD: BigDecimal! # snapshot of token1 price
@@ -588,6 +601,7 @@ type Deposit @entity {
   logIndex: BigInt!
   serialId: BigInt!
 
+  effectiveUser: User!
   marginAccount: MarginAccount!
   token: Token!
   from: Bytes!
@@ -604,6 +618,7 @@ type Withdrawal @entity {
   logIndex: BigInt!
   serialId: BigInt!
 
+  effectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   marginAccount: MarginAccount!
   token: Token!
   to: Bytes!
@@ -620,7 +635,9 @@ type Transfer @entity {
   logIndex: BigInt!
   serialId: BigInt!
 
+  fromEffectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   fromMarginAccount: MarginAccount!
+  toEffectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   toMarginAccount: MarginAccount!
   isSelfTransfer: Boolean!
   walletsConcatenated: String! # concatenated wallets for querying on being a sender/receiver 0x0...F-0x0...F
@@ -641,7 +658,9 @@ type Liquidation @entity {
   serialId: BigInt!
 
   # populated from the Liquidation event
+  solidEffectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   solidMarginAccount: MarginAccount!
+  liquidEffectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   liquidMarginAccount: MarginAccount!
   heldToken: Token!
   borrowedToken: Token!
@@ -663,7 +682,9 @@ type Vaporization @entity {
   logIndex: BigInt!
   serialId: BigInt!
 
+  solidEffectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   solidMarginAccount: MarginAccount!
+  vaporEffectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   vaporMarginAccount: MarginAccount!
 
   heldToken: Token!
@@ -685,7 +706,9 @@ type Trade @entity {
   traderAddress: Bytes!
   timestamp: BigInt!
 
+  takerEffectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   takerMarginAccount: MarginAccount!
+  makerEffectiveUser: User # NULLABE; set to the marginAccount.user or owner of an isolation mode address
   makerMarginAccount: MarginAccount # NULLABLE
   walletsConcatenated: String! # concatenated wallets for querying on being a maker/taker 0x...F-0x...F
 
@@ -707,6 +730,7 @@ type MostRecentTrade @entity {
 
 type MarginPosition @entity {
   id: ID! # Defined as "userAddress-accountNumber"
+  effectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   marginAccount: MarginAccount!
   isInitialized: Boolean!
 
@@ -768,6 +792,7 @@ type BorrowPositionAmount @entity {
 
 type BorrowPosition @entity {
   id: ID! # Defined as "userAddress-accountNumber"
+  effectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   marginAccount: MarginAccount!
   openTimestamp: BigInt!
   closeTimestamp: BigInt

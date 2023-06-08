@@ -218,3 +218,21 @@ templates:
           handler: handleERC20Transfer
         - event: Sync(uint112,uint112)
           handler: handleSync
+  - kind: ethereum/contract
+    name: IsolationModeVault
+    network: {{network}}
+    source:
+      abi: IsolationModeFactory
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      file: ./src/mappings/amm-core.ts
+      entities:
+        - IsolationModeVaultMap
+      abis:
+        - name: IsolationModeFactory
+          file: ./abis/isolation-mode-vault-factory.json
+      eventHandlers:
+        - event: VaultCreated(indexed address,address)
+          handler: handleVaultCreated

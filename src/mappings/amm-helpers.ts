@@ -7,7 +7,7 @@ import {
   AmmPair,
   Bundle, DolomiteMargin,
   Token,
-  TokenMarketIdReverseMap,
+  TokenMarketIdReverseLookup,
   User,
 } from '../types/schema'
 import { ValueStruct } from './margin-types'
@@ -18,6 +18,7 @@ import {
   DOLOMITE_MARGIN_ADDRESS,
 } from './generated/constants'
 import { CHAIN_ID } from '../templates/constants.template'
+import { IsolationModeVault } from '../types/templates'
 
 export function exponentToBigDecimal(decimals: BigInt): BigDecimal {
   let bd = BigDecimal.fromString('1')
@@ -145,9 +146,19 @@ export function initializeToken(token: Token, marketId: BigInt): void {
     // this token says it has 18 decimals on-chain but that's incorrect
     token.decimals = BigInt.fromI32(6)
   }
+
+  // dGLP doesn't have the "Dolomite Isolation:" prefix, so it's an edge-case
+  let dGlpAddress = Address.fromString('0x34DF4E8062A8C8Ae97E3382B452bd7BF60542698')
+  if (token.name.includes('Dolomite Isolation:') || Address.fromString(token.id).equals(dGlpAddress)) {
+    IsolationModeVault.create(Address.fromString(token.id))
+    token.isIsolationMode = true
+  } else {
+    token.isIsolationMode = false
+  }
+
   token.save()
 
-  let reverseMap = new TokenMarketIdReverseMap(marketId.toString())
+  let reverseMap = new TokenMarketIdReverseLookup(marketId.toString())
   reverseMap.token = token.id
   reverseMap.save()
 }
@@ -164,6 +175,8 @@ export function createLiquidityPosition(exchange: Address, user: Address): AmmLi
     liquidityTokenBalance.liquidityTokenBalance = ZERO_BD
     liquidityTokenBalance.pair = exchange.toHexString()
     liquidityTokenBalance.user = user.toHexString()
+    let user = User.load(liquidityTokenBalance.user) as User
+    liquidityTokenBalance.effectiveUser = user.effectiveUser
 
     pair.save()
     liquidityTokenBalance.save()
@@ -176,6 +189,7 @@ export function createUserIfNecessary(address: Address): void {
   let user = User.load(address.toHexString())
   if (user === null) {
     user = new User(address.toHexString())
+    user.effectiveUser = address.toHexString() // make it self-reflective for now until IsolationMode event fires
     user.totalUsdBorrowed = ZERO_BD
     user.totalUsdCollateralLiquidated = ZERO_BD
     user.totalUsdAmmTraded = ZERO_BD
@@ -206,6 +220,7 @@ export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: e
   snapshot.timestamp = timestamp
   snapshot.block = event.block.number.toI32()
   snapshot.user = position.user
+  snapshot.effectiveUser = position.effectiveUser
   snapshot.pair = position.pair
   snapshot.token0PriceUSD = (token0.derivedETH as BigDecimal).times(bundle.ethPrice)
   snapshot.token1PriceUSD = (token1.derivedETH as BigDecimal).times(bundle.ethPrice)
