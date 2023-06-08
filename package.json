@@ -28,7 +28,7 @@
     "deploy:local": "graph deploy dolomite-exchange/dolomite-v2 --debug --ipfs http://localhost:5001 --node http://127.0.0.1:8020",
     "deploy:mumbai": "yarn codegen:mumbai && graph deploy --product hosted-service dolomite-exchange/dolomite-v2-mumbai",
     "deploy:arbitrum-rinkeby": "yarn codegen:arbitrum-rinkeby && graph deploy --product hosted-service dolomite-exchange/dolomite-v2-arbitrum-rinkeby",
-    "deploy:arbitrum-goerli": "yarn codegen:arbitrum-goerli && graph deploy --product hosted-service dolomite-exchange/dolomite-v2-arbitrum-goerli",
+    "deploy:arbitrum-goerli": "yarn codegen:arbitrum-goerli && graph deploy --studio dolomite-arbitrum-goerli",
     "deploy:arbitrum-one": "yarn codegen:arbitrum-one && graph deploy --studio dolomite-arbitrum",
     "watch-local": "graph deploy dolomite-exchange/dolomite-v2 --watch --debug --node http://127.0.0.1:8020/ --ipfs http://localhost:5001"
   },
