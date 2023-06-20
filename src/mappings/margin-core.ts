@@ -313,6 +313,7 @@ export function handleTransfer(event: TransferEvent): void {
   transfer.toMarginAccount = toMarginAccount.id
   transfer.isSelfTransfer = transfer.fromMarginAccount == transfer.toMarginAccount
   transfer.walletsConcatenated = `${marginAccount1.user}_${marginAccount2.user}`
+  transfer.effectiveWalletsConcatenated = `${transfer.fromEffectiveUser}_${transfer.toEffectiveUser}`
 
   transfer.token = token.id
 
@@ -419,6 +420,7 @@ export function handleBuy(event: BuyEvent): void {
   trade.takerMarginAccount = marginAccount.id
   trade.makerMarginAccount = null
   trade.walletsConcatenated = marginAccount.user
+  trade.effectiveWalletsConcatenated = trade.takerEffectiveUser
 
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
@@ -559,6 +561,7 @@ export function handleSell(event: SellEvent): void {
   trade.takerMarginAccount = marginAccount.id
   trade.makerMarginAccount = null
   trade.walletsConcatenated = marginAccount.user
+  trade.effectiveWalletsConcatenated = trade.takerEffectiveUser
 
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
@@ -721,6 +724,7 @@ export function handleTrade(event: TradeEvent): void {
   trade.makerEffectiveUser = getEffectiveUserForAddressString(makerMarginAccount.user).id
   trade.makerMarginAccount = makerMarginAccount.id
   trade.walletsConcatenated = `${takerMarginAccount.user}_${makerMarginAccount.user}`
+  trade.effectiveWalletsConcatenated = `${trade.takerEffectiveUser}_${trade.makerEffectiveUser!}`
 
   trade.takerToken = inputToken.id
   trade.makerToken = outputToken.id

@@ -641,6 +641,7 @@ type Transfer @entity {
   toMarginAccount: MarginAccount!
   isSelfTransfer: Boolean!
   walletsConcatenated: String! # concatenated wallets for querying on being a sender/receiver 0x0...F-0x0...F
+  effectiveWalletsConcatenated: String! # concatenated wallets of the effective users for querying on being a sender/receiver 0x0...F-0x0...F
   isTransferForMarginPosition: Boolean!
 
   token: Token!
@@ -711,6 +712,7 @@ type Trade @entity {
   makerEffectiveUser: User # NULLABE; set to the marginAccount.user or owner of an isolation mode address
   makerMarginAccount: MarginAccount # NULLABLE
   walletsConcatenated: String! # concatenated wallets for querying on being a maker/taker 0x...F-0x...F
+  effectiveWalletsConcatenated: String! # concatenated wallets for querying on being a maker/taker 0x...F-0x...F
 
   takerToken: Token! # the token sold (spent) by the `takerAccount`
   makerToken: Token! # the token sold (spent) by the `makerAccount`
