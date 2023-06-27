@@ -96,6 +96,8 @@ dataSources:
           file: ./abis/dolomite-margin-expiry.json
         - name: DolomiteMarginERC20
           file: ./abis/erc20.json
+        - name: LinearStepFunctionInterestSetter
+          file: ./abis/linear-step-function-interest-setter.json
       eventHandlers:
         - event: LogAddMarket(uint256,address)
           handler: handleMarketAdded

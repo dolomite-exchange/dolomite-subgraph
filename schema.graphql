@@ -534,6 +534,9 @@ type InterestIndex @entity {
 type InterestRate @entity {
   id: ID! # Defined as token address
   interestSetter: Bytes!
+  optimalUtilizationRate: BigInt!
+  lowerOptimalRate: BigInt!
+  upperOptimalRate: BigInt!
   token: Token!
   borrowInterestRate: BigDecimal!
   supplyInterestRate: BigDecimal!

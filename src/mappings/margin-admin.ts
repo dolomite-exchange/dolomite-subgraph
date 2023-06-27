@@ -41,11 +41,17 @@ import {
   ONE_ETH_BD,
   DOLOMITE_MARGIN_ADDRESS,
   ONE_BD,
-  ZERO_BD, INTEREST_PRECISION, ADDRESS_ZERO,
+  ZERO_BD, INTEREST_PRECISION, ADDRESS_ZERO, ZERO_BI,
 } from './generated/constants'
 import { getOrCreateDolomiteMarginForCall } from './margin-helpers'
 import { ProtocolType } from './margin-types'
-import { updateInterestRate } from './interest-setter'
+import {
+  getLowerOptimalRate,
+  getOptimalUtilizationRate,
+  getUpperOptimalRate,
+  updateInterestRate,
+} from './interest-setter'
+import { LinearStepFunctionInterestSetter } from '../types/MarginAdmin/LinearStepFunctionInterestSetter'
 
 // noinspection JSUnusedGlobalSymbols
 export function handleMarketAdded(event: AddMarketEvent): void {
@@ -79,6 +85,9 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   interestRate.borrowInterestRate = ZERO_BD
   interestRate.supplyInterestRate = ZERO_BD
   interestRate.interestSetter = Address.fromString(ADDRESS_ZERO)
+  interestRate.optimalUtilizationRate = ZERO_BI
+  interestRate.lowerOptimalRate = ZERO_BI
+  interestRate.upperOptimalRate = ZERO_BI
   interestRate.token = token.id
   interestRate.save()
 
@@ -305,6 +314,10 @@ export function handleSetInterestSetter(event: InterestSetterUpdateEvent): void 
   let token = Token.load(tokenAddress) as Token
   let interestRate = InterestRate.load(token.id) as InterestRate
   interestRate.interestSetter = event.params.interestSetter
+
+  interestRate.optimalUtilizationRate = getOptimalUtilizationRate(event.params.interestSetter)
+  interestRate.lowerOptimalRate = getLowerOptimalRate(event.params.interestSetter)
+  interestRate.upperOptimalRate = getUpperOptimalRate(event.params.interestSetter)
   interestRate.save()
 
   let totalPar = TotalPar.load(token.id) as TotalPar
