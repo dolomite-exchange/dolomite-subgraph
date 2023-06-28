@@ -16,8 +16,10 @@ import {
   ZERO_BD,
   ONE_BI,
   DOLOMITE_MARGIN_ADDRESS,
+  CHAIN_ID,
+  isArbitrumGoerli,
+  isArbitrumMainnet, USDC_ADDRESS,
 } from './generated/constants'
-import { CHAIN_ID } from '../templates/constants.template'
 import { IsolationModeVault } from '../types/templates'
 
 export function exponentToBigDecimal(decimals: BigInt): BigDecimal {
@@ -142,9 +144,13 @@ export function initializeToken(token: Token, marketId: BigInt): void {
   token.supplyLiquidityUSD = ZERO_BD
   token.transactionCount = ZERO_BI
 
-  if (CHAIN_ID === 421613 && token.symbol == 'dPTSynInd') {
+  if (isArbitrumGoerli() && token.symbol == 'dPTSynInd') {
     // this token says it has 18 decimals on-chain but that's incorrect
     token.decimals = BigInt.fromI32(6)
+  } else if (isArbitrumMainnet() && token.id == USDC_ADDRESS) {
+    // this token says it has 18 decimals on-chain but that's incorrect
+    token.name = "Bridged USDC"
+    token.symbol = "USDC.e"
   }
 
   // dGLP doesn't have the "Dolomite Isolation:" prefix, so it's an edge-case

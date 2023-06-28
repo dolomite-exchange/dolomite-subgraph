@@ -69,19 +69,19 @@ export function getLinearStepFunctionInterestRatePerSecond(
   borrowWei: BigInt,
   supplyWei: BigInt,
 ): BigInt {
+  const maxGoal = lowerOptimalRate.plus(upperOptimalRate)
   const BASE = ONE_ETH_BI // 100%
   if (borrowWei.equals(ZERO_BI)) {
     return ZERO_BI
   }
   if (supplyWei.equals(ZERO_BI)) {
-    // totalBorrowed > 0
-    return BASE.div(SECONDS_IN_YEAR_BI).times(PERCENT)
+    // totalBorrowed > 0 but no supply.
+    return maxGoal.div(SECONDS_IN_YEAR_BI)
   }
 
   const utilization = BASE.times(borrowWei).div(supplyWei)
-  const optimalDeltaToMax = PERCENT.minus(optimalUtilization)
+  const optimalUtilizationDeltaToMax = BASE.minus(optimalUtilization)
   const initialGoal = lowerOptimalRate
-  const maxGoal = lowerOptimalRate.plus(upperOptimalRate)
 
   let aprBI: BigInt // expressed as 1.0 == 1e18 or 0.1 = 1e17
   if (utilization.ge(BASE)) {
@@ -90,7 +90,7 @@ export function getLinearStepFunctionInterestRatePerSecond(
   } else if (utilization.gt(optimalUtilization)) {
     // interest is equal to initialGoal% + linear progress to maxGoal APR
     const deltaToGoal = maxGoal.minus(initialGoal)
-    const interestToAdd = deltaToGoal.times(utilization.minus(optimalUtilization)).div(optimalDeltaToMax)
+    const interestToAdd = deltaToGoal.times(utilization.minus(optimalUtilization)).div(optimalUtilizationDeltaToMax)
     aprBI = interestToAdd.plus(initialGoal)
   } else {
     aprBI = initialGoal.times(utilization).div(optimalUtilization)

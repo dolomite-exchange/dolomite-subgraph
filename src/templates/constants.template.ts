@@ -8,11 +8,10 @@ import {
   TypedMap,
 } from '@graphprotocol/graph-ts'
 
-const MAINNET_NETWORK = 'mainnet'
-const MUMBAI_NETWORK = 'mumbai'
-const ARBITRUM_GOERLI_NETWORK = 'arbitrum-goerli'
-const ARBITRUM_MAINNET_NETWORK = 'arbitrum-one'
-const ARBITRUM_RINKEBY_NETWORK = 'arbitrum-rinkeby'
+export const MAINNET_NETWORK = 'mainnet'
+export const MUMBAI_NETWORK = 'mumbai'
+export const ARBITRUM_GOERLI_NETWORK = 'arbitrum-goerli'
+export const ARBITRUM_MAINNET_NETWORK = 'arbitrum-one'
 
 export const ZERO_BYTES = Bytes.empty()
 
@@ -91,12 +90,11 @@ export const DAI_WETH_PAIR = '{{wethDaiAddress}}'.toLowerCase()
 
 export const USDT_WETH_PAIR = '{{wethUsdtAddress}}'.toLowerCase()
 
-const CHAIN_IDS: TypedMap<string, BigInt> = new TypedMap<string, BigInt>()
+export const CHAIN_IDS: TypedMap<string, BigInt> = new TypedMap<string, BigInt>()
 CHAIN_IDS.set(MAINNET_NETWORK, BigInt.fromI32(1))
 CHAIN_IDS.set(MUMBAI_NETWORK, BigInt.fromI32(80001))
 CHAIN_IDS.set(ARBITRUM_GOERLI_NETWORK, BigInt.fromI32(421613))
 CHAIN_IDS.set(ARBITRUM_MAINNET_NETWORK, BigInt.fromI32(42161))
-CHAIN_IDS.set(ARBITRUM_RINKEBY_NETWORK, BigInt.fromI32(421611))
 
 const WHITELISTS: TypedMap<string, string[]> = new TypedMap<string, string[]>()
 WHITELISTS.set(MAINNET_NETWORK, [
@@ -140,17 +138,18 @@ WHITELISTS.set(ARBITRUM_GOERLI_NETWORK, [
   WBTC_ADDRESS,
   LINK_ADDRESS,
 ])
-WHITELISTS.set(ARBITRUM_RINKEBY_NETWORK, [
-  WETH_ADDRESS,
-  USDC_ADDRESS,
-  DAI_ADDRESS,
-  WBTC_ADDRESS,
-  LINK_ADDRESS,
-])
 export const WHITELIST: string[] = WHITELISTS.get(NETWORK) as string[]
 
 export const CHAIN_ID: i32 = (CHAIN_IDS.get(NETWORK) as BigInt).toI32()
 
 if (WHITELIST.filter(value => value.toLowerCase() === ADDRESS_ZERO || value.length === 0).length > 0) {
   throw new Error('Invalid item found in whitelist!')
+}
+
+export function isArbitrumGoerli(): boolean {
+  return NETWORK === ARBITRUM_GOERLI_NETWORK
+}
+
+export function isArbitrumMainnet(): boolean {
+  return NETWORK === ARBITRUM_MAINNET_NETWORK
 }
