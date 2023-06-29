@@ -10,8 +10,6 @@ export class BorrowPositionStatus {
   static Open: string = 'OPEN'
   // eslint-disable-next-line
   static Closed: string = 'CLOSED'
-  // eslint-disable-next-line
-  static Liquidated: string = 'LIQUIDATED'
 
   static isClosed(position: BorrowPosition): boolean {
     return position.status != BorrowPositionStatus.Open
@@ -138,17 +136,15 @@ export function updateBorrowPositionForBalanceUpdate(
   }
 }
 
+// noinspection JSUnusedLocalSymbols
 export function updateBorrowPositionForLiquidation(
   marginAccount: MarginAccount,
-  event: ethereum.Event,
+  event: ethereum.Event, // eslint-disable-line
 ): void {
   let id = getBorrowPositionId(Address.fromString(marginAccount.user), marginAccount.accountNumber)
   let position = BorrowPosition.load(id)
   if (position !== null) {
     // The borrow and supply tokens are updated in the updateBorrowPositionForBalanceUpdate function
-    position.status = BorrowPositionStatus.Liquidated
-    position.closeTimestamp = event.block.timestamp
-    position.closeTransaction = getOrCreateTransaction(event).id
-    position.save()
+    // Do nothing for now.
   }
 }
