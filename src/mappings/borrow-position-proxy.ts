@@ -26,7 +26,7 @@ export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
 
   let id = getBorrowPositionId(event.params.accountOwner, event.params.accountIndex)
   let borrowPosition = BorrowPosition.load(id)
-  if (borrowPosition == null) {
+  if (borrowPosition === null) {
     let marginAccount = getOrCreateMarginAccount(event.params.accountOwner, event.params.accountIndex, event.block)
     marginAccount.save()
 

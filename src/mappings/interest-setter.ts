@@ -115,7 +115,7 @@ function getDoubleExponentInterestRatePerSecond(borrowWei: BigInt, supplyWei: Bi
   for (let i = 1; i < coefficients.length; i++) {
     let coefficient = coefficients[i]
     // if non-zero, add to result
-    if (coefficient !== 0) {
+    if (coefficient != 0) {
       result = result.plus(BigInt.fromI32(coefficient).times(polynomial))
     }
     polynomial = polynomial.times(polynomial).div(ONE_ETH_BI)

@@ -150,7 +150,7 @@ export function getOrCreateDolomiteMarginForCall(
     dolomiteMargin.marginPositionCount = ZERO_BI
     dolomiteMargin.borrowPositionCount = ZERO_BI
 
-    if (protocolType === ProtocolType.Core) {
+    if (protocolType == ProtocolType.Core) {
       let marginProtocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
       let expiryProtocol = DolomiteMarginExpiryCoreProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
       let riskParams = marginProtocol.getRiskParams()

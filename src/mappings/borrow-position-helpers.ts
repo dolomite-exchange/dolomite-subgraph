@@ -27,7 +27,7 @@ export function getBorrowPositionAmountId(accountOwner: Address, accountIndex: B
 function getOrCreateBorrowPositionAmount(marginAccount: MarginAccount, token: Token): BorrowPositionAmount {
   let id = getBorrowPositionAmountId(Address.fromString(marginAccount.user), marginAccount.accountNumber, token)
   let borrowPositionAmount = BorrowPositionAmount.load(id)
-  if (borrowPositionAmount == null) {
+  if (borrowPositionAmount === null) {
     borrowPositionAmount = new BorrowPositionAmount(id)
     borrowPositionAmount.token = token.id
     borrowPositionAmount.amountWei = ZERO_BD

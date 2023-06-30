@@ -142,14 +142,14 @@ export const WHITELIST: string[] = WHITELISTS.get(NETWORK) as string[]
 
 export const CHAIN_ID: i32 = (CHAIN_IDS.get(NETWORK) as BigInt).toI32()
 
-if (WHITELIST.filter(value => value.toLowerCase() === ADDRESS_ZERO || value.length === 0).length > 0) {
+if (WHITELIST.filter(value => value.toLowerCase() == ADDRESS_ZERO || value.length == 0).length > 0) {
   throw new Error('Invalid item found in whitelist!')
 }
 
 export function isArbitrumGoerli(): boolean {
-  return NETWORK === ARBITRUM_GOERLI_NETWORK
+  return NETWORK == ARBITRUM_GOERLI_NETWORK
 }
 
 export function isArbitrumMainnet(): boolean {
-  return NETWORK === ARBITRUM_MAINNET_NETWORK
+  return NETWORK == ARBITRUM_MAINNET_NETWORK
 }
