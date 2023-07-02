@@ -51,7 +51,6 @@ import {
   getUpperOptimalRate,
   updateInterestRate,
 } from './interest-setter'
-import { LinearStepFunctionInterestSetter } from '../types/MarginAdmin/LinearStepFunctionInterestSetter'
 
 // noinspection JSUnusedGlobalSymbols
 export function handleMarketAdded(event: AddMarketEvent): void {
