@@ -813,4 +813,7 @@ type BorrowPosition @entity {
   allTokens: [Token!]!
   supplyTokens: [Token!]!
   borrowTokens: [Token!]!
+
+  effectiveSupplyTokens: [Token!]! # This list is only ever added to, never removed or mutated
+  effectiveBorrowTokens: [Token!]! # This list is only ever added to, never removed or mutated
 }
