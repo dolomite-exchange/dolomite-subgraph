@@ -91,8 +91,14 @@ function updateBorrowAndSupplyTokens(
 
     if (balanceUpdate.valuePar.gt(ZERO_BD)) {
       borrowPosition.supplyTokens = borrowPosition.supplyTokens.concat([borrowPositionAmount.token])
+      if (borrowPosition.effectiveSupplyTokens.indexOf(borrowPositionAmount.token) == -1) {
+        borrowPosition.effectiveSupplyTokens = borrowPosition.effectiveSupplyTokens.concat([borrowPositionAmount.token])
+      }
     } else {
       borrowPosition.borrowTokens = borrowPosition.borrowTokens.concat([borrowPositionAmount.token])
+      if (borrowPosition.effectiveBorrowTokens.indexOf(borrowPositionAmount.token) == -1) {
+        borrowPosition.effectiveBorrowTokens = borrowPosition.effectiveBorrowTokens.concat([borrowPositionAmount.token])
+      }
     }
 
     updated = true

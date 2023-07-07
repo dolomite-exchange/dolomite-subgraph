@@ -44,6 +44,8 @@ export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
     borrowPosition.allTokens = []
     borrowPosition.borrowTokens = []
     borrowPosition.supplyTokens = []
+    borrowPosition.effectiveBorrowTokens = []
+    borrowPosition.effectiveSupplyTokens = []
     borrowPosition.save()
 
     let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
