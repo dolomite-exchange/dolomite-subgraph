@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { log } from '@graphprotocol/graph-ts'
+import { Address, log } from '@graphprotocol/graph-ts'
 import {
   ExpirySet as ExpirySetEvent,
   LogExpiryRampTimeSet as ExpiryRampTimeSetEvent
 } from '../types/MarginExpiry/DolomiteMarginExpiry'
 import {
+  BorrowPositionAmount,
   Token,
-  TokenMarketIdReverseLookup
+  TokenMarketIdReverseLookup,
 } from '../types/schema'
 import {
   ZERO_BD,
@@ -23,6 +24,7 @@ import {
   MarginPositionStatus,
   ProtocolType
 } from './margin-types'
+import { getBorrowPositionAmountId } from './borrow-position-helpers'
 
 // noinspection JSUnusedGlobalSymbols
 export function handleSetExpiry(event: ExpirySetEvent): void {
@@ -77,6 +79,23 @@ export function handleSetExpiry(event: ExpirySetEvent): void {
   tokenValue.expiryAddress = event.params.time.gt(ZERO_BI) ? event.address.toHexString() : null
   if (!deleteTokenValueIfNecessary(tokenValue)) {
     tokenValue.save()
+  }
+
+  let id = getBorrowPositionAmountId(Address.fromString(marginAccount.user), marginAccount.accountNumber, token)
+  let borrowPositionAmount = BorrowPositionAmount.load(id)
+  if (borrowPositionAmount !== null) {
+    if (event.params.time.equals(ZERO_BI)) {
+      let expirationTimestamp = marginPosition.expirationTimestamp
+      if (expirationTimestamp === null || expirationTimestamp.ge(event.block.timestamp)) {
+        // if the position is not expired, follow through with changing the expiration. Why? Because this event is
+        // emitted *before* LogTrade if the account is expired in its entirety. So, the expiration needs to stay intact
+        // for the data's sake
+        borrowPositionAmount.expirationTimestamp = null
+      }
+    } else {
+      borrowPositionAmount.expirationTimestamp = event.params.time
+    }
+    borrowPositionAmount.save()
   }
 }
 

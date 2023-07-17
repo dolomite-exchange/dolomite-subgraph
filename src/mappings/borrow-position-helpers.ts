@@ -32,6 +32,7 @@ function getOrCreateBorrowPositionAmount(marginAccount: MarginAccount, token: To
     borrowPositionAmount.token = token.id
     borrowPositionAmount.amountWei = ZERO_BD
     borrowPositionAmount.amountPar = ZERO_BD
+    borrowPositionAmount.expirationTimestamp = null
   }
   return borrowPositionAmount as BorrowPositionAmount
 }

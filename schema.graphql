@@ -793,6 +793,7 @@ type BorrowPositionAmount @entity {
   # calculated by taking the delta of the `totalAmountWei` from `parToWei(positionPar)`
   amountWei: BigDecimal!
   amountPar: BigDecimal!
+  expirationTimestamp: BigInt
 }
 
 type BorrowPosition @entity {
