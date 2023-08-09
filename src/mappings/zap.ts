@@ -5,7 +5,8 @@ import {
   MarginAccount,
   TokenMarketIdReverseLookup,
   Transaction,
-  Transfer, User,
+  Transfer,
+  User,
   Zap,
   ZapTraderParam,
 } from '../types/schema'
@@ -15,27 +16,27 @@ import { absBD } from './helpers'
 
 export function handleZapExecuted(event: ZapExecutedEvent): void {
   let zap = new Zap(`${event.transaction.hash.toHexString()}-${event.logIndex.toString()}`)
-  zap.marginAccount = `${event.params._accountOwner.toHexString()}-${event.params._accountNumber.toString()}`
-  zap.effectiveUser = getEffectiveUserForAddress(event.params._accountOwner).id
+  zap.marginAccount = `${event.params.accountOwner.toHexString()}-${event.params.accountNumber.toString()}`
+  zap.effectiveUser = getEffectiveUserForAddress(event.params.accountOwner).id
   zap.transaction = event.transaction.hash.toHexString()
 
   let tokenPath: Array<string> = []
-  for (let i = 0; i < event.params._marketIdsPath.length; i++) {
-    let marketId = event.params._marketIdsPath[i]
+  for (let i = 0; i < event.params.marketIdsPath.length; i++) {
+    let marketId = event.params.marketIdsPath[i]
     tokenPath[i] = (TokenMarketIdReverseLookup.load(marketId.toString()) as TokenMarketIdReverseLookup).token
   }
   zap.tokenPath = tokenPath
 
   let transaction = Transaction.loadInBlock(event.transaction.hash.toHexString()) as Transaction
-  let transfers = transaction.transfers.load() as Array<Transfer>
+  let transfers: Array<Transfer> = transaction.transfers.load()
 
-  let tupleArray = [
-    ethereum.Value.fromAddress(event.params._accountOwner),
-    ethereum.Value.fromUnsignedBigInt(event.params._accountNumber),
-    ethereum.Value.fromUnsignedBigInt(event.block.timestamp),
-  ]
+  let tupleArray: ethereum.Tuple = new ethereum.Tuple()
+  tupleArray.push(ethereum.Value.fromAddress(event.params.accountOwner))
+  tupleArray.push(ethereum.Value.fromUnsignedBigInt(event.params.accountNumber))
+  tupleArray.push(ethereum.Value.fromUnsignedBigInt(transaction.timestamp))
+
   let zapAccountId = BigInt.fromByteArray(
-    crypto.keccak256(ethereum.encode(ethereum.Value.fromTuple(tupleArray as ethereum.Tuple)) as Bytes)
+    crypto.keccak256(ethereum.encode(ethereum.Value.fromTuple(tupleArray)) as Bytes),
   )
   let amountInToken: BigDecimal = ZERO_BD
   let amountInUSD: BigDecimal = ZERO_BD
@@ -65,8 +66,8 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
   zap.amountOutUSD = amountOutUSD
   zap.save()
 
-  for (let i = 0; i < event.params._tradersPath.length; i++) {
-    let traderParamEvent = event.params._tradersPath[i]
+  for (let i = 0; i < event.params.tradersPath.length; i++) {
+    let traderParamEvent = event.params.tradersPath[i]
     let traderParam = new ZapTraderParam(`${zap.id}-${i}`)
     traderParam.zap = zap.id
 
@@ -91,7 +92,7 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
   dolomiteMargin.zapCount = dolomiteMargin.zapCount.plus(ONE_BI)
   dolomiteMargin.totalZapVolumeUSD = dolomiteMargin.totalZapVolumeUSD.plus(amountInUSD)
 
-  let user = User.load(event.params._accountOwner.toHexString()) as User
+  let user = User.load(event.params.accountOwner.toHexString()) as User
   user.totalZapCount = user.totalZapCount.plus(ONE_BI)
   user.totalZapVolumeUSD = user.totalZapVolumeUSD.plus(amountInUSD)
   if (user.effectiveUser != user.id) {

@@ -27,19 +27,19 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "_accountOwner",
+        "name": "accountOwner",
         "type": "address"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "_accountNumber",
+        "name": "accountNumber",
         "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "uint256[]",
-        "name": "_marketIdsPath",
+        "name": "marketIdsPath",
         "type": "uint256[]"
       },
       {
@@ -67,7 +67,7 @@
         ],
         "indexed": false,
         "internalType": "struct IGenericTraderProxyBase.TraderParam[]",
-        "name": "_tradersPath",
+        "name": "tradersPath",
         "type": "tuple[]"
       }
     ],

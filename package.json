@@ -25,15 +25,17 @@
     "deploy:arbitrum-goerli": "yarn codegen:arbitrum-goerli && graph deploy --studio dolomite-arbitrum-goerli",
     "deploy:arbitrum-one": "yarn codegen:arbitrum-one && graph deploy --studio dolomite-arbitrum",
     "deploy:arbitrum-one:hosted-service": "yarn codegen:arbitrum-one && graph deploy --product hosted-service --deploy-key 0f1c03f3879549ba9fe504a35ff70bdb dolomite-exchange/dolomite-v2-arbitrum",
+    "test:specific": "graph test --version=0.6.0-beta3 --docker zap",
     "watch-local": "graph deploy dolomite-exchange/dolomite-v2 --watch --debug --node http://127.0.0.1:8020/ --ipfs http://localhost:5001"
   },
   "devDependencies": {
-    "@graphprotocol/graph-cli": "^0.51.2",
+    "@graphprotocol/graph-cli": "^0.54.0",
     "@graphprotocol/graph-ts": "^0.31.0",
     "@typescript-eslint/eslint-plugin": "^2.0.0",
     "@typescript-eslint/parser": "^2.0.0",
     "eslint": "^6.2.2",
     "eslint-config-prettier": "^6.1.0",
+    "matchstick-as": "^0.5.2",
     "prettier": "^1.18.2",
     "typescript": "^3.5.2"
   },
