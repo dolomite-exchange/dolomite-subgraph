@@ -30,14 +30,11 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
   let transaction = Transaction.loadInBlock(event.transaction.hash.toHexString()) as Transaction
   let transfers: Array<Transfer> = transaction.transfers.load()
 
-  let tupleArray: ethereum.Tuple = new ethereum.Tuple()
-  tupleArray.push(ethereum.Value.fromAddress(event.params.accountOwner))
-  tupleArray.push(ethereum.Value.fromUnsignedBigInt(event.params.accountNumber))
-  tupleArray.push(ethereum.Value.fromUnsignedBigInt(transaction.timestamp))
+  let packedTuple = event.params.accountOwner
+    .concat(Bytes.fromHexString(event.params.accountNumber.toHexString()))
+    .concat(Bytes.fromHexString(transaction.timestamp.toHexString()))
 
-  let zapAccountId = BigInt.fromByteArray(
-    crypto.keccak256(ethereum.encode(ethereum.Value.fromTuple(tupleArray)) as Bytes),
-  )
+  let zapAccountId = BigInt.fromByteArray(crypto.keccak256(packedTuple))
   let amountInToken: BigDecimal = ZERO_BD
   let amountInUSD: BigDecimal = ZERO_BD
   let amountOutToken: BigDecimal = ZERO_BD
