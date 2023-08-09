@@ -13,7 +13,6 @@ import {
 import { getEffectiveUserForAddress } from './isolation-mode-helpers'
 import { DOLOMITE_MARGIN_ADDRESS, ONE_BI, ZERO_BD } from './generated/constants'
 import { absBD } from './helpers'
-import { ByteArray } from '@graphprotocol/graph-ts/common/collections'
 
 export function handleZapExecuted(event: ZapExecutedEvent): void {
   let zap = new Zap(`${event.transaction.hash.toHexString()}-${event.logIndex.toString()}`)
@@ -31,11 +30,12 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
   let transaction = Transaction.loadInBlock(event.transaction.hash.toHexString()) as Transaction
   let transfers: Array<Transfer> = transaction.transfers.load()
 
-  let packedTuple: Bytes = event.params.accountOwner
-    .concat(Bytes.fromByteArray(ByteArray.fromBigInt(event.params.accountNumber)))
-    .concat(Bytes.fromByteArray(ByteArray.fromBigInt(transaction.timestamp)))
+  let packedInner = new ethereum.Tuple()
+  packedInner.push(ethereum.Value.fromUnsignedBigInt(event.params.accountNumber))
+  packedInner.push(ethereum.Value.fromUnsignedBigInt(event.block.timestamp))
+  let packed = event.params.accountOwner.concat(ethereum.encode(ethereum.Value.fromTuple(packedInner)) as Bytes)
 
-  let zapAccountNumber = BigInt.fromByteArray(crypto.keccak256(packedTuple))
+  let zapAccountNumber = BigInt.fromUnsignedBytes(Bytes.fromUint8Array(crypto.keccak256(packed).reverse()))
   let amountInToken: BigDecimal = ZERO_BD
   let amountInUSD: BigDecimal = ZERO_BD
   let amountOutToken: BigDecimal = ZERO_BD
