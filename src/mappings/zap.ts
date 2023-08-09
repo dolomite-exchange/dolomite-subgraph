@@ -34,7 +34,7 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
     .concat(Bytes.fromHexString(event.params.accountNumber.toHexString()))
     .concat(Bytes.fromHexString(transaction.timestamp.toHexString()))
 
-  let zapAccountId = BigInt.fromByteArray(crypto.keccak256(packedTuple))
+  let zapAccountNumber = BigInt.fromByteArray(crypto.keccak256(packedTuple))
   let amountInToken: BigDecimal = ZERO_BD
   let amountInUSD: BigDecimal = ZERO_BD
   let amountOutToken: BigDecimal = ZERO_BD
@@ -42,11 +42,11 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
   for (let i = 0; i < transfers.length; i++) {
     let toMarginAccount = MarginAccount.load(transfers[i].toMarginAccount) as MarginAccount
     let fromMarginAccount = MarginAccount.load(transfers[i].fromMarginAccount) as MarginAccount
-    if (toMarginAccount.accountNumber.equals(zapAccountId)) {
+    if (toMarginAccount.accountNumber.equals(zapAccountNumber)) {
       // Transfers into the zap account are the amount in
       amountInToken = absBD(transfers[i].amountDeltaWei)
       amountInUSD = absBD(transfers[i].amountUSDDeltaWei)
-    } else if (fromMarginAccount.accountNumber.equals(zapAccountId)) {
+    } else if (fromMarginAccount.accountNumber.equals(zapAccountNumber)) {
       // Transfers out of the zap account are the amount out
       amountOutToken = absBD(transfers[i].amountDeltaWei)
       amountOutUSD = absBD(transfers[i].amountUSDDeltaWei)
