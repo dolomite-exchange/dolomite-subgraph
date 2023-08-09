@@ -3,8 +3,16 @@ import {
   MarginPositionClose as MarginPositionCloseEvent,
   MarginPositionOpen as MarginPositionOpenEvent,
 } from '../types/DolomiteAmmRouter/DolomiteAmmRouterProxy'
-import { DolomiteMargin, InterestIndex, MarginAccount, MarginPosition, Token, User } from '../types/schema'
-import { convertStructToDecimalAppliedValue } from './amm-helpers'
+import {
+  BorrowPosition,
+  DolomiteMargin,
+  InterestIndex,
+  MarginAccount,
+  MarginPosition,
+  Token,
+  User,
+} from '../types/schema'
+import { convertStructToDecimalAppliedValue } from './helpers/amm-helpers'
 import {
   DOLOMITE_AMM_ROUTER_PROXY_V1_ADDRESS,
   DOLOMITE_AMM_ROUTER_PROXY_V2_ADDRESS,
@@ -159,12 +167,24 @@ export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
     log.warning('Ignoring event from unknown contract: {}', [event.address.toHexString()])
     return
   }
+  let borrowPosition = BorrowPosition.load(
+    `${event.params.user.toHexString()}-${event.params.accountIndex.toString()}`
+  )
+  if (borrowPosition !== null) {
+    log.debug('Ignoring event because it is a borrow position: {}', [event.transaction.hash.toHexString()])
+    return
+  }
 
   let marginAccount = getOrCreateMarginAccount(event.params.user, event.params.accountIndex, event.block)
 
   let user = User.load(event.params.user.toHexString()) as User
   user.totalMarginPositionCount = user.totalMarginPositionCount.plus(ONE_BI)
   user.save()
+  if (user.effectiveUser != user.id) {
+    let effectiveUser = User.load(user.effectiveUser) as User
+    effectiveUser.totalMarginPositionCount = effectiveUser.totalMarginPositionCount.plus(ONE_BI)
+    effectiveUser.save()
+  }
 
   let marginPosition = getOrCreateMarginPosition(event, marginAccount)
   let positionChangeEvent = new PositionChangeEvent(
@@ -206,6 +226,13 @@ export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
 export function handleMarginPositionClose(event: MarginPositionCloseEvent): void {
   if (isContractUnknown(event)) {
     log.warning('Ignoring event from unknown contract: {}', [event.address.toHexString()])
+    return
+  }
+  let borrowPosition = BorrowPosition.load(
+    `${event.params.user.toHexString()}-${event.params.accountIndex.toString()}`
+  )
+  if (borrowPosition !== null) {
+    log.debug('Ignoring event because it is a borrow position: {}', [event.transaction.hash.toHexString()])
     return
   }
 

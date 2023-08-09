@@ -15,7 +15,7 @@ import {
   Token,
   TotalPar, Trade, Transfer, User,
 } from '../types/schema'
-import { convertStructToDecimalAppliedValue, createUserIfNecessary } from './amm-helpers'
+import { convertStructToDecimalAppliedValue, createUserIfNecessary } from './helpers/amm-helpers'
 import {
   DOLOMITE_MARGIN_ADDRESS,
   EXPIRY_ADDRESS,
@@ -214,6 +214,7 @@ export function getOrCreateDolomiteMarginForCall(
     dolomiteMargin.totalSupplyVolumeUSD = ZERO_BD
     dolomiteMargin.totalTradeVolumeUSD = ZERO_BD
     dolomiteMargin.totalVaporizationVolumeUSD = ZERO_BD
+    dolomiteMargin.totalZapVolumeUSD = ZERO_BD
 
     dolomiteMargin.lastTransactionHash = ZERO_BYTES
 
@@ -222,6 +223,7 @@ export function getOrCreateDolomiteMarginForCall(
     dolomiteMargin.tradeCount = ZERO_BI
     dolomiteMargin.transactionCount = ZERO_BI
     dolomiteMargin.vaporizationCount = ZERO_BI
+    dolomiteMargin.zapCount = ZERO_BI
   }
 
   if (dolomiteMargin.lastTransactionHash.notEqual(event.transaction.hash)) {
@@ -348,6 +350,7 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
 
   if (balanceUpdate.valuePar.lt(ZERO_BD) && balanceUpdate.valuePar.lt(tokenValue.valuePar)) {
     // The user is borrowing capital. The amount borrowed is capped at `neg(balanceUpdate.valuePar)`
+    // reason being, the user can go from a +10 balance to -10; therefore the amount borrowed is 10 units, not 20
     let amountParBorrowed = absBD(balanceUpdate.valuePar).minus(tokenValue.valuePar)
     if (amountParBorrowed.gt(absBD(balanceUpdate.valuePar))) {
       amountParBorrowed = absBD(balanceUpdate.valuePar)
@@ -357,8 +360,13 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
     let amountBorrowedUSD = parToWei(amountParBorrowed, interestIndex, token.decimals).times(priceUSD).truncate(USD_PRECISION)
 
     let user = User.load(marginAccount.user) as User
-    user.totalUsdBorrowed = user.totalUsdBorrowed.plus(amountBorrowedUSD)
+    user.totalBorrowVolumeOriginatedUSD = user.totalBorrowVolumeOriginatedUSD.plus(amountBorrowedUSD)
     user.save()
+    if (user.effectiveUser != user.id) {
+      let effectiveUser = User.load(user.effectiveUser) as User
+      effectiveUser.totalBorrowVolumeOriginatedUSD = effectiveUser.totalBorrowVolumeOriginatedUSD.plus(amountBorrowedUSD)
+      effectiveUser.save()
+    }
   }
 
   tokenValue.valuePar = balanceUpdate.valuePar

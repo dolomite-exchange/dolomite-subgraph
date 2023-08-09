@@ -36,7 +36,7 @@ import {
 import {
   convertTokenToDecimal,
   initializeToken
-} from './amm-helpers'
+} from './helpers/amm-helpers'
 import {
   ONE_ETH_BD,
   DOLOMITE_MARGIN_ADDRESS,

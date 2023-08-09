@@ -9,7 +9,7 @@ import {
   MarginPosition,
   Token
 } from '../types/schema'
-import { convertTokenToDecimal } from './amm-helpers'
+import { convertTokenToDecimal } from './helpers/amm-helpers'
 
 export class ProtocolType {
   // eslint-disable-next-line

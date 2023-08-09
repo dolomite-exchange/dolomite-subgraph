@@ -189,6 +189,26 @@ dataSources:
       eventHandlers:
         - event: BorrowPositionOpen(indexed address,indexed uint256)
           handler: handleOpenBorrowPosition
+  - kind: ethereum/contract
+    name: Zap
+    network: {{network}}
+    source:
+      address: '{{genericTraderProxyAddress}}'
+      abi: GenericTraderProxy
+      startBlock: {{genericTraderProxyStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/mappings/zap.ts
+      entities:
+        - Zap
+      abis:
+        - name: GenericTraderProxy
+          file: ./abis/generic-trader-proxy.json
+      eventHandlers:
+        - event: ZapExecuted(indexed address,uint256,uint256[],(uint8,uint256,address,bytes)[])
+          handler: handleZapExecuted
 templates:
   - kind: ethereum/contract
     name: AmmPair

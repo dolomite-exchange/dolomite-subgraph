@@ -14,7 +14,6 @@ import {
 import { Address, log } from '@graphprotocol/graph-ts'
 import { getEffectiveUserForAddressString } from './isolation-mode-helpers'
 
-
 export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
   if (
     event.address.notEqual(Address.fromString(BORROW_POSITION_PROXY_V1_ADDRESS))

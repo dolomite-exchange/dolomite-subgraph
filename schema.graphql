@@ -48,6 +48,7 @@ type DolomiteMargin @entity {
   totalSupplyVolumeUSD: BigDecimal!
   totalTradeVolumeUSD: BigDecimal!
   totalVaporizationVolumeUSD: BigDecimal!
+  totalZapVolumeUSD: BigDecimal!
 
   userCount: BigInt!
   marginPositionCount: BigInt!
@@ -58,6 +59,7 @@ type DolomiteMargin @entity {
   tradeCount: BigInt!
   transactionCount: BigInt!
   vaporizationCount: BigInt!
+  zapCount: BigInt!
 }
 
 type Token @entity {
@@ -168,16 +170,25 @@ type User @entity {
   effectiveUser: User! # the user's owner (differs for IsolationMode users)
   liquidityPositions: [AmmLiquidityPosition!] @derivedFrom(field: "user")
   marginAccounts: [MarginAccount!] @derivedFrom(field: "user")
+  borrowPositions: [BorrowPosition!] @derivedFrom(field: "effectiveUser")
+  marginPositions: [MarginPosition!] @derivedFrom(field: "effectiveUser")
+  deposits: [Deposit!] @derivedFrom(field: "effectiveUser")
+  withdrawals: [Withdrawal!] @derivedFrom(field: "effectiveUser")
+  transfers: [Transfer!] @derivedFrom(field: "effectiveUsers")
+  trades: [Trade!] @derivedFrom(field: "effectiveUsers")
+  liquidations: [Liquidation!] @derivedFrom(field: "effectiveUsers")
+  vaporizations: [Vaporization!] @derivedFrom(field: "effectiveUsers")
 
-  totalUsdBorrowed: BigDecimal!
-  totalUsdCollateralLiquidated: BigDecimal!
-  totalUsdAmmTraded: BigDecimal!
-  totalUsdTraded: BigDecimal!
+  totalBorrowVolumeOriginatedUSD: BigDecimal!
+  totalCollateralLiquidatedUSD: BigDecimal!
+  totalTradeVolumeUSD: BigDecimal!
+  totalZapVolumeUSD: BigDecimal!
 
   totalBorrowPositionCount: BigInt!
   totalLiquidationCount: BigInt!
   totalMarginPositionCount: BigInt!
   totalTradeCount: BigInt!
+  totalZapCount: BigInt!
 }
 
 type AmmLiquidityPosition @entity {
@@ -225,6 +236,7 @@ type Transaction @entity {
   trades: [Trade!]! @derivedFrom(field: "transaction")
   liquidations: [Liquidation!]! @derivedFrom(field: "transaction")
   vaporizations: [Vaporization!]! @derivedFrom(field: "transaction")
+  zaps: [Zap!]! @derivedFrom(field: "transaction")
 }
 
 type AmmMint @entity {
@@ -646,6 +658,7 @@ type Transfer @entity {
   walletsConcatenated: String! # concatenated wallets for querying on being a sender/receiver 0x0...F-0x0...F
   effectiveWalletsConcatenated: String! # concatenated wallets of the effective users for querying on being a sender/receiver 0x0...F-0x0...F
   isTransferForMarginPosition: Boolean!
+  effectiveUsers: [User!]! # set to the marginAccount.user or owner of an isolation mode address
 
   token: Token!
 
@@ -668,6 +681,7 @@ type Liquidation @entity {
   liquidMarginAccount: MarginAccount!
   heldToken: Token!
   borrowedToken: Token!
+  effectiveUsers: [User!]! # set to the marginAccount.user or owner of an isolation mode address
 
   borrowedTokenAmountDeltaWei: BigDecimal!
   heldTokenAmountDeltaWei: BigDecimal!
@@ -690,6 +704,7 @@ type Vaporization @entity {
   solidMarginAccount: MarginAccount!
   vaporEffectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   vaporMarginAccount: MarginAccount!
+  effectiveUsers: [User!]! # set to the marginAccount.user or owner of an isolation mode address
 
   heldToken: Token!
   borrowedToken: Token!
@@ -716,6 +731,7 @@ type Trade @entity {
   makerMarginAccount: MarginAccount # NULLABLE
   walletsConcatenated: String! # concatenated wallets for querying on being a maker/taker 0x...F-0x...F
   effectiveWalletsConcatenated: String! # concatenated wallets for querying on being a maker/taker 0x...F-0x...F
+  effectiveUsers: [User!]! # set to the marginAccount.user or owner of an isolation mode address
 
   takerToken: Token! # the token sold (spent) by the `takerAccount`
   makerToken: Token! # the token sold (spent) by the `makerAccount`
@@ -817,4 +833,25 @@ type BorrowPosition @entity {
 
   effectiveSupplyTokens: [Token!]! # This list is only ever added to, never removed or mutated
   effectiveBorrowTokens: [Token!]! # This list is only ever added to, never removed or mutated
+}
+
+type ZapTraderParam @entity {
+  id: ID! # Defined as "Zap.id-traderParamIndex"
+  zap: Zap!
+  traderType: String! # one of EXTERNAL_LIQUIDITY, INTERNAL_LIQUIDITY, ISOLATION_MODE_UNWRAPPER, ISOLATION_MODE_WRAPPER
+  traderAddress: Bytes!
+  tradeData: Bytes
+}
+
+type Zap @entity {
+  id: ID! # Defined as "transactionHash-logIndex"
+  marginAccount: MarginAccount!
+  effectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
+  transaction: Transaction!
+  tokenPath: [Token!]!
+  amountInToken: BigDecimal!
+  amountInUSD: BigDecimal!
+  amountOutToken: BigDecimal!
+  amountOutUSD: BigDecimal!
+  tradersPath: [ZapTraderParam!]! @derivedFrom(field: "zap")
 }

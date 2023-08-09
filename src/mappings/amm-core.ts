@@ -1,42 +1,20 @@
-import {
-  Address,
-  BigDecimal,
-  BigInt,
-  Bytes,
-  ethereum,
-  store
-} from '@graphprotocol/graph-ts'
-import {
-  AmmBurn,
-  AmmFactory,
-  AmmMint,
-  AmmPair,
-  AmmTrade,
-  Bundle,
-  Token,
-  Transaction,
-  User
-} from '../types/schema'
+import { Address, BigDecimal, BigInt, Bytes, ethereum, store } from '@graphprotocol/graph-ts'
+import { AmmBurn, AmmFactory, AmmMint, AmmPair, AmmTrade, Bundle, Token, Transaction } from '../types/schema'
 import {
   AmmPair as AmmPairContract,
   Burn as AmmBurnEvent,
   Mint as AmmMintEvent,
   Swap as AmmTradeEvent,
   Sync as SyncEvent,
-  Transfer as TransferEvent
+  Transfer as TransferEvent,
 } from '../types/templates/AmmPair/AmmPair'
 import {
   convertTokenToDecimal,
   createLiquidityPosition,
   createLiquiditySnapshot,
-  createUserIfNecessary
-} from './amm-helpers'
-import {
-  findEthPerToken,
-  getEthPriceInUSD,
-  getTokenOraclePriceUSD,
-  getTrackedLiquidityUSD
-} from './pricing'
+  createUserIfNecessary,
+} from './helpers/amm-helpers'
+import { findEthPerToken, getEthPriceInUSD, getTokenOraclePriceUSD, getTrackedLiquidityUSD } from './pricing'
 import {
   updateDolomiteDayData,
   updateDolomiteHourData,
@@ -45,13 +23,7 @@ import {
   updateTokenDayDataForAmmEvent,
   updateTokenHourDataForAmmEvent,
 } from './day-updates'
-import {
-  ADDRESS_ZERO,
-  _18_BI,
-  FACTORY_ADDRESS,
-  ONE_BI,
-  ZERO_BD
-} from './generated/constants'
+import { _18_BI, ADDRESS_ZERO, FACTORY_ADDRESS, ONE_BI, ZERO_BD } from './generated/constants'
 import { ProtocolType } from './margin-types'
 
 function isCompleteMint(mintId: string): boolean {
@@ -60,7 +32,7 @@ function isCompleteMint(mintId: string): boolean {
 
 export function getOrCreateTransaction(event: ethereum.Event): Transaction {
   let transactionID = event.transaction.hash.toHexString()
-  let transaction = Transaction.load(transactionID)
+  let transaction = Transaction.loadInBlock(transactionID)
   if (transaction === null) {
     transaction = new Transaction(transactionID)
     transaction.blockNumber = event.block.number
@@ -75,10 +47,7 @@ export function getOrCreateTransaction(event: ethereum.Event): Transaction {
 }
 
 function getAmmEventID(event: ethereum.Event, allEvents: Array<string>): string {
-  return event.transaction.hash.toHexString()
-    .concat('-')
-    .concat(BigInt.fromI32(allEvents.length)
-      .toString())
+  return `${event.transaction.hash.toHexString()}-${allEvents.length}`
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -418,7 +387,10 @@ export function handleBurn(event: AmmBurnEvent): void {
   burn.save()
 
   // update the LP position
-  let liquidityPosition = createLiquidityPosition(event.address, Address.fromString((burn.sender as Bytes).toHexString()))
+  let liquidityPosition = createLiquidityPosition(
+    event.address,
+    Address.fromString((burn.sender as Bytes).toHexString()),
+  )
   createLiquiditySnapshot(liquidityPosition, event)
 
   // update day entities
@@ -578,8 +550,4 @@ export function handleSwap(event: AmmTradeEvent): void {
   token1HourData.hourlyAmmTradeVolumeUSD = token1HourData.hourlyAmmTradeVolumeUSD.plus(amount1Total.times(token1PriceUSD))
   token1HourData.hourlyAmmTradeCount = token1HourData.hourlyAmmTradeCount.plus(ONE_BI)
   token1HourData.save()
-
-  let user = User.load(ammTrade.to.toHexString()) as User
-  user.totalUsdAmmTraded = user.totalUsdAmmTraded.plus(volumeUSD)
-  user.save()
 }

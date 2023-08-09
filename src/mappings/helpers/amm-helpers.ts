@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
 import { Address, BigDecimal, BigInt, ethereum, log } from '@graphprotocol/graph-ts'
-import { DolomiteMarginERC20 } from '../types/MarginAdmin/DolomiteMarginERC20'
+import { DolomiteMarginERC20 } from '../../types/MarginAdmin/DolomiteMarginERC20'
 import {
   AmmLiquidityPosition,
   AmmLiquidityPositionSnapshot,
@@ -9,8 +9,8 @@ import {
   Token,
   TokenMarketIdReverseLookup,
   User,
-} from '../types/schema'
-import { ValueStruct } from './margin-types'
+} from '../../types/schema'
+import { ValueStruct } from '../margin-types'
 import {
   ZERO_BI,
   ZERO_BD,
@@ -19,8 +19,8 @@ import {
   CHAIN_ID,
   isArbitrumGoerli,
   isArbitrumMainnet, USDC_ADDRESS,
-} from './generated/constants'
-import { IsolationModeVault } from '../types/templates'
+} from '../generated/constants'
+import { IsolationModeVault } from '../../types/templates'
 
 export function exponentToBigDecimal(decimals: BigInt): BigDecimal {
   let bd = BigDecimal.fromString('1')
@@ -196,15 +196,16 @@ export function createUserIfNecessary(address: Address): void {
   if (user === null) {
     user = new User(address.toHexString())
     user.effectiveUser = address.toHexString() // make it self-reflective for now until IsolationMode event fires
-    user.totalUsdBorrowed = ZERO_BD
-    user.totalUsdCollateralLiquidated = ZERO_BD
-    user.totalUsdAmmTraded = ZERO_BD
-    user.totalUsdTraded = ZERO_BD
+    user.totalBorrowVolumeOriginatedUSD = ZERO_BD
+    user.totalCollateralLiquidatedUSD = ZERO_BD
+    user.totalTradeVolumeUSD = ZERO_BD
+    user.totalZapVolumeUSD = ZERO_BD
 
     user.totalBorrowPositionCount = ZERO_BI
     user.totalLiquidationCount = ZERO_BI
     user.totalMarginPositionCount = ZERO_BI
     user.totalTradeCount = ZERO_BI
+    user.totalZapCount = ZERO_BI
     user.save()
 
     let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin

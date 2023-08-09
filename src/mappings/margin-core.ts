@@ -29,7 +29,7 @@ import {
   Withdrawal,
 } from '../types/schema'
 import { getOrCreateTransaction } from './amm-core'
-import { convertStructToDecimalAppliedValue, convertTokenToDecimal } from './amm-helpers'
+import { convertStructToDecimalAppliedValue, convertTokenToDecimal } from './helpers/amm-helpers'
 import {
   updateAndReturnTokenDayDataForMarginEvent,
   updateAndReturnTokenHourDataForMarginEvent,
@@ -314,6 +314,7 @@ export function handleTransfer(event: TransferEvent): void {
   transfer.isSelfTransfer = transfer.fromMarginAccount == transfer.toMarginAccount
   transfer.walletsConcatenated = `${marginAccount1.user}_${marginAccount2.user}`
   transfer.effectiveWalletsConcatenated = `${transfer.fromEffectiveUser}_${transfer.toEffectiveUser}`
+  transfer.effectiveUsers = [transfer.fromEffectiveUser, transfer.toEffectiveUser]
 
   transfer.token = token.id
 
@@ -421,6 +422,7 @@ export function handleBuy(event: BuyEvent): void {
   trade.makerMarginAccount = null
   trade.walletsConcatenated = marginAccount.user
   trade.effectiveWalletsConcatenated = trade.takerEffectiveUser
+  trade.effectiveUsers = [trade.takerEffectiveUser]
 
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
@@ -503,9 +505,16 @@ export function handleBuy(event: BuyEvent): void {
   invalidateMarginPosition(marginAccount)
 
   let user = User.load(marginAccount.user) as User
-  user.totalUsdTraded = user.totalUsdTraded.plus(trade.amountUSD)
+  user.totalTradeVolumeUSD = user.totalTradeVolumeUSD.plus(trade.amountUSD)
   user.totalTradeCount = user.totalTradeCount.plus(ONE_BI)
   user.save()
+
+  if (user.effectiveUser != user.id) {
+    let effectiveUser = User.load(user.effectiveUser) as User
+    effectiveUser.totalTradeVolumeUSD = effectiveUser.totalTradeVolumeUSD.plus(trade.amountUSD)
+    effectiveUser.totalTradeCount = effectiveUser.totalTradeCount.plus(ONE_BI)
+    effectiveUser.save()
+  }
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -562,6 +571,7 @@ export function handleSell(event: SellEvent): void {
   trade.makerMarginAccount = null
   trade.walletsConcatenated = marginAccount.user
   trade.effectiveWalletsConcatenated = trade.takerEffectiveUser
+  trade.effectiveUsers = [trade.takerEffectiveUser]
 
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
@@ -644,9 +654,16 @@ export function handleSell(event: SellEvent): void {
   invalidateMarginPosition(marginAccount)
 
   let user = User.load(marginAccount.user) as User
-  user.totalUsdTraded = user.totalUsdTraded.plus(trade.amountUSD)
+  user.totalTradeVolumeUSD = user.totalTradeVolumeUSD.plus(trade.amountUSD)
   user.totalTradeCount = user.totalTradeCount.plus(ONE_BI)
   user.save()
+
+  if (user.effectiveUser != user.id) {
+    let effectiveUser = User.load(user.effectiveUser) as User
+    effectiveUser.totalTradeVolumeUSD = effectiveUser.totalTradeVolumeUSD.plus(trade.amountUSD)
+    effectiveUser.totalTradeCount = effectiveUser.totalTradeCount.plus(ONE_BI)
+    effectiveUser.save()
+  }
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -725,6 +742,7 @@ export function handleTrade(event: TradeEvent): void {
   trade.makerMarginAccount = makerMarginAccount.id
   trade.walletsConcatenated = `${takerMarginAccount.user}_${makerMarginAccount.user}`
   trade.effectiveWalletsConcatenated = `${trade.takerEffectiveUser}_${trade.makerEffectiveUser!}`
+  trade.effectiveUsers = [trade.takerEffectiveUser, trade.makerEffectiveUser!]
 
   trade.takerToken = inputToken.id
   trade.makerToken = outputToken.id
@@ -884,14 +902,26 @@ export function handleTrade(event: TradeEvent): void {
   }
 
   let makerUser = User.load(makerMarginAccount.user) as User
-  makerUser.totalUsdTraded = makerUser.totalUsdTraded.plus(trade.amountUSD)
+  makerUser.totalTradeVolumeUSD = makerUser.totalTradeVolumeUSD.plus(trade.amountUSD)
   makerUser.totalTradeCount = makerUser.totalTradeCount.plus(ONE_BI)
   makerUser.save()
+  if (makerUser.effectiveUser != makerUser.id) {
+    let effectiveMakerUser = User.load(makerUser.effectiveUser) as User
+    effectiveMakerUser.totalTradeVolumeUSD = effectiveMakerUser.totalTradeVolumeUSD.plus(trade.amountUSD)
+    effectiveMakerUser.totalTradeCount = effectiveMakerUser.totalTradeCount.plus(ONE_BI)
+    effectiveMakerUser.save()
+  }
 
   let takerUser = User.load(takerMarginAccount.user) as User
-  takerUser.totalUsdTraded = takerUser.totalUsdTraded.plus(trade.amountUSD)
+  takerUser.totalTradeVolumeUSD = takerUser.totalTradeVolumeUSD.plus(trade.amountUSD)
   takerUser.totalTradeCount = takerUser.totalTradeCount.plus(ONE_BI)
   takerUser.save()
+  if (takerUser.effectiveUser != takerUser.id) {
+    let effectiveTakerUser = User.load(takerUser.effectiveUser) as User
+    effectiveTakerUser.totalTradeVolumeUSD = effectiveTakerUser.totalTradeVolumeUSD.plus(trade.amountUSD)
+    effectiveTakerUser.totalTradeCount = effectiveTakerUser.totalTradeCount.plus(ONE_BI)
+    effectiveTakerUser.save()
+  }
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -966,6 +996,7 @@ export function handleLiquidate(event: LiquidationEvent): void {
   liquidation.liquidMarginAccount = liquidMarginAccount.id
   liquidation.solidEffectiveUser = getEffectiveUserForAddressString(solidMarginAccount.user).id
   liquidation.solidMarginAccount = solidMarginAccount.id
+  liquidation.effectiveUsers = [liquidation.liquidEffectiveUser, liquidation.solidEffectiveUser]
 
   liquidation.heldToken = heldToken.id
   liquidation.borrowedToken = owedToken.id
@@ -1106,9 +1137,16 @@ export function handleLiquidate(event: LiquidationEvent): void {
 
   let liquidUser = User.load(liquidMarginAccount.user) as User
   // heldTokenAmountUSD in this case is the amount of held collateral seized + the liquidation reward
-  liquidUser.totalUsdCollateralLiquidated = liquidUser.totalUsdCollateralLiquidated.plus(liquidation.heldTokenAmountUSD)
+  liquidUser.totalCollateralLiquidatedUSD = liquidUser.totalCollateralLiquidatedUSD.plus(liquidation.heldTokenAmountUSD)
   liquidUser.totalLiquidationCount = liquidUser.totalLiquidationCount.plus(ONE_BI)
   liquidUser.save()
+  if (liquidUser.effectiveUser != liquidUser.id) {
+    let effectiveLiquidUser = User.load(liquidUser.effectiveUser) as User
+    effectiveLiquidUser.totalCollateralLiquidatedUSD =
+      effectiveLiquidUser.totalCollateralLiquidatedUSD.plus(liquidation.heldTokenAmountUSD)
+    effectiveLiquidUser.totalLiquidationCount = effectiveLiquidUser.totalLiquidationCount.plus(ONE_BI)
+    effectiveLiquidUser.save()
+  }
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -1181,6 +1219,7 @@ export function handleVaporize(event: VaporizationEvent): void {
   vaporization.vaporMarginAccount = vaporMarginAccount.id
   vaporization.solidEffectiveUser = getEffectiveUserForAddressString(solidMarginAccount.user).id
   vaporization.solidMarginAccount = solidMarginAccount.id
+  vaporization.effectiveUsers = [vaporization.vaporEffectiveUser, vaporization.solidEffectiveUser]
 
   vaporization.heldToken = heldToken.id
   vaporization.borrowedToken = owedToken.id

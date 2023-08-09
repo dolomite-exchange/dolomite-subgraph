@@ -18,7 +18,7 @@ import {
   Trade
 } from '../types/schema'
 import { DolomiteMargin as DolomiteMarginAmmProtocol } from '../types/templates/AmmPair/DolomiteMargin'
-import { convertTokenToDecimal } from './amm-helpers'
+import { convertTokenToDecimal } from './helpers/amm-helpers'
 import {
   DAI_WETH_PAIR,
   DOLOMITE_MARGIN_ADDRESS,
