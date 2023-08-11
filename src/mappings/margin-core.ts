@@ -508,7 +508,6 @@ export function handleBuy(event: BuyEvent): void {
   user.totalTradeVolumeUSD = user.totalTradeVolumeUSD.plus(trade.amountUSD)
   user.totalTradeCount = user.totalTradeCount.plus(ONE_BI)
   user.save()
-
   if (user.effectiveUser != user.id) {
     let effectiveUser = User.load(user.effectiveUser) as User
     effectiveUser.totalTradeVolumeUSD = effectiveUser.totalTradeVolumeUSD.plus(trade.amountUSD)

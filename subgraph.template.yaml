@@ -1,6 +1,11 @@
 specVersion: 0.0.2
 description: Dolomite is a decentralized exchange for margin trading tokens using AMM pools.
 repository: https://github.com/dolomite-exchange/dolomite-subgraph
+features:
+  - grafting
+graft:
+  base: QmUXmCVceKwsgU6xeuV7c2DNn4nLKvGwqZTmMyC9qN7KsC # Subgraph ID of base subgraph
+  block: {{genericTraderProxyStartBlock}}
 schema:
   file: ./schema.graphql
 dataSources:

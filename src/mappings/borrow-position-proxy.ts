@@ -32,6 +32,11 @@ export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
     let user = User.load(event.params.accountOwner.toHexString()) as User
     user.totalBorrowPositionCount = user.totalBorrowPositionCount.plus(ONE_BI)
     user.save()
+    if (user.effectiveUser != user.id) {
+      let effectiveUser = User.load(user.effectiveUser) as User
+      effectiveUser.totalBorrowPositionCount = effectiveUser.totalBorrowPositionCount.plus(ONE_BI)
+      effectiveUser.save()
+    }
 
     borrowPosition = new BorrowPosition(id)
     borrowPosition.effectiveUser = getEffectiveUserForAddressString(marginAccount.user).id

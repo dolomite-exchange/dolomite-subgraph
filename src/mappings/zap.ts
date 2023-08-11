@@ -1,4 +1,4 @@
-import { BigDecimal, BigInt, Bytes, crypto, ethereum } from '@graphprotocol/graph-ts'
+import { BigDecimal, BigInt, Bytes, crypto, ethereum, log } from '@graphprotocol/graph-ts'
 import { ZapExecuted as ZapExecutedEvent } from '../types/Zap/GenericTraderProxy'
 import {
   DolomiteMargin,
@@ -15,6 +15,10 @@ import { DOLOMITE_MARGIN_ADDRESS, ONE_BI, ZERO_BD } from './generated/constants'
 import { absBD } from './helpers'
 
 export function handleZapExecuted(event: ZapExecutedEvent): void {
+  log.info(
+    'Handling zap for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
   let zap = new Zap(`${event.transaction.hash.toHexString()}-${event.logIndex.toString()}`)
   zap.marginAccount = `${event.params.accountOwner.toHexString()}-${event.params.accountNumber.toString()}`
   zap.effectiveUser = getEffectiveUserForAddress(event.params.accountOwner).id
@@ -28,7 +32,7 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
   zap.tokenPath = tokenPath
 
   let transaction = Transaction.loadInBlock(event.transaction.hash.toHexString()) as Transaction
-  let transfers: Array<Transfer> = transaction.transfers.load()
+  let transfers: Array<Transfer> = transaction.transfers.load() // why is this array length 0; there's always at least 2 transfers in this list in actuality
 
   let packedInner = new ethereum.Tuple()
   packedInner.push(ethereum.Value.fromUnsignedBigInt(event.params.accountNumber))
@@ -56,6 +60,18 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
     if (amountInToken.notEqual(ZERO_BD) && amountOutToken.notEqual(ZERO_BD)) {
       break
     }
+  }
+
+  if (amountInToken.equals(ZERO_BD) || amountOutToken.equals(ZERO_BD)) {
+    log.error(
+      'Could not create zap! {} {} {} {}',
+      [
+        transfers.length.toString(),
+        zapAccountNumber.toHexString(),
+        packed.toHexString(),
+        crypto.keccak256(packed).toHexString(),
+      ],
+    )
   }
 
   zap.amountInToken = amountInToken
@@ -89,10 +105,12 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
   let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
   dolomiteMargin.zapCount = dolomiteMargin.zapCount.plus(ONE_BI)
   dolomiteMargin.totalZapVolumeUSD = dolomiteMargin.totalZapVolumeUSD.plus(amountInUSD)
+  dolomiteMargin.save()
 
   let user = User.load(event.params.accountOwner.toHexString()) as User
   user.totalZapCount = user.totalZapCount.plus(ONE_BI)
   user.totalZapVolumeUSD = user.totalZapVolumeUSD.plus(amountInUSD)
+  user.save()
   if (user.effectiveUser != user.id) {
     let effectiveUser = User.load(user.effectiveUser) as User
     effectiveUser.totalZapCount = effectiveUser.totalZapCount.plus(ONE_BI)

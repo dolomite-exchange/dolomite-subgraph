@@ -25,6 +25,7 @@
     "deploy:arbitrum-goerli": "yarn codegen:arbitrum-goerli && graph deploy --studio dolomite-arbitrum-goerli",
     "deploy:arbitrum-one": "yarn codegen:arbitrum-one && graph deploy --studio dolomite-arbitrum",
     "deploy:arbitrum-one:hosted-service": "yarn codegen:arbitrum-one && graph deploy --product hosted-service --deploy-key 0f1c03f3879549ba9fe504a35ff70bdb dolomite-exchange/dolomite-v2-arbitrum",
+    "graph:version": "graph --version",
     "test:specific": "graph test --version=0.6.0-beta3 --docker zap",
     "watch-local": "graph deploy dolomite-exchange/dolomite-v2 --watch --debug --node http://127.0.0.1:8020/ --ipfs http://localhost:5001"
   },
