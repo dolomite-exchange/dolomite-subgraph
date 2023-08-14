@@ -72,6 +72,7 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
         crypto.keccak256(packed).toHexString(),
       ],
     )
+    log.critical('Invalid state!', [])
   }
 
   zap.amountInToken = amountInToken
