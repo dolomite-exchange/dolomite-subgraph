@@ -29,7 +29,7 @@ import {
   Withdrawal,
 } from '../types/schema'
 import { getOrCreateTransaction } from './amm-core'
-import { convertStructToDecimalAppliedValue, convertTokenToDecimal } from './helpers/amm-helpers'
+import { convertStructToDecimalAppliedValue } from './helpers/amm-helpers'
 import {
   updateAndReturnTokenDayDataForMarginEvent,
   updateAndReturnTokenHourDataForMarginEvent,
@@ -40,7 +40,7 @@ import {
   updateTimeDataForVaporization,
 } from './day-updates'
 import { _18_BI, EXPIRY_ADDRESS, ONE_BI, USD_PRECISION, ZERO_BI } from './generated/constants'
-import { absBD } from './helpers'
+import { absBD } from './helpers/helpers'
 import {
   canBeMarginPosition,
   changeProtocolBalance,
@@ -54,11 +54,12 @@ import {
   roundHalfUp,
   saveMostRecentTrade,
   updateMarginPositionForTransfer,
-} from './margin-helpers'
-import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
-import { getTokenOraclePriceUSD } from './pricing'
-import { updateBorrowPositionForLiquidation } from './borrow-position-helpers'
-import { getEffectiveUserForAddress, getEffectiveUserForAddressString } from './isolation-mode-helpers'
+} from './helpers/margin-helpers'
+import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './helpers/margin-types'
+import { getTokenOraclePriceUSD } from './helpers/pricing'
+import { updateBorrowPositionForLiquidation } from './helpers/borrow-position-helpers'
+import { getEffectiveUserForAddress, getEffectiveUserForAddressString } from './helpers/isolation-mode-helpers'
+import { convertTokenToDecimal } from './helpers/token-helpers'
 
 // noinspection JSUnusedGlobalSymbols,JSUnusedLocalSymbols
 export function handleOperation(event: OperationEvent): void {

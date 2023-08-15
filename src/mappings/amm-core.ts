@@ -9,12 +9,11 @@ import {
   Transfer as TransferEvent,
 } from '../types/templates/AmmPair/AmmPair'
 import {
-  convertTokenToDecimal,
   createLiquidityPosition,
   createLiquiditySnapshot,
-  createUserIfNecessary,
+
 } from './helpers/amm-helpers'
-import { findEthPerToken, getEthPriceInUSD, getTokenOraclePriceUSD, getTrackedLiquidityUSD } from './pricing'
+import { findEthPerToken, getEthPriceInUSD, getTokenOraclePriceUSD, getTrackedLiquidityUSD } from './helpers/pricing'
 import {
   updateDolomiteDayData,
   updateDolomiteHourData,
@@ -24,7 +23,9 @@ import {
   updateTokenHourDataForAmmEvent,
 } from './day-updates'
 import { _18_BI, ADDRESS_ZERO, FACTORY_ADDRESS, ONE_BI, ZERO_BD } from './generated/constants'
-import { ProtocolType } from './margin-types'
+import { ProtocolType } from './helpers/margin-types'
+import { convertTokenToDecimal } from './helpers/token-helpers'
+import { createUserIfNecessary } from './helpers/user-helpers'
 
 function isCompleteMint(mintId: string): boolean {
   return (AmmMint.load(mintId) as AmmMint).sender !== null // sufficient checks
@@ -430,21 +431,6 @@ export function handleSwap(event: AmmTradeEvent): void {
   let token0PriceUSD = getTokenOraclePriceUSD(token0, event, ProtocolType.Amm)
   let token1PriceUSD = getTokenOraclePriceUSD(token1, event, ProtocolType.Amm)
 
-  // only accounts for volume through white listed tokens
-  let fairTokenVolume = amount0Total.times(token0PriceUSD)
-    .plus(amount1Total.times(token1PriceUSD))
-    .div(BigDecimal.fromString('2'))
-
-  // update token0 global volume and token liquidity stats
-  token0.tradeVolume = token0.tradeVolume.plus(amount0In.plus(amount0Out))
-  token0.tradeVolumeUSD = token0.tradeVolumeUSD.plus(fairTokenVolume)
-  token0.untrackedVolumeUSD = token0.untrackedVolumeUSD.plus(derivedAmountUSD)
-
-  // update token1 global volume and token liquidity stats
-  token1.tradeVolume = token1.tradeVolume.plus(amount1In.plus(amount1Out))
-  token1.tradeVolumeUSD = token1.tradeVolumeUSD.plus(fairTokenVolume)
-  token1.untrackedVolumeUSD = token1.untrackedVolumeUSD.plus(derivedAmountUSD)
-
   // update txn counts
   token0.transactionCount = token0.transactionCount.plus(ONE_BI)
   token1.transactionCount = token1.transactionCount.plus(ONE_BI)
@@ -454,14 +440,12 @@ export function handleSwap(event: AmmTradeEvent): void {
   pair.volumeUSD = pair.volumeUSD.plus(volumeUSD)
   pair.volumeToken0 = pair.volumeToken0.plus(amount0Total)
   pair.volumeToken1 = pair.volumeToken1.plus(amount1Total)
-  pair.untrackedVolumeUSD = pair.untrackedVolumeUSD.plus(derivedAmountUSD)
   pair.transactionCount = pair.transactionCount.plus(ONE_BI)
   pair.save()
 
   // update global values, only used tracked amounts for volume
   let ammFactory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
   ammFactory.totalAmmVolumeUSD = ammFactory.totalAmmVolumeUSD.plus(volumeUSD)
-  ammFactory.untrackedAmmVolumeUSD = ammFactory.untrackedAmmVolumeUSD.plus(derivedAmountUSD)
   ammFactory.transactionCount = ammFactory.transactionCount.plus(ONE_BI)
   ammFactory.ammTradeCount = ammFactory.ammTradeCount.plus(ONE_BI)
 
@@ -507,13 +491,11 @@ export function handleSwap(event: AmmTradeEvent): void {
 
   // swap specific updating
   dolomiteDayData.dailyAmmTradeVolumeUSD = dolomiteDayData.dailyAmmTradeVolumeUSD.plus(volumeUSD)
-  dolomiteDayData.dailyAmmTradeVolumeUntracked = dolomiteDayData.dailyAmmTradeVolumeUntracked.plus(derivedAmountUSD)
   dolomiteDayData.dailyAmmTradeCount = dolomiteDayData.dailyAmmTradeCount.plus(ONE_BI)
   dolomiteDayData.save()
 
   // swap specific updating
   dolomiteHourData.hourlyAmmTradeVolumeUSD = dolomiteHourData.hourlyAmmTradeVolumeUSD.plus(volumeUSD)
-  dolomiteHourData.hourlyAmmTradeVolumeUntracked = dolomiteHourData.hourlyAmmTradeVolumeUntracked.plus(derivedAmountUSD)
   dolomiteHourData.hourlyAmmTradeCount = dolomiteHourData.hourlyAmmTradeCount.plus(ONE_BI)
   dolomiteHourData.save()
 

@@ -8,8 +8,9 @@ import {
 import {
   MarginPosition,
   Token
-} from '../types/schema'
-import { convertTokenToDecimal } from './helpers/amm-helpers'
+} from '../../types/schema'
+
+import { convertTokenToDecimal } from './token-helpers'
 
 export class ProtocolType {
   // eslint-disable-next-line
@@ -22,6 +23,8 @@ export class ProtocolType {
   static Amm: string = 'AMM'
   // eslint-disable-next-line
   static Position: string = 'POSITION'
+  // eslint-disable-next-line
+  static Zap: string = 'ZAP'
 }
 
 export class PositionChangeEvent {

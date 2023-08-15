@@ -1,9 +1,9 @@
 import {
   BorrowPositionOpen as BorrowPositionOpenEvent,
 } from '../types/BorrowPositionProxy/BorrowPositionProxy'
-import { BorrowPositionStatus, getBorrowPositionId } from './borrow-position-helpers'
+import { BorrowPositionStatus, getBorrowPositionId } from './helpers/borrow-position-helpers'
 import { BorrowPosition, DolomiteMargin, User } from '../types/schema'
-import { getOrCreateMarginAccount } from './margin-helpers'
+import { getOrCreateMarginAccount } from './helpers/margin-helpers'
 import { getOrCreateTransaction } from './amm-core'
 import {
   BORROW_POSITION_PROXY_V1_ADDRESS,
@@ -12,7 +12,7 @@ import {
   ONE_BI,
 } from './generated/constants'
 import { Address, log } from '@graphprotocol/graph-ts'
-import { getEffectiveUserForAddressString } from './isolation-mode-helpers'
+import { getEffectiveUserForAddressString } from './helpers/isolation-mode-helpers'
 
 export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
   if (

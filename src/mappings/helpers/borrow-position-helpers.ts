@@ -1,9 +1,9 @@
 import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts'
-import { BorrowPosition, BorrowPositionAmount, MarginAccount, Token } from '../types/schema'
+import { BorrowPosition, BorrowPositionAmount, MarginAccount, Token } from '../../types/schema'
 import { BalanceUpdate } from './margin-types'
-import { ZERO_BD } from './generated/constants'
+import { ZERO_BD } from '../generated/constants'
 import { getOrCreateTokenValue } from './margin-helpers'
-import { getOrCreateTransaction } from './amm-core'
+import { getOrCreateTransaction } from '../amm-core'
 
 export class BorrowPositionStatus {
   // eslint-disable-next-line

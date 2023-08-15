@@ -8,9 +8,6 @@ type AmmFactory @entity {
   # total volume
   totalAmmVolumeUSD: BigDecimal!
 
-  # untracked values - less confident USD scores
-  untrackedAmmVolumeUSD: BigDecimal!
-
   # current liquidity across all pairs
   ammLiquidityUSD: BigDecimal!
 
@@ -81,7 +78,6 @@ type Token @entity {
   # token specific volume
   tradeVolume: BigDecimal!
   tradeVolumeUSD: BigDecimal!
-  untrackedVolumeUSD: BigDecimal!
 
   # transactions across all pairs
   transactionCount: BigInt!
@@ -147,7 +143,6 @@ type AmmPair @entity {
   volumeToken0: BigDecimal!
   volumeToken1: BigDecimal!
   volumeUSD: BigDecimal!
-  untrackedVolumeUSD: BigDecimal!
   transactionCount: BigInt!
 
   # creation stats
@@ -432,9 +427,6 @@ type DolomiteDayData @entity {
   dailyTradeVolumeUSD: BigDecimal!
   dailyVaporizationVolumeUSD: BigDecimal!
 
-  ## Daily Volume Figures Untracked
-  dailyAmmTradeVolumeUntracked: BigDecimal!
-
   ## Closing liquidity on the day
   ammLiquidityUSD: BigDecimal!
   borrowLiquidityUSD: BigDecimal!
@@ -466,9 +458,6 @@ type DolomiteHourData @entity {
   hourlySupplyVolumeUSD: BigDecimal!
   hourlyTradeVolumeUSD: BigDecimal!
   hourlyVaporizationVolumeUSD: BigDecimal!
-
-  ## Hourly Volume Figures Untracked
-  hourlyAmmTradeVolumeUntracked: BigDecimal!
 
   ## Closing liquidity on the hour
   ammLiquidityUSD: BigDecimal!

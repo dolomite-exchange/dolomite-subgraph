@@ -1,5 +1,5 @@
 import { Address } from '@graphprotocol/graph-ts'
-import { User } from '../types/schema'
+import { User } from '../../types/schema'
 
 export function getEffectiveUserForAddress(vaultAddress: Address): User {
   let user = User.load(vaultAddress.toHexString()) as User

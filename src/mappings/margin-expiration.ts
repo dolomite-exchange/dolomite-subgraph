@@ -19,12 +19,12 @@ import {
   getOrCreateMarginAccount,
   getOrCreateMarginPosition,
   getOrCreateTokenValue
-} from './margin-helpers'
+} from './helpers/margin-helpers'
 import {
   MarginPositionStatus,
   ProtocolType
-} from './margin-types'
-import { getBorrowPositionAmountId } from './borrow-position-helpers'
+} from './helpers/margin-types'
+import { getBorrowPositionAmountId } from './helpers/borrow-position-helpers'
 
 // noinspection JSUnusedGlobalSymbols
 export function handleSetExpiry(event: ExpirySetEvent): void {

@@ -26,7 +26,6 @@ import {
   TokenMarketIdReverseLookup,
   TotalPar,
 } from '../types/schema'
-import { convertTokenToDecimal, initializeToken } from './helpers/amm-helpers'
 import {
   ADDRESS_ZERO,
   DOLOMITE_MARGIN_ADDRESS,
@@ -36,14 +35,15 @@ import {
   ZERO_BD,
   ZERO_BI,
 } from './generated/constants'
-import { getOrCreateDolomiteMarginForCall } from './margin-helpers'
-import { ProtocolType } from './margin-types'
+import { getOrCreateDolomiteMarginForCall } from './helpers/margin-helpers'
+import { ProtocolType } from './helpers/margin-types'
 import {
   getLowerOptimalRate,
   getOptimalUtilizationRate,
   getUpperOptimalRate,
   updateInterestRate,
 } from './interest-setter'
+import { convertTokenToDecimal, initializeToken } from './helpers/token-helpers'
 
 // noinspection JSUnusedGlobalSymbols
 export function handleMarketAdded(event: AddMarketEvent): void {

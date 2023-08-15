@@ -1,10 +1,10 @@
 import { Address, BigDecimal, BigInt, ethereum, log, store } from '@graphprotocol/graph-ts'
-import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../types/MarginAdmin/DolomiteMargin'
-import { DolomiteMarginExpiry as DolomiteMarginExpiryAdminProtocol } from '../types/MarginAdmin/DolomiteMarginExpiry'
-import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../types/MarginCore/DolomiteMargin'
-import { DolomiteMarginExpiry as DolomiteMarginExpiryCoreProtocol } from '../types/MarginCore/DolomiteMarginExpiry'
-import { DolomiteMargin as DolomiteMarginExpiryProtocol } from '../types/MarginExpiry/DolomiteMargin'
-import { DolomiteMarginExpiry as DolomiteMarginExpiryExpiryProtocol } from '../types/MarginExpiry/DolomiteMarginExpiry'
+import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../../types/MarginAdmin/DolomiteMargin'
+import { DolomiteMarginExpiry as DolomiteMarginExpiryAdminProtocol } from '../../types/MarginAdmin/DolomiteMarginExpiry'
+import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../../types/MarginCore/DolomiteMargin'
+import { DolomiteMarginExpiry as DolomiteMarginExpiryCoreProtocol } from '../../types/MarginCore/DolomiteMarginExpiry'
+import { DolomiteMargin as DolomiteMarginExpiryProtocol } from '../../types/MarginExpiry/DolomiteMargin'
+import { DolomiteMarginExpiry as DolomiteMarginExpiryExpiryProtocol } from '../../types/MarginExpiry/DolomiteMarginExpiry'
 import {
   DolomiteMargin,
   InterestIndex,
@@ -14,8 +14,8 @@ import {
   MarketRiskInfo, MostRecentTrade,
   Token,
   TotalPar, Trade, Transfer, User,
-} from '../types/schema'
-import { convertStructToDecimalAppliedValue, createUserIfNecessary } from './helpers/amm-helpers'
+} from '../../types/schema'
+import { convertStructToDecimalAppliedValue } from './amm-helpers'
 import {
   DOLOMITE_MARGIN_ADDRESS,
   EXPIRY_ADDRESS,
@@ -29,14 +29,15 @@ import {
   ZERO_BI,
   ZERO_BYTES,
   USD_PRECISION,
-} from './generated/constants'
+} from '../generated/constants'
 import { absBD } from './helpers'
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
-import { updateTimeDataForBorrow } from './day-updates'
-import { updateInterestRate } from './interest-setter'
+import { updateTimeDataForBorrow } from '../day-updates'
+import { updateInterestRate } from '../interest-setter'
 import { updateBorrowPositionForBalanceUpdate } from './borrow-position-helpers'
 import { getEffectiveUserForAddressString } from './isolation-mode-helpers'
+import { createUserIfNecessary } from './user-helpers'
 
 export function getIDForEvent(event: ethereum.Event): string {
   return `${event.transaction.hash.toHexString()}-${event.logIndex.toString()}`

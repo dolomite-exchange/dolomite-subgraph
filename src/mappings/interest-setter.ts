@@ -12,8 +12,8 @@ import {
   TEN_BI,
   ZERO_BI,
 } from './generated/constants'
-import { absBD } from './helpers'
-import { parToWei } from './margin-helpers'
+import { absBD } from './helpers/helpers'
+import { parToWei } from './helpers/margin-helpers'
 import { LinearStepFunctionInterestSetter } from '../types/MarginAdmin/LinearStepFunctionInterestSetter'
 
 const SECONDS_IN_YEAR_BI = BigInt.fromString('31536000')

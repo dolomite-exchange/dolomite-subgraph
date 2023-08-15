@@ -68,6 +68,10 @@ export const EXPIRY_ADDRESS = '{{expiryAddress}}'.toLowerCase()
 
 export const FACTORY_ADDRESS = '{{dolomiteAmmFactoryAddress}}'.toLowerCase()
 
+export const MAGIC_GLP_UNWRAPPER_TRADER_ADDRESS = '{{magicGlpUnwrapperTraderAddress}}'.toLowerCase()
+
+export const MAGIC_GLP_WRAPPER_TRADER_ADDRESS = '{{magicGlpWrapperTraderAddress}}'.toLowerCase()
+
 // ========================= Token Addresses =========================
 
 export const DAI_ADDRESS = '{{daiAddress}}'.toLowerCase()

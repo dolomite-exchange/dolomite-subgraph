@@ -211,6 +211,8 @@ dataSources:
       abis:
         - name: GenericTraderProxy
           file: ./abis/generic-trader-proxy.json
+        - name: DolomiteMargin
+          file: ./abis/dolomite-margin.json
       eventHandlers:
         - event: ZapExecuted(indexed address,uint256,uint256[],(uint8,uint256,address,bytes)[])
           handler: handleZapExecuted

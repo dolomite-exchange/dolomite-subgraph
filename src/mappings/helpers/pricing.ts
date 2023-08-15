@@ -5,10 +5,11 @@ import {
   ethereum,
   log
 } from '@graphprotocol/graph-ts'
-import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../types/MarginAdmin/DolomiteMargin'
-import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../types/MarginCore/DolomiteMargin'
-import { DolomiteMargin as DolomiteMarginExpiryProtocol } from '../types/MarginExpiry/DolomiteMargin'
-import { DolomiteMargin as DolomiteMarginPositionProtocol } from '../types/DolomiteAmmRouter/DolomiteMargin'
+import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../../types/MarginAdmin/DolomiteMargin'
+import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../../types/MarginCore/DolomiteMargin'
+import { DolomiteMargin as DolomiteMarginExpiryProtocol } from '../../types/MarginExpiry/DolomiteMargin'
+import { DolomiteMargin as DolomiteMarginPositionProtocol } from '../../types/DolomiteAmmRouter/DolomiteMargin'
+import { DolomiteMargin as DolomiteMarginZapProtocol } from '../../types/Zap/DolomiteMargin'
 import {
   AmmPair,
   AmmPairReverseLookup,
@@ -16,9 +17,8 @@ import {
   OraclePrice,
   Token,
   Trade
-} from '../types/schema'
-import { DolomiteMargin as DolomiteMarginAmmProtocol } from '../types/templates/AmmPair/DolomiteMargin'
-import { convertTokenToDecimal } from './helpers/amm-helpers'
+} from '../../types/schema'
+import { DolomiteMargin as DolomiteMarginAmmProtocol } from '../../types/templates/AmmPair/DolomiteMargin'
 import {
   DAI_WETH_PAIR,
   DOLOMITE_MARGIN_ADDRESS,
@@ -29,8 +29,9 @@ import {
   WHITELIST,
   ZERO_BD,
   ZERO_BI
-} from './generated/constants'
+} from '../generated/constants'
 import { ProtocolType } from './margin-types'
+import { convertTokenToDecimal } from './token-helpers'
 
 export function getEthPriceInUSD(): BigDecimal {
   // fetch eth prices for each stablecoin
@@ -118,6 +119,9 @@ export function getTokenOraclePriceUSD(token: Token, event: ethereum.Event, prot
       tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
     } else if (protocolType == ProtocolType.Position) {
       let marginProtocol = DolomiteMarginPositionProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
+      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+    } else if (protocolType == ProtocolType.Position) {
+      let marginProtocol = DolomiteMarginZapProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
       tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
     } else {
       log.error('Invalid protocol type, found {}', [protocolType])

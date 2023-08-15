@@ -29,7 +29,6 @@ export function handleNewPair(event: PairCreated): void {
     factory = new AmmFactory(factoryAddress)
     factory.pairCount = 0
     factory.totalAmmVolumeUSD = ZERO_BD
-    factory.untrackedAmmVolumeUSD = ZERO_BD
     factory.ammLiquidityUSD = ZERO_BD
     factory.transactionCount = ZERO_BI
     factory.ammTradeCount = ZERO_BI
@@ -64,19 +63,16 @@ export function handleNewPair(event: PairCreated): void {
   pair.volumeToken0 = ZERO_BD
   pair.volumeToken1 = ZERO_BD
   pair.volumeUSD = ZERO_BD
-  pair.untrackedVolumeUSD = ZERO_BD
   pair.token0Price = ZERO_BD
   pair.token1Price = ZERO_BD
 
   // create the tracked contract based on the template
   PairTemplate.create(event.params.pair)
 
-  let reverseLookup1 = new AmmPairReverseLookup(token0.id.concat('-')
-    .concat(token1.id))
+  let reverseLookup1 = new AmmPairReverseLookup(`${token0.id}-${token1.id}`)
   reverseLookup1.pair = pair.id
 
-  let reverseLookup2 = new AmmPairReverseLookup(token1.id.concat('-')
-    .concat(token0.id))
+  let reverseLookup2 = new AmmPairReverseLookup(`${token1.id}-${token0.id}`)
   reverseLookup2.pair = pair.id
 
   // save updated values

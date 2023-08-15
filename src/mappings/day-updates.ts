@@ -23,9 +23,9 @@ import {
   ZERO_BD,
   ZERO_BI,
 } from './generated/constants'
-import { absBD } from './helpers'
-import { getTokenOraclePriceUSD } from './pricing'
-import { ProtocolType } from './margin-types'
+import { absBD } from './helpers/helpers'
+import { getTokenOraclePriceUSD } from './helpers/pricing'
+import { ProtocolType } from './helpers/margin-types'
 
 function getDayId(timestamp: BigInt): string {
   let _86400 = BigInt.fromI32(86400)
@@ -48,9 +48,6 @@ function setupDolomiteDayData(dolomiteDayData: DolomiteDayData): DolomiteDayData
   dolomiteDayData.dailySupplyVolumeUSD = ZERO_BD
   dolomiteDayData.dailyTradeVolumeUSD = ZERO_BD
   dolomiteDayData.dailyVaporizationVolumeUSD = ZERO_BD
-
-  // ## Daily Volume Figures Untracked
-  dolomiteDayData.dailyAmmTradeVolumeUntracked = ZERO_BD
 
   // ## Daily Liquidity
   dolomiteDayData.ammLiquidityUSD = ZERO_BD
@@ -84,9 +81,6 @@ function setupDolomiteHourData(dolomiteHourData: DolomiteHourData): DolomiteHour
   dolomiteHourData.hourlySupplyVolumeUSD = ZERO_BD
   dolomiteHourData.hourlyTradeVolumeUSD = ZERO_BD
   dolomiteHourData.hourlyVaporizationVolumeUSD = ZERO_BD
-
-  // ## Daily Volume Figures Untracked
-  dolomiteHourData.hourlyAmmTradeVolumeUntracked = ZERO_BD
 
   // ## Daily Liquidity
   dolomiteHourData.ammLiquidityUSD = ZERO_BD
@@ -557,6 +551,11 @@ export function updateTimeDataForTrade(
   // Using the below examples of buying / selling, token == USD || token == ETH
   let oraclePriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
   let otherPriceUSD = getTokenOraclePriceUSD(otherToken, event, ProtocolType.Core)
+  token.tradeVolume = trade.takerToken == token.id
+    ? token.tradeVolume.plus(trade.takerTokenDeltaWei)
+    : token.tradeVolume.plus(trade.makerTokenDeltaWei)
+  token.tradeVolumeUSD = token.tradeVolumeUSD.plus(trade.amountUSD)
+
   let closePriceUSD = token.id == trade.takerToken
     ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).times(otherPriceUSD).truncate(36)
     : trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei).times(otherPriceUSD).truncate(36)

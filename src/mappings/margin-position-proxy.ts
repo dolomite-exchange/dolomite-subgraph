@@ -21,10 +21,10 @@ import {
   USD_PRECISION,
   ZERO_BD,
 } from './generated/constants'
-import { absBD } from './helpers'
-import { getOrCreateMarginAccount, getOrCreateMarginPosition, getOrCreateTokenValue } from './margin-helpers'
-import { MarginPositionStatus, PositionChangeEvent, ProtocolType, ValueStruct } from './margin-types'
-import { getTokenOraclePriceUSD } from './pricing'
+import { absBD } from './helpers/helpers'
+import { getOrCreateMarginAccount, getOrCreateMarginPosition, getOrCreateTokenValue } from './helpers/margin-helpers'
+import { MarginPositionStatus, PositionChangeEvent, ProtocolType, ValueStruct } from './helpers/margin-types'
+import { getTokenOraclePriceUSD } from './helpers/pricing'
 
 function updateMarginPositionForTrade(
   marginPosition: MarginPosition,
