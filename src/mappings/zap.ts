@@ -1,11 +1,8 @@
-import { Address, BigDecimal, BigInt, Bytes, crypto, ethereum, log, TypedMap } from '@graphprotocol/graph-ts'
-import { ZapExecuted as ZapExecutedEvent, ZapExecutedTradersPathStruct } from '../types/Zap/GenericTraderProxy'
+import { BigDecimal, log } from '@graphprotocol/graph-ts'
+import { ZapExecuted as ZapExecutedEvent } from '../types/Zap/GenericTraderProxy'
 import {
   DolomiteMargin,
-  MarginAccount,
-  Token,
-  TokenMarketIdReverseLookup,
-  Trade,
+  MarginAccount, Trade,
   Transaction,
   Transfer,
   User,
@@ -15,106 +12,15 @@ import {
 import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 import {
   DOLOMITE_MARGIN_ADDRESS,
-  MAGIC_GLP_UNWRAPPER_TRADER_ADDRESS,
-  MAGIC_GLP_WRAPPER_TRADER_ADDRESS,
   ONE_BI,
-  ZERO_BD,
+  ZERO_BD, ZERO_BI,
 } from './generated/constants'
 import { absBD } from './helpers/helpers'
-
-function getZapAccountNumber(event: ZapExecutedEvent): BigInt {
-  let packedInner = new ethereum.Tuple()
-  packedInner.push(ethereum.Value.fromUnsignedBigInt(event.params.accountNumber))
-  packedInner.push(ethereum.Value.fromUnsignedBigInt(event.block.timestamp))
-  let packed = event.params.accountOwner.concat(ethereum.encode(ethereum.Value.fromTuple(packedInner)) as Bytes)
-
-  return BigInt.fromUnsignedBytes(Bytes.fromUint8Array(crypto.keccak256(packed).reverse()))
-}
-
-function getTokenPathForZap(event: ZapExecutedEvent): Array<string> {
-  let tokenPath: Array<string> = []
-  for (let i = 0; i < event.params.marketIdsPath.length; i++) {
-    let marketId = event.params.marketIdsPath[i]
-    tokenPath[i] = (TokenMarketIdReverseLookup.load(marketId.toString()) as TokenMarketIdReverseLookup).token
-  }
-  return tokenPath
-}
-
-const LIQUIDITY_TOKEN_ADDRESS_MAP: TypedMap<string, string> = new TypedMap<string, string>()
-LIQUIDITY_TOKEN_ADDRESS_MAP.set(MAGIC_GLP_UNWRAPPER_TRADER_ADDRESS, 'true')
-LIQUIDITY_TOKEN_ADDRESS_MAP.set(MAGIC_GLP_WRAPPER_TRADER_ADDRESS, 'true')
-
-function getTradesByTrader(trades: Array<Trade>, trader: Address): Array<Trade> {
-  let filteredTrades: Array<Trade> = []
-  for (let i = 0; i < trades.length; i++) {
-    if (trades[i].traderAddress.equals(trader)) {
-      filteredTrades.push(trades[i])
-    }
-  }
-  return filteredTrades
-}
-
-function removeTradeMetricsForTrader(
-  trader: ZapExecutedTradersPathStruct,
-  dolomiteMargin: DolomiteMargin,
-  tradesForTransaction: Trade[],
-): void {
-  let trades = getTradesByTrader(tradesForTransaction, trader.trader)
-  for (let i = 0; i < trades.length; i++) {
-    log.info('Removing trade volume for trader: {}', [trader.trader.toHexString()])
-    let trade = trades[i] as Trade
-
-    dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.minus(ONE_BI)
-    dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.minus(trade.amountUSD)
-    // dolomiteMargin is saved later
-
-    let takerToken = Token.load(trade.takerToken) as Token
-    takerToken.tradeVolume = takerToken.tradeVolume.minus(trade.takerTokenDeltaWei)
-    takerToken.tradeVolumeUSD = takerToken.tradeVolumeUSD.minus(trade.amountUSD)
-    takerToken.save()
-
-    let makerToken = Token.load(trade.makerToken) as Token
-    makerToken.tradeVolume = makerToken.tradeVolume.minus(trade.makerTokenDeltaWei)
-    makerToken.tradeVolumeUSD = makerToken.tradeVolumeUSD.minus(trade.amountUSD)
-    makerToken.save()
-
-    let takerUser = User.load((MarginAccount.load(trade.takerMarginAccount) as MarginAccount).user) as User
-    takerUser.totalTradeVolumeUSD = takerUser.totalTradeVolumeUSD.minus(trade.amountUSD)
-    takerUser.totalTradeCount = takerUser.totalTradeCount.minus(ONE_BI)
-    takerUser.save()
-    if (takerUser.effectiveUser != takerUser.id) {
-      let effectiveTakerUser = User.load(takerUser.effectiveUser) as User
-      effectiveTakerUser.totalTradeVolumeUSD = effectiveTakerUser.totalTradeVolumeUSD.minus(trade.amountUSD)
-      effectiveTakerUser.totalTradeCount = effectiveTakerUser.totalTradeCount.minus(ONE_BI)
-      effectiveTakerUser.save()
-    }
-
-    let makerMarginAccount = trade.makerMarginAccount
-    if (makerMarginAccount !== null) {
-      let makerUser = User.load((MarginAccount.load(makerMarginAccount) as MarginAccount).user) as User
-      makerUser.totalTradeVolumeUSD = makerUser.totalTradeVolumeUSD.minus(trade.amountUSD)
-      makerUser.totalTradeCount = makerUser.totalTradeCount.minus(ONE_BI)
-      makerUser.save()
-      if (makerUser.effectiveUser != makerUser.id) {
-        let effectiveMakerUser = User.load(makerUser.effectiveUser) as User
-        effectiveMakerUser.totalTradeVolumeUSD = effectiveMakerUser.totalTradeVolumeUSD.minus(trade.amountUSD)
-        effectiveMakerUser.totalTradeCount = effectiveMakerUser.totalTradeCount.minus(ONE_BI)
-        effectiveMakerUser.save()
-      }
-    }
-  }
-}
-
-function removeTradeMetricsIfNecessaryFromExternalLiquidityTrade(
-  trader: ZapExecutedTradersPathStruct,
-  dolomiteMargin: DolomiteMargin,
-  tradesForTransaction: Trade[],
-): void {
-  if (LIQUIDITY_TOKEN_ADDRESS_MAP.get(trader.trader.toHexString()) == 'true') {
-    // Remove the trade from the trade metrics (it's not a "real" trade if it's a redemption/minting)
-    removeTradeMetricsForTrader(trader, dolomiteMargin, tradesForTransaction)
-  }
-}
+import {
+  getTokenPathForZap,
+  getZapAccountNumber, removeTradeMetricsForTrader,
+  removeTradeMetricsIfNecessaryFromExternalLiquidityTrade,
+} from './helpers/zap-helpers'
 
 export function handleZapExecuted(event: ZapExecutedEvent): void {
   log.info(
@@ -135,6 +41,8 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
   let amountInUSD: BigDecimal = ZERO_BD
   let amountOutToken: BigDecimal = ZERO_BD
   let amountOutUSD: BigDecimal = ZERO_BD
+  let transferInLogIndex = ZERO_BI
+  let transferOutLogIndex = ZERO_BI
   for (let i = 0; i < transfers.length; i++) {
     let toMarginAccount = MarginAccount.load(transfers[i].toMarginAccount) as MarginAccount
     let fromMarginAccount = MarginAccount.load(transfers[i].fromMarginAccount) as MarginAccount
@@ -142,10 +50,12 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
       // Transfers into the zap account are the amount in
       amountInToken = absBD(transfers[i].amountDeltaWei)
       amountInUSD = absBD(transfers[i].amountUSDDeltaWei)
+      transferInLogIndex = transfers[i].logIndex
     } else if (fromMarginAccount.accountNumber.equals(zapAccountNumber)) {
       // Transfers out of the zap account are the amount out
       amountOutToken = absBD(transfers[i].amountDeltaWei)
       amountOutUSD = absBD(transfers[i].amountUSDDeltaWei)
+      transferOutLogIndex = transfers[i].logIndex
     }
 
     if (amountInToken.notEqual(ZERO_BD) && amountOutToken.notEqual(ZERO_BD)) {
@@ -171,7 +81,7 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
   zap.save()
 
   let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
-  let tradesForTransaction = transaction.trades.load()
+  let tradesForTransaction: Array<Trade> = transaction.trades.load()
   for (let i = 0; i < event.params.tradersPath.length; i++) {
     let traderParamEvent = event.params.tradersPath[i]
     let traderParam = new ZapTraderParam(`${zap.id}-${i}`)
