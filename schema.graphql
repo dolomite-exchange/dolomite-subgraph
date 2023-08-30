@@ -730,6 +730,8 @@ type Trade @entity {
 
   # derived info
   amountUSD: BigDecimal! # based on the value of the takerInputDeltaWei
+  takerAmountUSD: BigDecimal! # based on the value of the takerInputDeltaWei
+  makerAmountUSD: BigDecimal! # based on the value of the makerInputDeltaWei
 }
 
 type MostRecentTrade @entity {

@@ -554,7 +554,9 @@ export function updateTimeDataForTrade(
   token.tradeVolume = trade.takerToken == token.id
     ? token.tradeVolume.plus(trade.takerTokenDeltaWei)
     : token.tradeVolume.plus(trade.makerTokenDeltaWei)
-  token.tradeVolumeUSD = token.tradeVolumeUSD.plus(trade.amountUSD)
+  token.tradeVolumeUSD = token.tradeVolumeUSD.plus(
+    trade.takerToken == token.id ? trade.takerAmountUSD : trade.makerAmountUSD,
+  )
 
   let closePriceUSD = token.id == trade.takerToken
     ? trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei).times(otherPriceUSD).truncate(36)

@@ -45,26 +45,26 @@ export function removeTradeMetricsForTrader(
     let trade = trades[i] as Trade
 
     dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.minus(ONE_BI)
-    dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.minus(trade.amountUSD)
+    dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.minus(trade.takerAmountUSD)
     // dolomiteMargin is saved later
 
     let takerToken = Token.load(trade.takerToken) as Token
     takerToken.tradeVolume = takerToken.tradeVolume.minus(trade.takerTokenDeltaWei)
-    takerToken.tradeVolumeUSD = takerToken.tradeVolumeUSD.minus(trade.amountUSD)
+    takerToken.tradeVolumeUSD = takerToken.tradeVolumeUSD.minus(trade.takerAmountUSD)
     takerToken.save()
 
     let makerToken = Token.load(trade.makerToken) as Token
     makerToken.tradeVolume = makerToken.tradeVolume.minus(trade.makerTokenDeltaWei)
-    makerToken.tradeVolumeUSD = makerToken.tradeVolumeUSD.minus(trade.amountUSD)
+    makerToken.tradeVolumeUSD = makerToken.tradeVolumeUSD.minus(trade.makerAmountUSD)
     makerToken.save()
 
     let takerUser = User.load((MarginAccount.load(trade.takerMarginAccount) as MarginAccount).user) as User
-    takerUser.totalTradeVolumeUSD = takerUser.totalTradeVolumeUSD.minus(trade.amountUSD)
+    takerUser.totalTradeVolumeUSD = takerUser.totalTradeVolumeUSD.minus(trade.takerAmountUSD)
     takerUser.totalTradeCount = takerUser.totalTradeCount.minus(ONE_BI)
     takerUser.save()
     if (takerUser.effectiveUser != takerUser.id) {
       let effectiveTakerUser = User.load(takerUser.effectiveUser) as User
-      effectiveTakerUser.totalTradeVolumeUSD = effectiveTakerUser.totalTradeVolumeUSD.minus(trade.amountUSD)
+      effectiveTakerUser.totalTradeVolumeUSD = effectiveTakerUser.totalTradeVolumeUSD.minus(trade.takerAmountUSD)
       effectiveTakerUser.totalTradeCount = effectiveTakerUser.totalTradeCount.minus(ONE_BI)
       effectiveTakerUser.save()
     }
@@ -72,12 +72,12 @@ export function removeTradeMetricsForTrader(
     let makerMarginAccount = trade.makerMarginAccount
     if (makerMarginAccount !== null) {
       let makerUser = User.load((MarginAccount.load(makerMarginAccount) as MarginAccount).user) as User
-      makerUser.totalTradeVolumeUSD = makerUser.totalTradeVolumeUSD.minus(trade.amountUSD)
+      makerUser.totalTradeVolumeUSD = makerUser.totalTradeVolumeUSD.minus(trade.makerAmountUSD)
       makerUser.totalTradeCount = makerUser.totalTradeCount.minus(ONE_BI)
       makerUser.save()
       if (makerUser.effectiveUser != makerUser.id) {
         let effectiveMakerUser = User.load(makerUser.effectiveUser) as User
-        effectiveMakerUser.totalTradeVolumeUSD = effectiveMakerUser.totalTradeVolumeUSD.minus(trade.amountUSD)
+        effectiveMakerUser.totalTradeVolumeUSD = effectiveMakerUser.totalTradeVolumeUSD.minus(trade.makerAmountUSD)
         effectiveMakerUser.totalTradeCount = effectiveMakerUser.totalTradeCount.minus(ONE_BI)
         effectiveMakerUser.save()
       }

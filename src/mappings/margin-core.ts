@@ -437,8 +437,13 @@ export function handleBuy(event: BuyEvent): void {
   trade.amountUSD = trade.takerTokenDeltaWei
     .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
     .truncate(USD_PRECISION)
+  trade.takerAmountUSD = trade.amountUSD
+  trade.makerAmountUSD = trade.makerTokenDeltaWei
+    .times(getTokenOraclePriceUSD(makerToken, event, ProtocolType.Core))
+    .truncate(USD_PRECISION)
 
-  dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
+
+  dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
   dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.plus(ONE_BI)
 
   marginAccount.save()
@@ -506,12 +511,12 @@ export function handleBuy(event: BuyEvent): void {
   invalidateMarginPosition(marginAccount)
 
   let user = User.load(marginAccount.user) as User
-  user.totalTradeVolumeUSD = user.totalTradeVolumeUSD.plus(trade.amountUSD)
+  user.totalTradeVolumeUSD = user.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
   user.totalTradeCount = user.totalTradeCount.plus(ONE_BI)
   user.save()
   if (user.effectiveUser != user.id) {
     let effectiveUser = User.load(user.effectiveUser) as User
-    effectiveUser.totalTradeVolumeUSD = effectiveUser.totalTradeVolumeUSD.plus(trade.amountUSD)
+    effectiveUser.totalTradeVolumeUSD = effectiveUser.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
     effectiveUser.totalTradeCount = effectiveUser.totalTradeCount.plus(ONE_BI)
     effectiveUser.save()
   }
@@ -585,8 +590,12 @@ export function handleSell(event: SellEvent): void {
   trade.amountUSD = trade.takerTokenDeltaWei
     .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
     .truncate(USD_PRECISION)
+  trade.takerAmountUSD = trade.amountUSD
+  trade.makerAmountUSD = trade.makerTokenDeltaWei
+    .times(getTokenOraclePriceUSD(makerToken, event, ProtocolType.Core))
+    .truncate(USD_PRECISION)
 
-  dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
+  dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
   dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.plus(ONE_BI)
 
   marginAccount.save()
@@ -654,13 +663,12 @@ export function handleSell(event: SellEvent): void {
   invalidateMarginPosition(marginAccount)
 
   let user = User.load(marginAccount.user) as User
-  user.totalTradeVolumeUSD = user.totalTradeVolumeUSD.plus(trade.amountUSD)
+  user.totalTradeVolumeUSD = user.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
   user.totalTradeCount = user.totalTradeCount.plus(ONE_BI)
   user.save()
-
   if (user.effectiveUser != user.id) {
     let effectiveUser = User.load(user.effectiveUser) as User
-    effectiveUser.totalTradeVolumeUSD = effectiveUser.totalTradeVolumeUSD.plus(trade.amountUSD)
+    effectiveUser.totalTradeVolumeUSD = effectiveUser.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
     effectiveUser.totalTradeCount = effectiveUser.totalTradeCount.plus(ONE_BI)
     effectiveUser.save()
   }
@@ -748,16 +756,26 @@ export function handleTrade(event: TradeEvent): void {
   trade.makerToken = outputToken.id
 
   let takerInputDeltaWeiStruct = new ValueStruct(event.params.takerInputUpdate.deltaWei)
-  trade.takerTokenDeltaWei = convertStructToDecimalAppliedValue(takerInputDeltaWeiStruct.abs(), inputToken.decimals)
-
   let takerOutputDeltaWeiStruct = new ValueStruct(event.params.takerOutputUpdate.deltaWei)
-  trade.makerTokenDeltaWei = convertStructToDecimalAppliedValue(takerOutputDeltaWeiStruct.abs(), outputToken.decimals)
+  let takerToken = takerInputDeltaWeiStruct.applied().lt(ZERO_BI) ? inputToken : outputToken
+  let makerToken = takerInputDeltaWeiStruct.applied().lt(ZERO_BI) ? outputToken : inputToken
+  trade.takerTokenDeltaWei = takerInputDeltaWeiStruct.applied().lt(ZERO_BI)
+    ? convertStructToDecimalAppliedValue(takerInputDeltaWeiStruct.abs(), inputToken.decimals)
+    : convertStructToDecimalAppliedValue(takerOutputDeltaWeiStruct.abs(), outputToken.decimals)
+
+  trade.makerTokenDeltaWei = takerInputDeltaWeiStruct.applied().lt(ZERO_BI)
+    ? convertStructToDecimalAppliedValue(takerOutputDeltaWeiStruct.abs(), outputToken.decimals)
+    : convertStructToDecimalAppliedValue(takerInputDeltaWeiStruct.abs(), inputToken.decimals)
 
   trade.amountUSD = trade.takerTokenDeltaWei
-    .times(getTokenOraclePriceUSD(inputToken, event, ProtocolType.Core))
+    .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
+    .truncate(USD_PRECISION)
+  trade.takerAmountUSD = trade.amountUSD
+  trade.makerAmountUSD = trade.takerTokenDeltaWei
+    .times(getTokenOraclePriceUSD(makerToken, event, ProtocolType.Core))
     .truncate(USD_PRECISION)
 
-  dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.amountUSD)
+  dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
   dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.plus(ONE_BI)
 
   takerMarginAccount.save()
@@ -902,23 +920,23 @@ export function handleTrade(event: TradeEvent): void {
   }
 
   let makerUser = User.load(makerMarginAccount.user) as User
-  makerUser.totalTradeVolumeUSD = makerUser.totalTradeVolumeUSD.plus(trade.amountUSD)
+  makerUser.totalTradeVolumeUSD = makerUser.totalTradeVolumeUSD.plus(trade.makerAmountUSD)
   makerUser.totalTradeCount = makerUser.totalTradeCount.plus(ONE_BI)
   makerUser.save()
   if (makerUser.effectiveUser != makerUser.id) {
     let effectiveMakerUser = User.load(makerUser.effectiveUser) as User
-    effectiveMakerUser.totalTradeVolumeUSD = effectiveMakerUser.totalTradeVolumeUSD.plus(trade.amountUSD)
+    effectiveMakerUser.totalTradeVolumeUSD = effectiveMakerUser.totalTradeVolumeUSD.plus(trade.makerAmountUSD)
     effectiveMakerUser.totalTradeCount = effectiveMakerUser.totalTradeCount.plus(ONE_BI)
     effectiveMakerUser.save()
   }
 
   let takerUser = User.load(takerMarginAccount.user) as User
-  takerUser.totalTradeVolumeUSD = takerUser.totalTradeVolumeUSD.plus(trade.amountUSD)
+  takerUser.totalTradeVolumeUSD = takerUser.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
   takerUser.totalTradeCount = takerUser.totalTradeCount.plus(ONE_BI)
   takerUser.save()
   if (takerUser.effectiveUser != takerUser.id) {
     let effectiveTakerUser = User.load(takerUser.effectiveUser) as User
-    effectiveTakerUser.totalTradeVolumeUSD = effectiveTakerUser.totalTradeVolumeUSD.plus(trade.amountUSD)
+    effectiveTakerUser.totalTradeVolumeUSD = effectiveTakerUser.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
     effectiveTakerUser.totalTradeCount = effectiveTakerUser.totalTradeCount.plus(ONE_BI)
     effectiveTakerUser.save()
   }
