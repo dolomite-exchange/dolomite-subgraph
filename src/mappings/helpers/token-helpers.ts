@@ -117,7 +117,6 @@ export function initializeToken(token: Token, marketId: BigInt): void {
     // this token says it has 18 decimals on-chain but that's incorrect
     token.decimals = BigInt.fromI32(6)
   } else if (isArbitrumMainnet() && token.id == USDC_ADDRESS) {
-    // this token says it has 18 decimals on-chain but that's incorrect
     token.name = 'Bridged USDC'
     token.symbol = 'USDC.e'
   }
