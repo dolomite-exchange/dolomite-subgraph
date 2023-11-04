@@ -611,6 +611,7 @@ type Deposit @entity {
   from: Bytes!
 
   amountDeltaWei: BigDecimal!
+  amountDeltaPar: BigDecimal!
 
   # derived info
   amountUSDDeltaWei: BigDecimal!
@@ -628,6 +629,7 @@ type Withdrawal @entity {
   to: Bytes!
 
   amountDeltaWei: BigDecimal!
+  amountDeltaPar: BigDecimal!
 
   # derived info
   amountUSDDeltaWei: BigDecimal!
@@ -652,6 +654,8 @@ type Transfer @entity {
   token: Token!
 
   amountDeltaWei: BigDecimal!
+  fromAmountDeltaPar: BigDecimal!
+  toAmountDeltaPar: BigDecimal!
 
   # derived info
   amountUSDDeltaWei: BigDecimal!
@@ -674,6 +678,11 @@ type Liquidation @entity {
 
   borrowedTokenAmountDeltaWei: BigDecimal!
   heldTokenAmountDeltaWei: BigDecimal!
+
+  solidBorrowedTokenAmountDeltaPar: BigDecimal!
+  solidHeldTokenAmountDeltaPar: BigDecimal!
+  liquidBorrowedTokenAmountDeltaPar: BigDecimal!
+  liquidHeldTokenAmountDeltaPar: BigDecimal!
 
   heldTokenLiquidationRewardWei: BigDecimal!
 
@@ -700,6 +709,8 @@ type Vaporization @entity {
 
   borrowedTokenAmountDeltaWei: BigDecimal!
   heldTokenAmountDeltaWei: BigDecimal!
+  borrowedTokenAmountDeltaPar: BigDecimal!
+  heldTokenAmountDeltaPar: BigDecimal!
 
   # derived info
   amountUSDVaporized: BigDecimal!
@@ -727,6 +738,8 @@ type Trade @entity {
 
   takerTokenDeltaWei: BigDecimal! # the `takerToken` spent by the `takerAccount`
   makerTokenDeltaWei: BigDecimal! # the `makerToken` received by the `takerAccount` (spent by the `makerAccount`)
+  takerTokenDeltaPar: BigDecimal! # the `takerToken` spent by the `takerAccount`
+  makerTokenDeltaPar: BigDecimal! # the `makerToken` received by the `takerAccount` (spent by the `makerAccount`)
 
   # derived info
   amountUSD: BigDecimal! # based on the value of the takerInputDeltaWei

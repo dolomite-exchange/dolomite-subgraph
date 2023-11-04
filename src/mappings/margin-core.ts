@@ -141,7 +141,7 @@ export function handleDeposit(event: DepositEvent): void {
     event.params.update.deltaWei.sign,
     token,
   )
-  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
+  let { marginAccount, deltaPar } = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -164,6 +164,7 @@ export function handleDeposit(event: DepositEvent): void {
   deposit.token = token.id
   deposit.from = event.params.from
   deposit.amountDeltaWei = convertStructToDecimalAppliedValue(deltaWeiStruct, token.decimals)
+  deposit.amountDeltaPar = deltaPar
   deposit.amountUSDDeltaWei = deposit.amountDeltaWei.times(getTokenOraclePriceUSD(token, event, ProtocolType.Core))
     .truncate(USD_PRECISION)
 
@@ -209,7 +210,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
     event.params.update.deltaWei.sign,
     token,
   )
-  let marginAccount = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
+  let { marginAccount, deltaPar } = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -233,6 +234,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
   withdrawal.token = token.id
   withdrawal.to = event.params.to
   withdrawal.amountDeltaWei = convertStructToDecimalAppliedValue(deltaWeiStructAbs, token.decimals)
+  withdrawal.amountDeltaPar = deltaPar
   withdrawal.amountUSDDeltaWei = withdrawal.amountDeltaWei
     .times(getTokenOraclePriceUSD(token, event, ProtocolType.Core))
     .truncate(USD_PRECISION)
@@ -277,7 +279,7 @@ export function handleTransfer(event: TransferEvent): void {
     event.params.updateOne.deltaWei.sign,
     token,
   )
-  let marginAccount1 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate1, event)
+  let { marginAccount: marginAccount1, deltaPar: deltaPar1 } = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate1, event)
 
   let balanceUpdate2 = new BalanceUpdate(
     event.params.accountTwoOwner,
@@ -288,7 +290,7 @@ export function handleTransfer(event: TransferEvent): void {
     event.params.updateTwo.deltaWei.sign,
     token,
   )
-  let marginAccount2 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate2, event)
+  let { marginAccount: marginAccount2, deltaPar: deltaPar2 } = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate2, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -307,6 +309,8 @@ export function handleTransfer(event: TransferEvent): void {
 
   let fromMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount2 : marginAccount1
   let toMarginAccount = event.params.updateOne.deltaWei.sign ? marginAccount1 : marginAccount2
+  let fromDeltaPar = event.params.updateOne.deltaWei.sign ? deltaPar2 : deltaPar1
+  let toDeltaPar = event.params.updateOne.deltaWei.sign ? deltaPar1 : deltaPar2
 
   transfer.fromEffectiveUser = getEffectiveUserForAddressString(fromMarginAccount.user).id
   transfer.fromMarginAccount = fromMarginAccount.id
@@ -322,6 +326,7 @@ export function handleTransfer(event: TransferEvent): void {
   let amountDeltaWei = new ValueStruct(event.params.updateOne.deltaWei)
   let priceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
   transfer.amountDeltaWei = convertStructToDecimalAppliedValue(amountDeltaWei.abs(), token.decimals)
+  transfer.amountDeltaPar = convertStructToDecimalAppliedValue(amountDeltaWei.abs(), token.decimals)
   transfer.amountUSDDeltaWei = transfer.amountDeltaWei.times(priceUSD)
     .truncate(USD_PRECISION)
 

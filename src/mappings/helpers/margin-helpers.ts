@@ -306,10 +306,15 @@ function handleTotalParChange(
   totalPar.save()
 }
 
+interface MarginAccountWithValueParChange {
+  marginAccount: MarginAccount;
+  deltaPar: BigDecimal;
+}
+
 export function handleDolomiteMarginBalanceUpdateForAccount(
   balanceUpdate: BalanceUpdate,
   event: ethereum.Event
-): MarginAccount {
+): MarginAccountWithValueParChange {
   let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, event.block)
   let tokenValue = getOrCreateTokenValue(marginAccount, balanceUpdate.token)
   let token = Token.load(tokenValue.token) as Token
@@ -370,6 +375,7 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
     }
   }
 
+  let deltaPar = balanceUpdate.valuePar.minus(tokenValue.valuePar)
   tokenValue.valuePar = balanceUpdate.valuePar
   log.info(
     'Balance changed for account {} to value {}',
@@ -383,7 +389,7 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
 
   updateBorrowPositionForBalanceUpdate(marginAccount, balanceUpdate, event)
 
-  return marginAccount
+  return { marginAccount, deltaPar }
 }
 
 export function saveMostRecentTrade(trade: Trade): void {
