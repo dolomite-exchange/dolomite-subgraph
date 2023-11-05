@@ -1,8 +1,20 @@
 {
   "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint"],
-  "extends": ["plugin:@typescript-eslint/recommended", "prettier", "prettier/@typescript-eslint"],
+  "plugins": [
+    "@typescript-eslint"
+  ],
+  "extends": [
+    "plugin:@typescript-eslint/recommended",
+    "prettier",
+    "prettier/@typescript-eslint"
+  ],
   "rules": {
-    "prefer-const": "off"
+    "prefer-const": "off",
+    "max-len": [
+      "error",
+      {
+        "code": 120
+      }
+    ]
   }
 }

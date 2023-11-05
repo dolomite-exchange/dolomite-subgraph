@@ -12,6 +12,7 @@
   "dolomiteAmmRouterProxyV2Address": "0xD8F9C59176AE25414FC4180f6433Fc45b0cbb632",
   "dolomiteMarginAddress": "0x6Bd780E7fDf01D77e4d475c821f1e7AE05409072",
   "doubleExponentV1InterestSetter": "0xf74FDC3e515F05bd0c5f89FBF03F59A02CFdB37b",
+  "eventEmitterRegistryAddress": "0x8169e2E9B97274B9F04B93531603a30AAf610625",
   "expiryAddress": "0xDEc1ae3b570ac3c57871BBD7bFeacC807f973Bea",
   "genericTraderProxyAddress": "0x3e647e1242a8ce0ce013cb967fbff742d7846242",
   "genericTraderProxyStartBlock": "112488348",

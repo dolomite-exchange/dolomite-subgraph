@@ -13,6 +13,7 @@
   "dolomiteMarginAddress": "0xb4de6b0Aa8c1187633Ab33a73eF0c840bC9B6D49",
   "doubleExponentV1InterestSetter": "0xBF35F5D837e22550b8DBA6Df8AF5bC92c1f47f9A",
   "expiryAddress": "0x16Ec03D86cC8B8bb57646b533d6fBda07D992229",
+  "eventEmitterRegistryAddress": "0x0000000000000000000000000000000000000000",
   "genericTraderProxyAddress": "0x0000000000000000000000000000000000000000",
   "genericTraderProxyStartBlock": "500449",
   "linkAddress": "0x2d3B3F17d6694d5AA643Cb89A82Ac9214a41536d",

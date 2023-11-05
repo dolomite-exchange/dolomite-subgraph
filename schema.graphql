@@ -709,8 +709,10 @@ type Vaporization @entity {
 
   borrowedTokenAmountDeltaWei: BigDecimal!
   heldTokenAmountDeltaWei: BigDecimal!
-  borrowedTokenAmountDeltaPar: BigDecimal!
-  heldTokenAmountDeltaPar: BigDecimal!
+
+  vaporBorrowedTokenAmountDeltaPar: BigDecimal!
+  solidHeldTokenAmountDeltaPar: BigDecimal!
+  solidBorrowedTokenAmountDeltaPar: BigDecimal!
 
   # derived info
   amountUSDVaporized: BigDecimal!
@@ -738,8 +740,12 @@ type Trade @entity {
 
   takerTokenDeltaWei: BigDecimal! # the `takerToken` spent by the `takerAccount`
   makerTokenDeltaWei: BigDecimal! # the `makerToken` received by the `takerAccount` (spent by the `makerAccount`)
-  takerTokenDeltaPar: BigDecimal! # the `takerToken` spent by the `takerAccount`
-  makerTokenDeltaPar: BigDecimal! # the `makerToken` received by the `takerAccount` (spent by the `makerAccount`)
+
+  takerInputTokenDeltaPar: BigDecimal!
+  takerOutputTokenDeltaPar: BigDecimal!
+
+  makerInputTokenDeltaPar: BigDecimal
+  makerOutputTokenDeltaPar: BigDecimal
 
   # derived info
   amountUSD: BigDecimal! # based on the value of the takerInputDeltaWei

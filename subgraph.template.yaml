@@ -216,6 +216,45 @@ dataSources:
       eventHandlers:
         - event: ZapExecuted(indexed address,uint256,uint256[],(uint8,uint256,address,bytes)[])
           handler: handleZapExecuted
+  - kind: ethereum/contract
+    name: EventEmitterRegistry
+    network: {{network}}
+    source:
+      address: '{{eventEmitterRegistryAddress}}'
+      abi: EventEmitterRegistry
+      startBlock: {{eventEmitterRegistryStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/mappings/event-emitter-registry.ts
+      entities:
+        - AsyncDeposit
+        - AsyncWithdrawal
+      abis:
+        - name: EventEmitterRegistry
+          file: ./abis/event-emitter-registry.json
+        - name: DolomiteMargin
+          file: ./abis/dolomite-margin.json
+      eventHandlers:
+        - event: AsyncDepositCreated()
+          handler: handleAsyncDepositCreated
+        - event: AsyncDepositExecuted()
+          handler: handleAsyncDepositExecuted
+        - event: AsyncDepositFailed()
+          handler: handleAsyncDepositFailed
+        - event: AsyncDepositCancelled()
+          handler: handleAsyncDepositCancelled
+        - event: AsyncDepositCancelledFailed()
+          handler: handleAsyncDepositCancelledFailed
+        - event: AsyncWithdrawalCancelled()
+          handler: handleAsyncWithdrawalCancelled
+        - event: AsyncWithdrawalCreated()
+          handler: handleAsyncWithdrawalCreated
+        - event: AsyncWithdrawalExecuted()
+          handler: handleAsyncWithdrawalExecuted
+        - event: AsyncWithdrawalFailed()
+          handler: handleAsyncWithdrawalFailed
 templates:
   - kind: ethereum/contract
     name: AmmPair

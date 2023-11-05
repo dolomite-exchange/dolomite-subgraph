@@ -1,4 +1,11 @@
-import { Address, BigDecimal, BigInt, ethereum, log, store } from '@graphprotocol/graph-ts'
+import {
+  Address,
+  BigDecimal,
+  BigInt,
+  ethereum,
+  log,
+  store
+} from '@graphprotocol/graph-ts'
 import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../../types/MarginAdmin/DolomiteMargin'
 import { DolomiteMarginExpiry as DolomiteMarginExpiryAdminProtocol } from '../../types/MarginAdmin/DolomiteMarginExpiry'
 import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../../types/MarginCore/DolomiteMargin'
@@ -11,32 +18,41 @@ import {
   MarginAccount,
   MarginAccountTokenValue,
   MarginPosition,
-  MarketRiskInfo, MostRecentTrade,
+  MarketRiskInfo,
+  MostRecentTrade,
   Token,
-  TotalPar, Trade, Transfer, User,
+  TotalPar,
+  Trade,
+  Transfer,
+  User
 } from '../../types/schema'
-import { convertStructToDecimalAppliedValue } from './amm-helpers'
+import { updateTimeDataForBorrow } from '../day-updates'
 import {
+  _100_BI,
   DOLOMITE_MARGIN_ADDRESS,
   EXPIRY_ADDRESS,
   FIVE_BD,
-  _100_BI,
   ONE_BD,
   ONE_BI,
   ONE_ETH_BD,
   TEN_BI,
+  USD_PRECISION,
   ZERO_BD,
   ZERO_BI,
-  ZERO_BYTES,
-  USD_PRECISION,
+  ZERO_BYTES
 } from '../generated/constants'
-import { absBD } from './helpers'
-import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
-import { getTokenOraclePriceUSD } from './pricing'
-import { updateTimeDataForBorrow } from '../day-updates'
 import { updateInterestRate } from '../interest-setter'
+import { convertStructToDecimalAppliedValue } from './amm-helpers'
 import { updateBorrowPositionForBalanceUpdate } from './borrow-position-helpers'
+import { absBD } from './helpers'
 import { getEffectiveUserForAddressString } from './isolation-mode-helpers'
+import {
+  BalanceUpdate,
+  MarginPositionStatus,
+  ProtocolType,
+  ValueStruct
+} from './margin-types'
+import { getTokenOraclePriceUSD } from './pricing'
 import { createUserIfNecessary } from './user-helpers'
 
 export function getIDForEvent(event: ethereum.Event): string {
@@ -306,9 +322,14 @@ function handleTotalParChange(
   totalPar.save()
 }
 
-interface MarginAccountWithValueParChange {
-  marginAccount: MarginAccount;
-  deltaPar: BigDecimal;
+class MarginAccountWithValueParChange {
+  public readonly marginAccount: MarginAccount
+  public readonly deltaPar: BigDecimal
+
+  constructor(marginAccount: MarginAccount, deltaPar: BigDecimal) {
+    this.marginAccount = marginAccount
+    this.deltaPar = deltaPar
+  }
 }
 
 export function handleDolomiteMarginBalanceUpdateForAccount(
@@ -357,20 +378,24 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
   if (balanceUpdate.valuePar.lt(ZERO_BD) && balanceUpdate.valuePar.lt(tokenValue.valuePar)) {
     // The user is borrowing capital. The amount borrowed is capped at `neg(balanceUpdate.valuePar)`
     // reason being, the user can go from a +10 balance to -10; therefore the amount borrowed is 10 units, not 20
-    let amountParBorrowed = absBD(balanceUpdate.valuePar).minus(tokenValue.valuePar)
+    let amountParBorrowed = absBD(balanceUpdate.valuePar)
+      .minus(tokenValue.valuePar)
     if (amountParBorrowed.gt(absBD(balanceUpdate.valuePar))) {
       amountParBorrowed = absBD(balanceUpdate.valuePar)
     }
     let interestIndex = InterestIndex.load(token.id) as InterestIndex
     let priceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
-    let amountBorrowedUSD = parToWei(amountParBorrowed, interestIndex, token.decimals).times(priceUSD).truncate(USD_PRECISION)
+    let amountBorrowedUSD = parToWei(amountParBorrowed, interestIndex, token.decimals)
+      .times(priceUSD)
+      .truncate(USD_PRECISION)
 
     let user = User.load(marginAccount.user) as User
     user.totalBorrowVolumeOriginatedUSD = user.totalBorrowVolumeOriginatedUSD.plus(amountBorrowedUSD)
     user.save()
     if (user.effectiveUser != user.id) {
       let effectiveUser = User.load(user.effectiveUser) as User
-      effectiveUser.totalBorrowVolumeOriginatedUSD = effectiveUser.totalBorrowVolumeOriginatedUSD.plus(amountBorrowedUSD)
+      effectiveUser.totalBorrowVolumeOriginatedUSD = effectiveUser.totalBorrowVolumeOriginatedUSD
+        .plus(amountBorrowedUSD)
       effectiveUser.save()
     }
   }
@@ -389,7 +414,7 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
 
   updateBorrowPositionForBalanceUpdate(marginAccount, balanceUpdate, event)
 
-  return { marginAccount, deltaPar }
+  return new MarginAccountWithValueParChange(marginAccount, deltaPar)
 }
 
 export function saveMostRecentTrade(trade: Trade): void {
@@ -437,11 +462,13 @@ export function changeProtocolBalance(
   dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
 
   let tokenBorrowLiquidity = absBD(parToWei(totalPar.borrowPar.neg(), index, token.decimals))
-  let tokenBorrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
+  let tokenBorrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
+    .truncate(USD_PRECISION)
 
   if (tokenBorrowLiquidity.gt(token.borrowLiquidity)) {
     let borrowVolumeToken = tokenBorrowLiquidity.minus(token.borrowLiquidity)
-    let borrowVolumeUsd = borrowVolumeToken.times(tokenPriceUSD).truncate(USD_PRECISION)
+    let borrowVolumeUsd = borrowVolumeToken.times(tokenPriceUSD)
+      .truncate(USD_PRECISION)
     dolomiteMargin.totalBorrowVolumeUSD = dolomiteMargin.totalBorrowVolumeUSD.plus(borrowVolumeUsd)
 
     updateTimeDataForBorrow(token, event, borrowVolumeToken, borrowVolumeUsd)
@@ -450,7 +477,8 @@ export function changeProtocolBalance(
   token.borrowLiquidity = tokenBorrowLiquidity
   token.borrowLiquidityUSD = tokenBorrowLiquidityUSD
   token.supplyLiquidity = parToWei(totalPar.supplyPar, index, token.decimals)
-  token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
+  token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
+    .truncate(USD_PRECISION)
 
   // add the new liquidity back in
   dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
@@ -502,7 +530,7 @@ export function updateMarginPositionForTransfer(
   transfer: Transfer,
   event: ethereum.Event,
   token: Token,
-  priceUSD: BigDecimal,
+  priceUSD: BigDecimal
 ): void {
   if (marginAccount1.user == marginAccount2.user) {
     if (
@@ -536,22 +564,24 @@ export function updateMarginPositionForTransfer(
           && marginPosition.heldAmountPar.notEqual(ZERO_BD)
         ) {
           log.info(
-            "Upsizing margin deposit for position {} with value {}",
+            'Upsizing margin deposit for position {} with value {}',
             [marginAccount1.id, transfer.amountDeltaWei.toString()]
           )
 
           marginPosition.initialHeldAmountPar = marginPosition.heldAmountPar
           marginPosition.initialHeldAmountWei = marginPosition.initialHeldAmountWei.plus(transfer.amountDeltaWei)
-          marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(transfer.amountUSDDeltaWei).truncate(USD_PRECISION)
+          marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountUSD.plus(transfer.amountUSDDeltaWei)
+            .truncate(USD_PRECISION)
           marginPosition.marginDeposit = marginPosition.marginDeposit.plus(transfer.amountDeltaWei)
-          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(USD_PRECISION)
+          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD)
+            .truncate(USD_PRECISION)
         } else if (
           marginPosition.status == MarginPositionStatus.Open
           && marginPosition.marginAccount == transfer.fromMarginAccount
           && marginPosition.heldAmountPar.notEqual(ZERO_BD)
         ) {
           log.info(
-            "Downsizing margin deposit for position {} with value {}",
+            'Downsizing margin deposit for position {} with value {}',
             [marginAccount1.id, transfer.amountDeltaWei.toString()]
           )
 
@@ -566,7 +596,8 @@ export function updateMarginPositionForTransfer(
               .minus(transfer.amountDeltaWei.times(marginPosition.initialHeldPriceUSD))
               .truncate(USD_PRECISION)
           }
-          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD).truncate(USD_PRECISION)
+          marginPosition.marginDepositUSD = marginPosition.marginDeposit.times(priceUSD)
+            .truncate(USD_PRECISION)
         }
       } else if (token.id == marginPosition.owedToken) {
         marginPosition.owedAmountPar = balanceUpdate1.marginAccount == marginPosition.marginAccount
