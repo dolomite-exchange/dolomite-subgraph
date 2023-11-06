@@ -237,24 +237,24 @@ dataSources:
         - name: DolomiteMargin
           file: ./abis/dolomite-margin.json
       eventHandlers:
-        - event: AsyncDepositCreated()
+        - event: AsyncDepositCreated(indexed bytes32,indexed address,(bytes32,address,uint256,address,uint256,uint256,bool))
           handler: handleAsyncDepositCreated
-        - event: AsyncDepositExecuted()
+        - event: AsyncDepositExecuted(indexed bytes32,indexed address)
           handler: handleAsyncDepositExecuted
-        - event: AsyncDepositFailed()
+        - event: AsyncDepositFailed(indexed bytes32,indexed address,string)
           handler: handleAsyncDepositFailed
-        - event: AsyncDepositCancelled()
+        - event: AsyncDepositCancelled(indexed bytes32,indexed address)
           handler: handleAsyncDepositCancelled
-        - event: AsyncDepositCancelledFailed()
+        - event: AsyncDepositCancelledFailed(indexed bytes32,indexed address,string)
           handler: handleAsyncDepositCancelledFailed
-        - event: AsyncWithdrawalCancelled()
-          handler: handleAsyncWithdrawalCancelled
-        - event: AsyncWithdrawalCreated()
+        - event: AsyncWithdrawalCreated(indexed bytes32,indexed address,(bytes32,address,uint256,uint256,address,uint256,bool))
           handler: handleAsyncWithdrawalCreated
-        - event: AsyncWithdrawalExecuted()
+        - event: AsyncWithdrawalExecuted(indexed bytes32,indexed address)
           handler: handleAsyncWithdrawalExecuted
-        - event: AsyncWithdrawalFailed()
+        - event: AsyncWithdrawalFailed(indexed bytes32,indexed address,string)
           handler: handleAsyncWithdrawalFailed
+        - event: AsyncWithdrawalCancelled(indexed bytes32,indexed address)
+          handler: handleAsyncWithdrawalCancelled
 templates:
   - kind: ethereum/contract
     name: AmmPair

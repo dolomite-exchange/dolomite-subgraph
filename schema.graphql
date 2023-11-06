@@ -865,3 +865,18 @@ type Zap @entity {
   amountOutUSD: BigDecimal!
   tradersPath: [ZapTraderParam!]! @derivedFrom(field: "zap")
 }
+
+type AsyncDeposit @entity {
+  id: ID! # Defined as "token.id-key"
+  token: Token!
+  key: Bytes!
+  marginAccount: MarginAccount!
+  effectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
+  status: String! # one of CREATED, DEPOSIT_EXECUTED, DEPOSIT_FAILED, DEPOSIT_CANCELLED, DEPOSIT_CANCELLED_FAILED
+  inputAmount: BigDecimal!
+  inputAmountUSD: BigDecimal!
+  inputToken: Token!
+  minOutputAmount: BigDecimal!
+  outputAmount: BigDecimal!
+  isRetryable: Boolean!
+}
