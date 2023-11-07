@@ -867,15 +867,28 @@ type Zap @entity {
 }
 
 type AsyncDeposit @entity {
-  id: ID! # Defined as "token.id-key"
-  token: Token!
+  id: ID! # Defined as "outputToken.id-key"
   key: Bytes!
   marginAccount: MarginAccount!
   effectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   status: String! # one of CREATED, DEPOSIT_EXECUTED, DEPOSIT_FAILED, DEPOSIT_CANCELLED, DEPOSIT_CANCELLED_FAILED
-  inputAmount: BigDecimal!
-  inputAmountUSD: BigDecimal!
   inputToken: Token!
+  inputAmount: BigDecimal!
+  outputToken: Token!
+  minOutputAmount: BigDecimal!
+  outputAmount: BigDecimal!
+  isRetryable: Boolean!
+}
+
+type AsyncWithdrawal @entity {
+  id: ID! # Defined as "inputToken.id-key"
+  key: Bytes!
+  marginAccount: MarginAccount!
+  effectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
+  status: String! # one of CREATED, WITHDRAWAL_EXECUTED, WITHDRAWAL_EXECUTION_FAILED, WITHDRAWAL_CANCELLED
+  inputToken: Token!
+  inputAmount: BigDecimal!
+  outputToken: Token!
   minOutputAmount: BigDecimal!
   outputAmount: BigDecimal!
   isRetryable: Boolean!
