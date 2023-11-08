@@ -9,12 +9,15 @@ import { LiquidityMiningVestingPosition } from '../types/schema'
 import { convertTokenToDecimal } from './helpers/token-helpers'
 import { _18_BI, ADDRESS_ZERO, ZERO_BD } from './generated/constants'
 import { LiquidityMiningVestingPositionStatus } from './helpers/liquidity-mining-vesting-helpers'
+import { createUserIfNecessary } from './helpers/user-helpers'
 
 export function handleVestingPositionCreated(event: VestingPositionCreatedEvent): void {
+  createUserIfNecessary(event.params.vestingPosition.creator)
+
   let position = new LiquidityMiningVestingPosition(event.params.vestingPosition.id.toString())
   position.status = LiquidityMiningVestingPositionStatus.ACTIVE
-  position.creator = event.params.vestingPosition.creator
-  position.owner = event.params.vestingPosition.creator
+  position.creator = event.params.vestingPosition.creator.toHexString()
+  position.owner = event.params.vestingPosition.creator.toHexString()
   position.duration = event.params.vestingPosition.duration
   position.startTimestamp = event.params.vestingPosition.startTime
   position.oARBAmount = convertTokenToDecimal(event.params.vestingPosition.amount, _18_BI)
@@ -25,10 +28,11 @@ export function handleVestingPositionCreated(event: VestingPositionCreatedEvent)
 
 export function handleVestingPositionTransfer(event: VestingPositionTransferEvent): void {
   if (event.params.from.toHexString() != ADDRESS_ZERO && event.params.to.toHexString() != ADDRESS_ZERO) {
+    createUserIfNecessary(event.params.to)
     let position = LiquidityMiningVestingPosition.load(
       event.params.tokenId.toString(),
     ) as LiquidityMiningVestingPosition
-    position.owner = event.params.to
+    position.owner = event.params.to.toHexString()
     position.save()
   }
 }

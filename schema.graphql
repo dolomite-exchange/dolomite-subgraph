@@ -897,8 +897,8 @@ type AsyncWithdrawal @entity {
 type LiquidityMiningVestingPosition @entity {
   id: ID! # Defined as "NFT_ID"
   status: String! # one of ACTIVE, CLOSED, FORCE_CLOSED, EMERGENCY_CLOSED
-  creator: Bytes!
-  owner: Bytes!
+  creator: User!
+  owner: User!
   duration: BigInt!
   startTimestamp: BigInt!
   oARBAmount: BigDecimal!
