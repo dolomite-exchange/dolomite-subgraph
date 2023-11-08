@@ -1,16 +1,5 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types,@typescript-eslint/camelcase */
 import { Address, Bytes } from '@graphprotocol/graph-ts'
-import {
-  AsyncDepositCreated__Params,
-  AsyncDepositExecuted__Params,
-  AsyncDepositFailed__Params,
-  AsyncDepositOutputAmountUpdated__Params,
-  AsyncWithdrawalCancelled__Params,
-  AsyncWithdrawalCreated__Params,
-  AsyncWithdrawalExecuted__Params,
-  AsyncWithdrawalFailed__Params,
-  AsyncWithdrawalOutputAmountUpdated__Params,
-} from '../../types/EventEmitterRegistry/EventEmitterRegistry'
 
 export class AsyncDepositStatus {
   public static CREATED: string = 'CREATED'

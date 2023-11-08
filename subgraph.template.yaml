@@ -259,6 +259,36 @@ dataSources:
           handler: handleAsyncWithdrawalFailed
         - event: AsyncWithdrawalCancelled(indexed bytes32,indexed address)
           handler: handleAsyncWithdrawalCancelled
+  - kind: ethereum/contract
+    name: LiquidityMiningVester
+    network: {{network}}
+    source:
+      address: '{{liquidityMiningVesterAddress}}'
+      abi: LiquidityMiningVester
+      startBlock: {{liquidityMiningVesterStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/mappings/liquidity-mining-vester.ts
+      entities:
+        - LiquidityMiningVestingPosition
+      abis:
+        - name: LiquidityMiningVester
+          file: ./abis/liquidity-mining-vester.json
+        - name: DolomiteMargin
+          file: ./abis/dolomite-margin.json
+      eventHandlers:
+        - event: VestingPositionCreated((address,uint256,uint256,uint256,uint256))
+          handler: handleVestingPositionCreated
+        - event: Transfer(indexed address,indexed address,indexed uint256)
+          handler: handleVestingPositionTransfer
+        - event: PositionClosed(indexed address,uint256,uint256)
+          handler: handleVestingPositionClosed
+        - event: PositionForceClosed(indexed address,uint256,uint256)
+          handler: handleVestingPositionForceClosed
+        - event: EmergencyWithdraw(indexed address,uint256,uint256)
+          handler: handleVestingPositionEmergencyWithdraw
 templates:
   - kind: ethereum/contract
     name: AmmPair

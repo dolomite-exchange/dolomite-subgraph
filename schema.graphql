@@ -893,3 +893,15 @@ type AsyncWithdrawal @entity {
   outputAmount: BigDecimal!
   isRetryable: Boolean!
 }
+
+type LiquidityMiningVestingPosition @entity {
+  id: ID! # Defined as "NFT_ID"
+  status: String! # one of ACTIVE, CLOSED, FORCE_CLOSED, EMERGENCY_CLOSED
+  creator: Bytes!
+  owner: Bytes!
+  duration: BigInt!
+  startTimestamp: BigInt!
+  oARBAmount: BigDecimal!
+  ethSpent: BigDecimal!
+  arbTaxesPaid: BigDecimal!
+}
