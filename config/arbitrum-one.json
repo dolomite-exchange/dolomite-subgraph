@@ -20,6 +20,8 @@
   "linkAddress": "0xf97f4df75117a78c1A5a0DBb814Af92458539FB4",
   "liquidityMiningVesterAddress": "0xbf08A2Fdda494C2a27DF96385f957F2173C1BDDc",
   "liquidityMiningVesterStartBlock": "148340633",
+  "liquidityMiningClaimerAddress": "0xfb47dC009c12eCF8a6785bD5568163C5850D8360",
+  "liquidityMiningClaimerStartBlock": "148340633",
   "magicGlpUnwrapperTraderAddress": "0x76a03cEd39f0930777974906Ee7E792Bd25A29dd",
   "magicGlpWrapperTraderAddress": "0x298a07c4A5B6BC32e1eF37Bf5cCB3a17C106224d",
   "maticAddress": "0x0000000000000000000000000000000000000000",

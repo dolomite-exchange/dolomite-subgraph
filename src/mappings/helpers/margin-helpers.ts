@@ -68,6 +68,7 @@ export function getOrCreateTokenValue(
   if (tokenValue === null) {
     tokenValue = new MarginAccountTokenValue(id)
     tokenValue.marginAccount = marginAccount.id
+    tokenValue.effectiveUser = marginAccount.effectiveUser
     tokenValue.token = token.id
     tokenValue.valuePar = ZERO_BD
   }
@@ -102,6 +103,7 @@ export function getOrCreateMarginAccount(
 
     marginAccount = new MarginAccount(id)
     marginAccount.user = owner.toHexString()
+    marginAccount.effectiveUser = getEffectiveUserForAddressString(marginAccount.user).id
     marginAccount.accountNumber = accountNumber
     marginAccount.borrowTokens = []
     marginAccount.supplyTokens = []

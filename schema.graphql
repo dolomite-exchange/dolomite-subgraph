@@ -173,6 +173,9 @@ type User @entity {
   trades: [Trade!] @derivedFrom(field: "effectiveUsers")
   liquidations: [Liquidation!] @derivedFrom(field: "effectiveUsers")
   vaporizations: [Vaporization!] @derivedFrom(field: "effectiveUsers")
+  liquidityMiningClaims: [LiquidityMiningClaim!] @derivedFrom(field: "user")
+  liquidityMiningSeasonData: [LiquidityMiningSeason!] @derivedFrom(field: "user")
+  liquidityMiningVestingPositions: [LiquidityMiningVestingPosition!] @derivedFrom(field: "owner")
 
   totalBorrowVolumeOriginatedUSD: BigDecimal!
   totalCollateralLiquidatedUSD: BigDecimal!
@@ -563,6 +566,7 @@ type TotalPar @entity {
 type MarginAccount @entity {
   id: ID! # Defined as "userAddress-accountNumber"
   user: User!
+  effectiveUser: User! # set to the user or owner of an isolation mode address
   accountNumber: BigInt!
   lastUpdatedTimestamp: BigInt! # Timestamp at which any token value was last updated
   lastUpdatedBlockNumber: BigInt!
@@ -578,6 +582,7 @@ type MarginAccount @entity {
 type MarginAccountTokenValue @entity {
   id: ID! # Defined as "user-accountNumber-marketId"
   marginAccount: MarginAccount!
+  effectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   token: Token!
   valuePar: BigDecimal! # Par value of the user's held token. Can be negative, meaning it's borrowed funds.
   expirationTimestamp: BigInt
@@ -904,4 +909,19 @@ type LiquidityMiningVestingPosition @entity {
   oARBAmount: BigDecimal!
   ethSpent: BigDecimal!
   arbTaxesPaid: BigDecimal!
+}
+
+type LiquidityMiningClaim @entity {
+  id: ID! # Defined as "user-epoch"
+  user: User!
+  epoch: Int!
+  seasonNumber: Int!
+  amount: BigDecimal!
+}
+
+type LiquidityMiningSeason @entity {
+  id: ID! # Defined as "user-seasonNumber"
+  user: User!
+  seasonNumber: Int!
+  totalClaimAmount: BigDecimal!
 }

@@ -5,10 +5,11 @@ import {
   Transfer as VestingPositionTransferEvent,
   VestingPositionCreated as VestingPositionCreatedEvent,
 } from '../types/LiquidityMiningVester/LiquidityMiningVester'
-import { LiquidityMiningVestingPosition } from '../types/schema'
+import { Claimed as OARBClaimedEvent } from '../types/LiquidityMiningClaimer/LiquidityMiningClaimer'
+import { LiquidityMiningClaim, LiquidityMiningSeason, LiquidityMiningVestingPosition } from '../types/schema'
 import { convertTokenToDecimal } from './helpers/token-helpers'
 import { _18_BI, ADDRESS_ZERO, ZERO_BD } from './generated/constants'
-import { LiquidityMiningVestingPositionStatus } from './helpers/liquidity-mining-vesting-helpers'
+import { getLiquidityMiningSeasonId, LiquidityMiningVestingPositionStatus } from './helpers/liquidity-mining-helpers'
 import { createUserIfNecessary } from './helpers/user-helpers'
 
 export function handleVestingPositionCreated(event: VestingPositionCreatedEvent): void {
@@ -62,4 +63,24 @@ export function handleVestingPositionEmergencyWithdraw(event: VestingPositionEme
   position.arbTaxesPaid = convertTokenToDecimal(event.params.arbTax, _18_BI)
   position.status = LiquidityMiningVestingPositionStatus.EMERGENCY_CLOSED
   position.save()
+}
+
+const seasonNumber = 0
+export function handleOArbClaimed(event: OARBClaimedEvent): void {
+  let claim = new LiquidityMiningClaim(`${event.params.user.toHexString()}-${event.params.epoch.toString()}`)
+  claim.user = event.params.user.toHexString()
+  claim.epoch = event.params.epoch.toI32()
+  claim.seasonNumber = seasonNumber
+  claim.amount = convertTokenToDecimal(event.params.amount, _18_BI)
+  claim.save()
+
+  let season = LiquidityMiningSeason.load(getLiquidityMiningSeasonId(event.params.user, seasonNumber))
+  if (season === null) {
+    season = new LiquidityMiningSeason(getLiquidityMiningSeasonId(event.params.user, seasonNumber))
+    season.user = claim.user
+    season.seasonNumber = seasonNumber
+    season.totalClaimAmount = ZERO_BD
+  }
+  season.totalClaimAmount = season.totalClaimAmount.plus(claim.amount)
+  season.save()
 }

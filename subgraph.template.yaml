@@ -270,7 +270,7 @@ dataSources:
       kind: ethereum/events
       apiVersion: 0.0.7
       language: wasm/assemblyscript
-      file: ./src/mappings/liquidity-mining-vester.ts
+      file: ./src/mappings/liquidity-mining.ts
       entities:
         - LiquidityMiningVestingPosition
       abis:
@@ -289,6 +289,28 @@ dataSources:
           handler: handleVestingPositionForceClosed
         - event: EmergencyWithdraw(indexed address,uint256,uint256)
           handler: handleVestingPositionEmergencyWithdraw
+  - kind: ethereum/contract
+    name: LiquidityMiningClaimer
+    network: {{network}}
+    source:
+      address: '{{liquidityMiningClaimerAddress}}'
+      abi: LiquidityMiningClaimer
+      startBlock: {{liquidityMiningClaimerStartBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/mappings/liquidity-mining.ts
+      entities:
+        - LiquidityMiningVestingPosition
+      abis:
+        - name: LiquidityMiningClaimer
+          file: ./abis/liquidity-mining-claimer.json
+        - name: DolomiteMargin
+          file: ./abis/dolomite-margin.json
+      eventHandlers:
+        - event: Claimed(indexed address,uint256,uint256)
+          handler: handleOArbClaimed
 templates:
   - kind: ethereum/contract
     name: AmmPair
