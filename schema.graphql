@@ -57,6 +57,7 @@ type DolomiteMargin @entity {
   transactionCount: BigInt!
   vaporizationCount: BigInt!
   zapCount: BigInt!
+  vestingPositionTransferCount: BigInt!
 }
 
 type Token @entity {
@@ -235,6 +236,7 @@ type Transaction @entity {
   liquidations: [Liquidation!]! @derivedFrom(field: "transaction")
   vaporizations: [Vaporization!]! @derivedFrom(field: "transaction")
   zaps: [Zap!]! @derivedFrom(field: "transaction")
+  vestingPositionTransfers: [VestingPositionTransfer!]! @derivedFrom(field: "transaction")
 }
 
 type AmmMint @entity {
@@ -906,9 +908,22 @@ type LiquidityMiningVestingPosition @entity {
   owner: User!
   duration: BigInt!
   startTimestamp: BigInt!
+  closeTimestamp: BigInt
   oARBAmount: BigDecimal!
   ethSpent: BigDecimal!
   arbTaxesPaid: BigDecimal!
+}
+
+type VestingPositionTransfer @entity {
+  id: ID! # Defined as auto incrementing ID
+  transaction: Transaction!
+  logIndex: BigInt!
+  serialId: BigInt!
+
+  fromUser: User!
+  toUser: User!
+
+  vestingPosition: LiquidityMiningVestingPosition!
 }
 
 type LiquidityMiningClaim @entity {

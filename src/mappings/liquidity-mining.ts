@@ -6,11 +6,19 @@ import {
   VestingPositionCreated as VestingPositionCreatedEvent,
 } from '../types/LiquidityMiningVester/LiquidityMiningVester'
 import { Claimed as OARBClaimedEvent } from '../types/LiquidityMiningClaimer/LiquidityMiningClaimer'
-import { LiquidityMiningClaim, LiquidityMiningSeason, LiquidityMiningVestingPosition } from '../types/schema'
+import {
+  LiquidityMiningClaim,
+  LiquidityMiningSeason,
+  LiquidityMiningVestingPosition,
+  VestingPositionTransfer,
+} from '../types/schema'
 import { convertTokenToDecimal } from './helpers/token-helpers'
-import { _18_BI, ADDRESS_ZERO, ZERO_BD } from './generated/constants'
+import { _18_BI, ADDRESS_ZERO, ONE_BI, ZERO_BD } from './generated/constants'
 import { getLiquidityMiningSeasonId, LiquidityMiningVestingPositionStatus } from './helpers/liquidity-mining-helpers'
 import { createUserIfNecessary } from './helpers/user-helpers'
+import { getOrCreateDolomiteMarginForCall } from './helpers/margin-helpers'
+import { ProtocolType } from './helpers/margin-types'
+import { getOrCreateTransaction } from './amm-core'
 
 export function handleVestingPositionCreated(event: VestingPositionCreatedEvent): void {
   createUserIfNecessary(event.params.vestingPosition.creator)
@@ -35,6 +43,21 @@ export function handleVestingPositionTransfer(event: VestingPositionTransferEven
     ) as LiquidityMiningVestingPosition
     position.owner = event.params.to.toHexString()
     position.save()
+
+    let transaction = getOrCreateTransaction(event)
+
+    let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Core)
+    let transfer = new VestingPositionTransfer(dolomiteMargin.vestingPositionTransferCount.toString())
+    transfer.transaction = transaction.id
+    transfer.logIndex = event.logIndex
+    transfer.serialId = dolomiteMargin.vestingPositionTransferCount
+    transfer.fromUser = event.params.from.toHexString()
+    transfer.toUser = event.params.to.toHexString()
+    transfer.vestingPosition = position.id
+    transfer.save()
+
+    dolomiteMargin.vestingPositionTransferCount = dolomiteMargin.vestingPositionTransferCount.plus(ONE_BI)
+    dolomiteMargin.save()
   }
 }
 
@@ -42,6 +65,7 @@ export function handleVestingPositionClosed(event: VestingPositionClosedEvent): 
   let position = LiquidityMiningVestingPosition.load(
     event.params.vestingId.toString(),
   ) as LiquidityMiningVestingPosition
+  position.closeTimestamp = event.block.timestamp
   position.ethSpent = convertTokenToDecimal(event.params.ethCostPaid, _18_BI)
   position.status = LiquidityMiningVestingPositionStatus.CLOSED
   position.save()
@@ -51,6 +75,7 @@ export function handleVestingPositionForceClosed(event: VestingPositionForceClos
   let position = LiquidityMiningVestingPosition.load(
     event.params.vestingId.toString(),
   ) as LiquidityMiningVestingPosition
+  position.closeTimestamp = event.block.timestamp
   position.arbTaxesPaid = convertTokenToDecimal(event.params.arbTax, _18_BI)
   position.status = LiquidityMiningVestingPositionStatus.FORCE_CLOSED
   position.save()
@@ -60,6 +85,7 @@ export function handleVestingPositionEmergencyWithdraw(event: VestingPositionEme
   let position = LiquidityMiningVestingPosition.load(
     event.params.vestingId.toString(),
   ) as LiquidityMiningVestingPosition
+  position.closeTimestamp = event.block.timestamp
   position.arbTaxesPaid = convertTokenToDecimal(event.params.arbTax, _18_BI)
   position.status = LiquidityMiningVestingPositionStatus.EMERGENCY_CLOSED
   position.save()

@@ -243,6 +243,7 @@ export function getOrCreateDolomiteMarginForCall(
     dolomiteMargin.transactionCount = ZERO_BI
     dolomiteMargin.vaporizationCount = ZERO_BI
     dolomiteMargin.zapCount = ZERO_BI
+    dolomiteMargin.vestingPositionTransferCount = ZERO_BI
   }
 
   if (dolomiteMargin.lastTransactionHash.notEqual(event.transaction.hash)) {
