@@ -20,7 +20,7 @@ import { createUserIfNecessary } from './helpers/user-helpers'
 import { getOrCreateDolomiteMarginForCall, weiToPar } from './helpers/margin-helpers'
 import { ProtocolType } from './helpers/margin-types'
 import { getOrCreateTransaction } from './amm-core'
-import { ARB_ADDRESS } from '../mappings/generated/constants'
+import { ARB_ADDRESS } from './generated/constants'
 
 export function handleVestingPositionCreated(event: VestingPositionCreatedEvent): void {
   createUserIfNecessary(event.params.vestingPosition.creator)
