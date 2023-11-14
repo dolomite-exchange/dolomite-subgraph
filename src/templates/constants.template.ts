@@ -74,6 +74,8 @@ export const MAGIC_GLP_WRAPPER_TRADER_ADDRESS = '{{magicGlpWrapperTraderAddress}
 
 // ========================= Token Addresses =========================
 
+export const ARB_ADDRESS = '{{arbAddress}}'.toLowerCase()
+
 export const DAI_ADDRESS = '{{daiAddress}}'.toLowerCase()
 
 export const LINK_ADDRESS = '{{linkAddress}}'.toLowerCase()

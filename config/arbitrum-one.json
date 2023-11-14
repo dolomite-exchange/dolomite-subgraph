@@ -4,6 +4,7 @@
   "aaveAltCoinCopyCatV1InterestSetter": "0xc2cBd99bb35b22C43010a8c8266Cdff057f70BB1",
   "aaveStableCoinCopyCatV1InterestSetter": "0xEA4E670fD64aE82af5a3d77b3Db6b5E28A5522de",
   "alwaysZeroInterestSetter": "0x37b6fF70654EDfBdAA3c9a723fdAdF5844De2168",
+  "arbAddress": "0x912CE59144191C1204E64559FE8253a0e49E6548",
   "borrowPositionProxyV1Address": "0xe43638797513ef7A6d326a95E8647d86d2f5a099",
   "borrowPositionProxyV2Address": "0x38E49A617305101216eC6306e3a18065D14Bf3a7",
   "daiAddress": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",

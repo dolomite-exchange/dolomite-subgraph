@@ -910,6 +910,7 @@ type LiquidityMiningVestingPosition @entity {
   startTimestamp: BigInt!
   closeTimestamp: BigInt
   oARBAmount: BigDecimal!
+  arbAmountPar: BigDecimal!
   ethSpent: BigDecimal!
   arbTaxesPaid: BigDecimal!
 }

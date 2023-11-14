@@ -7,6 +7,7 @@ import {
 } from '../types/LiquidityMiningVester/LiquidityMiningVester'
 import { Claimed as OARBClaimedEvent } from '../types/LiquidityMiningClaimer/LiquidityMiningClaimer'
 import {
+  InterestIndex,
   LiquidityMiningClaim,
   LiquidityMiningSeason,
   LiquidityMiningVestingPosition,
@@ -16,13 +17,15 @@ import { convertTokenToDecimal } from './helpers/token-helpers'
 import { _18_BI, ADDRESS_ZERO, ONE_BI, ZERO_BD } from './generated/constants'
 import { getLiquidityMiningSeasonId, LiquidityMiningVestingPositionStatus } from './helpers/liquidity-mining-helpers'
 import { createUserIfNecessary } from './helpers/user-helpers'
-import { getOrCreateDolomiteMarginForCall } from './helpers/margin-helpers'
+import { getOrCreateDolomiteMarginForCall, weiToPar } from './helpers/margin-helpers'
 import { ProtocolType } from './helpers/margin-types'
 import { getOrCreateTransaction } from './amm-core'
+import { ARB_ADDRESS } from '../mappings/generated/constants'
 
 export function handleVestingPositionCreated(event: VestingPositionCreatedEvent): void {
   createUserIfNecessary(event.params.vestingPosition.creator)
 
+  let index = InterestIndex.load(ARB_ADDRESS) as InterestIndex
   let position = new LiquidityMiningVestingPosition(event.params.vestingPosition.id.toString())
   position.status = LiquidityMiningVestingPositionStatus.ACTIVE
   position.creator = event.params.vestingPosition.creator.toHexString()
@@ -30,6 +33,7 @@ export function handleVestingPositionCreated(event: VestingPositionCreatedEvent)
   position.duration = event.params.vestingPosition.duration
   position.startTimestamp = event.params.vestingPosition.startTime
   position.oARBAmount = convertTokenToDecimal(event.params.vestingPosition.amount, _18_BI)
+  position.arbAmountPar = weiToPar(position.oARBAmount, index, _18_BI);
   position.ethSpent = ZERO_BD
   position.arbTaxesPaid = ZERO_BD
   position.save()
