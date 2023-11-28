@@ -23,6 +23,7 @@ import { getOrCreateTransaction } from './amm-core'
 import { ARB_ADDRESS } from './generated/constants'
 
 export function handleVestingPositionCreated(event: VestingPositionCreatedEvent): void {
+  let transaction = getOrCreateTransaction(event)
   createUserIfNecessary(event.params.vestingPosition.creator)
 
   let index = InterestIndex.load(ARB_ADDRESS) as InterestIndex
@@ -31,6 +32,7 @@ export function handleVestingPositionCreated(event: VestingPositionCreatedEvent)
   position.creator = event.params.vestingPosition.creator.toHexString()
   position.owner = event.params.vestingPosition.creator.toHexString()
   position.duration = event.params.vestingPosition.duration
+  position.openTransaction = transaction.id
   position.startTimestamp = event.params.vestingPosition.startTime
   position.oARBAmount = convertTokenToDecimal(event.params.vestingPosition.amount, _18_BI)
   position.arbAmountPar = weiToPar(position.oARBAmount, index, _18_BI);
@@ -66,9 +68,12 @@ export function handleVestingPositionTransfer(event: VestingPositionTransferEven
 }
 
 export function handleVestingPositionClosed(event: VestingPositionClosedEvent): void {
+  let transaction = getOrCreateTransaction(event)
+
   let position = LiquidityMiningVestingPosition.load(
     event.params.vestingId.toString(),
   ) as LiquidityMiningVestingPosition
+  position.closeTransaction = transaction.id
   position.closeTimestamp = event.block.timestamp
   position.ethSpent = convertTokenToDecimal(event.params.ethCostPaid, _18_BI)
   position.status = LiquidityMiningVestingPositionStatus.CLOSED
@@ -76,9 +81,12 @@ export function handleVestingPositionClosed(event: VestingPositionClosedEvent): 
 }
 
 export function handleVestingPositionForceClosed(event: VestingPositionForceClosedEvent): void {
+  let transaction = getOrCreateTransaction(event)
+
   let position = LiquidityMiningVestingPosition.load(
     event.params.vestingId.toString(),
   ) as LiquidityMiningVestingPosition
+  position.closeTransaction = transaction.id
   position.closeTimestamp = event.block.timestamp
   position.arbTaxesPaid = convertTokenToDecimal(event.params.arbTax, _18_BI)
   position.status = LiquidityMiningVestingPositionStatus.FORCE_CLOSED
@@ -86,10 +94,13 @@ export function handleVestingPositionForceClosed(event: VestingPositionForceClos
 }
 
 export function handleVestingPositionEmergencyWithdraw(event: VestingPositionEmergencyWithdrawEvent): void {
+  let transaction = getOrCreateTransaction(event)
+
   let position = LiquidityMiningVestingPosition.load(
     event.params.vestingId.toString(),
   ) as LiquidityMiningVestingPosition
   position.closeTimestamp = event.block.timestamp
+  position.closeTransaction = transaction.id
   position.arbTaxesPaid = convertTokenToDecimal(event.params.arbTax, _18_BI)
   position.status = LiquidityMiningVestingPositionStatus.EMERGENCY_CLOSED
   position.save()

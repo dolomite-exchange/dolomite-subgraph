@@ -913,6 +913,8 @@ type LiquidityMiningVestingPosition @entity {
   arbAmountPar: BigDecimal!
   ethSpent: BigDecimal!
   arbTaxesPaid: BigDecimal!
+  openTransaction: Transaction!
+  closeTransaction: Transaction
 }
 
 type VestingPositionTransfer @entity {
