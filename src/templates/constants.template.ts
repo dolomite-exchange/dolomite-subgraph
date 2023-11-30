@@ -68,6 +68,8 @@ export const EXPIRY_ADDRESS = '{{expiryAddress}}'.toLowerCase()
 
 export const FACTORY_ADDRESS = '{{dolomiteAmmFactoryAddress}}'.toLowerCase()
 
+export const LIQUIDITY_MINING_VESTER_PROXY_ADDRESS = '{{liquidityMiningVesterAddress}}'.toLowerCase()
+
 export const MAGIC_GLP_UNWRAPPER_TRADER_ADDRESS = '{{magicGlpUnwrapperTraderAddress}}'.toLowerCase()
 
 export const MAGIC_GLP_WRAPPER_TRADER_ADDRESS = '{{magicGlpWrapperTraderAddress}}'.toLowerCase()

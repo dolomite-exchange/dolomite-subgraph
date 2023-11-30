@@ -3,6 +3,7 @@ import { Address, BigDecimal, BigInt, ethereum } from '@graphprotocol/graph-ts'
 import { AmmLiquidityPosition, AmmLiquidityPositionSnapshot, AmmPair, Bundle, Token, User } from '../../types/schema'
 import { ValueStruct } from './margin-types'
 import { ONE_BI, TEN_BI, ZERO_BD, ZERO_BI } from '../generated/constants'
+import { getOrCreateEffectiveUserTokenValue } from './margin-helpers'
 
 export function convertStructToDecimalAppliedValue(struct: ValueStruct, exchangeDecimals: BigInt): BigDecimal {
   let value = struct.sign ? struct.value : struct.value.neg()
@@ -36,7 +37,10 @@ export function createLiquidityPosition(exchange: Address, user: Address): AmmLi
   return liquidityTokenBalance as AmmLiquidityPosition
 }
 
-export function createLiquiditySnapshot(position: AmmLiquidityPosition, event: ethereum.Event): void {
+export function createLiquiditySnapshot(
+  position: AmmLiquidityPosition,
+  event: ethereum.Event,
+): void {
   let timestamp = event.block.timestamp.toI32()
   let bundle = Bundle.load('1') as Bundle
   let pair = AmmPair.load(position.pair) as AmmPair

@@ -163,7 +163,7 @@ type AmmPair @entity {
 
 type User @entity {
   id: ID! # the user's address
-  effectiveUser: User! # the user's owner (differs for IsolationMode users)
+  effectiveUser: User! # the user's owner or self if an EOA (differs for IsolationMode users)
   liquidityPositions: [AmmLiquidityPosition!] @derivedFrom(field: "user")
   marginAccounts: [MarginAccount!] @derivedFrom(field: "user")
   borrowPositions: [BorrowPosition!] @derivedFrom(field: "effectiveUser")
@@ -177,6 +177,7 @@ type User @entity {
   liquidityMiningClaims: [LiquidityMiningClaim!] @derivedFrom(field: "user")
   liquidityMiningSeasonData: [LiquidityMiningSeason!] @derivedFrom(field: "user")
   liquidityMiningVestingPositions: [LiquidityMiningVestingPosition!] @derivedFrom(field: "owner")
+  userParValues: [UserParValue!] @derivedFrom(field: "user")
 
   totalBorrowVolumeOriginatedUSD: BigDecimal!
   totalCollateralLiquidatedUSD: BigDecimal!
@@ -188,6 +189,15 @@ type User @entity {
   totalMarginPositionCount: BigInt!
   totalTradeCount: BigInt!
   totalZapCount: BigInt!
+
+  isEffectiveUser: Boolean!
+}
+
+type UserParValue @entity {
+  id: ID! # Defined as "userAddress-tokenAddress"
+  user: User!
+  token: Token!
+  totalParValue: BigDecimal!
 }
 
 type AmmLiquidityPosition @entity {

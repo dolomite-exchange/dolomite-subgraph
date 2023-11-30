@@ -9,6 +9,7 @@ export function handleVaultCreated(event: VaultCreatedEvent): void {
 
   let vaultUser = User.load(event.params.vault.toHexString()) as User
   vaultUser.effectiveUser = event.params.account.toHexString()
+  vaultUser.isEffectiveUser = false
   vaultUser.save()
 
   let token = Token.load(event.address.toHexString()) as Token

@@ -1,17 +1,12 @@
-import {
-  Address,
-  BigDecimal,
-  BigInt,
-  ethereum,
-  log,
-  store
-} from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt, ethereum, log, store } from '@graphprotocol/graph-ts'
 import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../../types/MarginAdmin/DolomiteMargin'
 import { DolomiteMarginExpiry as DolomiteMarginExpiryAdminProtocol } from '../../types/MarginAdmin/DolomiteMarginExpiry'
 import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../../types/MarginCore/DolomiteMargin'
 import { DolomiteMarginExpiry as DolomiteMarginExpiryCoreProtocol } from '../../types/MarginCore/DolomiteMarginExpiry'
 import { DolomiteMargin as DolomiteMarginExpiryProtocol } from '../../types/MarginExpiry/DolomiteMargin'
-import { DolomiteMarginExpiry as DolomiteMarginExpiryExpiryProtocol } from '../../types/MarginExpiry/DolomiteMarginExpiry'
+import {
+  DolomiteMarginExpiry as DolomiteMarginExpiryExpiryProtocol,
+} from '../../types/MarginExpiry/DolomiteMarginExpiry'
 import {
   DolomiteMargin,
   InterestIndex,
@@ -24,7 +19,8 @@ import {
   TotalPar,
   Trade,
   Transfer,
-  User
+  User,
+  UserParValue,
 } from '../../types/schema'
 import { updateTimeDataForBorrow } from '../day-updates'
 import {
@@ -39,19 +35,14 @@ import {
   USD_PRECISION,
   ZERO_BD,
   ZERO_BI,
-  ZERO_BYTES
+  ZERO_BYTES,
 } from '../generated/constants'
 import { updateInterestRate } from '../interest-setter'
 import { convertStructToDecimalAppliedValue } from './amm-helpers'
 import { updateBorrowPositionForBalanceUpdate } from './borrow-position-helpers'
 import { absBD } from './helpers'
 import { getEffectiveUserForAddressString } from './isolation-mode-helpers'
-import {
-  BalanceUpdate,
-  MarginPositionStatus,
-  ProtocolType,
-  ValueStruct
-} from './margin-types'
+import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './margin-types'
 import { getTokenOraclePriceUSD } from './pricing'
 import { createUserIfNecessary } from './user-helpers'
 
@@ -61,7 +52,7 @@ export function getIDForEvent(event: ethereum.Event): string {
 
 export function getOrCreateTokenValue(
   marginAccount: MarginAccount,
-  token: Token
+  token: Token,
 ): MarginAccountTokenValue {
   let id = `${marginAccount.user}-${marginAccount.accountNumber.toString()}-${token.marketId.toString()}`
   let tokenValue = MarginAccountTokenValue.load(id)
@@ -77,7 +68,7 @@ export function getOrCreateTokenValue(
 }
 
 export function deleteTokenValueIfNecessary(
-  tokenValue: MarginAccountTokenValue
+  tokenValue: MarginAccountTokenValue,
 ): boolean {
   if (
     tokenValue.valuePar.equals(ZERO_BD) &&
@@ -91,10 +82,21 @@ export function deleteTokenValueIfNecessary(
   return false
 }
 
+export function deleteUserParValueIfNecessary(
+  userParValue: UserParValue,
+): boolean {
+  if (userParValue.totalParValue.equals(ZERO_BD)) {
+    store.remove('UserParValue', userParValue.id)
+    return true
+  }
+
+  return false
+}
+
 export function getOrCreateMarginAccount(
   owner: Address,
   accountNumber: BigInt,
-  block: ethereum.Block
+  block: ethereum.Block,
 ): MarginAccount {
   let id = `${owner.toHexString()}-${accountNumber.toString()}`
   let marginAccount = MarginAccount.load(id)
@@ -117,6 +119,20 @@ export function getOrCreateMarginAccount(
   marginAccount.lastUpdatedTimestamp = block.timestamp
 
   return marginAccount as MarginAccount
+}
+
+export function getOrCreateEffectiveUserTokenValue(effectiveUser: string, token: Token): UserParValue {
+  let id = `${effectiveUser}-${token.id}`
+  let tokenValue = UserParValue.load(id)
+  if (tokenValue === null) {
+    tokenValue = new UserParValue(id)
+    tokenValue.user = effectiveUser
+    tokenValue.token = token.id
+    tokenValue.totalParValue = ZERO_BD
+    tokenValue.save()
+  }
+
+  return tokenValue as UserParValue
 }
 
 export function getOrCreateMarginPosition(event: ethereum.Event, account: MarginAccount): MarginPosition {
@@ -155,7 +171,7 @@ export function getOrCreateMarginPosition(event: ethereum.Event, account: Margin
 export function getOrCreateDolomiteMarginForCall(
   event: ethereum.Event,
   isAction: boolean,
-  protocolType: string
+  protocolType: string,
 ): DolomiteMargin {
   let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS)
   if (dolomiteMargin === null) {
@@ -280,7 +296,7 @@ export function canBeMarginPosition(marginAccount: MarginAccount): boolean {
 export function weiToPar(
   wei: BigDecimal,
   index: InterestIndex,
-  decimals: BigInt
+  decimals: BigInt,
 ): BigDecimal {
   if (wei.ge(ZERO_BD)) {
     return roundHalfUp(wei.div(index.supplyIndex), decimals)
@@ -292,7 +308,7 @@ export function weiToPar(
 export function parToWei(
   par: BigDecimal,
   index: InterestIndex,
-  decimals: BigInt
+  decimals: BigInt,
 ): BigDecimal {
   if (par.equals(ZERO_BD)) {
     return ZERO_BD
@@ -306,7 +322,7 @@ export function parToWei(
 function handleTotalParChange(
   totalPar: TotalPar,
   oldPar: BigDecimal,
-  newPar: BigDecimal
+  newPar: BigDecimal,
 ): void {
   // roll-back oldPar
   if (oldPar.ge(ZERO_BD)) {
@@ -337,11 +353,13 @@ class MarginAccountWithValueParChange {
 
 export function handleDolomiteMarginBalanceUpdateForAccount(
   balanceUpdate: BalanceUpdate,
-  event: ethereum.Event
+  event: ethereum.Event,
+  otherAccountOwner: Address | null,
 ): MarginAccountWithValueParChange {
   let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, event.block)
   let tokenValue = getOrCreateTokenValue(marginAccount, balanceUpdate.token)
   let token = Token.load(tokenValue.token) as Token
+  let effectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(marginAccount.effectiveUser, token)
 
   let totalPar = TotalPar.load(token.id) as TotalPar
   handleTotalParChange(totalPar, tokenValue.valuePar, balanceUpdate.valuePar)
@@ -404,13 +422,23 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
   }
 
   let deltaPar = balanceUpdate.valuePar.minus(tokenValue.valuePar)
+  let otherUser: User | null = null
+  if (otherAccountOwner !== null) {
+    otherUser = User.load(otherAccountOwner.toHexString())
+  }
+  if (otherUser === null || marginAccount.effectiveUser != otherUser.effectiveUser) {
+    effectiveUserTokenValue.totalParValue = effectiveUserTokenValue.totalParValue.plus(deltaPar)
+  }
   tokenValue.valuePar = balanceUpdate.valuePar
   log.info(
     'Balance changed for account {} to value {}',
-    [marginAccount.id, tokenValue.valuePar.toString()]
+    [marginAccount.id, tokenValue.valuePar.toString()],
   )
 
   marginAccount.save()
+  if (!deleteUserParValueIfNecessary(effectiveUserTokenValue)) {
+    effectiveUserTokenValue.save()
+  }
   if (!deleteTokenValueIfNecessary(tokenValue)) {
     tokenValue.save()
   }
@@ -444,12 +472,12 @@ export function changeProtocolBalance(
   index: InterestIndex,
   isVirtualTransfer: boolean,
   protocolType: string,
-  dolomiteMargin: DolomiteMargin
+  dolomiteMargin: DolomiteMargin,
 ): void {
   if (token.id != index.token) {
     log.error(
       'Token with address {} does not match index {} for event with hash {} and log index {}',
-      [token.id, index.token, event.transaction.hash.toHexString(), event.logIndex.toString()]
+      [token.id, index.token, event.transaction.hash.toHexString(), event.logIndex.toString()],
     )
   }
 
@@ -513,7 +541,7 @@ export function invalidateMarginPosition(marginAccount: MarginAccount): void {
 export function getLiquidationSpreadForPair(
   heldToken: Token,
   owedToken: Token,
-  dolomiteMargin: DolomiteMargin
+  dolomiteMargin: DolomiteMargin,
 ): BigDecimal {
   let heldRiskInfo = MarketRiskInfo.load(heldToken.id) as MarketRiskInfo
   let owedRiskInfo = MarketRiskInfo.load(owedToken.id) as MarketRiskInfo
@@ -533,7 +561,7 @@ export function updateMarginPositionForTransfer(
   transfer: Transfer,
   event: ethereum.Event,
   token: Token,
-  priceUSD: BigDecimal
+  priceUSD: BigDecimal,
 ): void {
   if (marginAccount1.user == marginAccount2.user) {
     if (
@@ -568,7 +596,7 @@ export function updateMarginPositionForTransfer(
         ) {
           log.info(
             'Upsizing margin deposit for position {} with value {}',
-            [marginAccount1.id, transfer.amountDeltaWei.toString()]
+            [marginAccount1.id, transfer.amountDeltaWei.toString()],
           )
 
           marginPosition.initialHeldAmountPar = marginPosition.heldAmountPar
@@ -585,7 +613,7 @@ export function updateMarginPositionForTransfer(
         ) {
           log.info(
             'Downsizing margin deposit for position {} with value {}',
-            [marginAccount1.id, transfer.amountDeltaWei.toString()]
+            [marginAccount1.id, transfer.amountDeltaWei.toString()],
           )
 
           if (transfer.amountDeltaWei.ge(marginPosition.marginDeposit)) {

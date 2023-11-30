@@ -8,11 +8,7 @@ import {
   Sync as SyncEvent,
   Transfer as TransferEvent,
 } from '../types/templates/AmmPair/AmmPair'
-import {
-  createLiquidityPosition,
-  createLiquiditySnapshot,
-
-} from './helpers/amm-helpers'
+import { createLiquidityPosition, createLiquiditySnapshot } from './helpers/amm-helpers'
 import { findEthPerToken, getEthPriceInUSD, getTokenOraclePriceUSD, getTrackedLiquidityUSD } from './helpers/pricing'
 import {
   updateDolomiteDayData,
@@ -262,7 +258,9 @@ export function handleSync(event: SyncEvent): void {
 
   // use derived amounts within pair
   ammPair.trackedReserveETH = trackedLiquidityETH
-  ammPair.reserveETH = (ammPair.reserve0.times(token0.derivedETH as BigDecimal)).plus(ammPair.reserve1.times(token1.derivedETH as BigDecimal))
+  ammPair.reserveETH = (ammPair.reserve0.times(token0.derivedETH as BigDecimal)).plus(
+    ammPair.reserve1.times(token1.derivedETH as BigDecimal),
+  )
   ammPair.reserveUSD = ammPair.reserveETH.times(bundle.ethPrice)
 
   // use tracked amounts globally
@@ -417,17 +415,6 @@ export function handleSwap(event: AmmTradeEvent): void {
   let amount0Total = amount0Out.plus(amount0In)
   let amount1Total = amount1Out.plus(amount1In)
 
-  // ETH/USD prices
-  let bundle = Bundle.load('1') as Bundle
-
-  // get total amounts of derived USD and ETH for tracking
-  let derivedAmountETH = (token1.derivedETH as BigDecimal)
-    .times(amount1Total)
-    .plus((token0.derivedETH as BigDecimal).times(amount0Total))
-    .div(BigDecimal.fromString('2'))
-
-  let derivedAmountUSD = derivedAmountETH.times(bundle.ethPrice)
-
   let token0PriceUSD = getTokenOraclePriceUSD(token0, event, ProtocolType.Amm)
   let token1PriceUSD = getTokenOraclePriceUSD(token1, event, ProtocolType.Amm)
 
@@ -518,7 +505,9 @@ export function handleSwap(event: AmmTradeEvent): void {
   token0DayData.save()
 
   token0HourData.hourlyAmmTradeVolumeToken = token0HourData.hourlyAmmTradeVolumeToken.plus(amount0Total)
-  token0HourData.hourlyAmmTradeVolumeUSD = token0HourData.hourlyAmmTradeVolumeUSD.plus(amount0Total.times(token0PriceUSD))
+  token0HourData.hourlyAmmTradeVolumeUSD = token0HourData.hourlyAmmTradeVolumeUSD.plus(
+    amount0Total.times(token0PriceUSD)
+  )
   token0HourData.hourlyAmmTradeCount = token0HourData.hourlyAmmTradeCount.plus(ONE_BI)
   token0HourData.save()
 
@@ -529,7 +518,9 @@ export function handleSwap(event: AmmTradeEvent): void {
   token1DayData.save()
 
   token1HourData.hourlyAmmTradeVolumeToken = token1HourData.hourlyAmmTradeVolumeToken.plus(amount1Total)
-  token1HourData.hourlyAmmTradeVolumeUSD = token1HourData.hourlyAmmTradeVolumeUSD.plus(amount1Total.times(token1PriceUSD))
+  token1HourData.hourlyAmmTradeVolumeUSD = token1HourData.hourlyAmmTradeVolumeUSD.plus(
+    amount1Total.times(token1PriceUSD)
+  )
   token1HourData.hourlyAmmTradeCount = token1HourData.hourlyAmmTradeCount.plus(ONE_BI)
   token1HourData.save()
 }

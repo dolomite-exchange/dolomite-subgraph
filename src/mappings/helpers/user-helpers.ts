@@ -17,6 +17,7 @@ export function createUserIfNecessary(address: Address): void {
     user.totalMarginPositionCount = ZERO_BI
     user.totalTradeCount = ZERO_BI
     user.totalZapCount = ZERO_BI
+    user.isEffectiveUser = true
     user.save()
 
     let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin

@@ -10,17 +10,24 @@ import {
   InterestIndex,
   LiquidityMiningClaim,
   LiquidityMiningSeason,
-  LiquidityMiningVestingPosition,
+  LiquidityMiningVestingPosition, Token,
   VestingPositionTransfer,
 } from '../types/schema'
 import { convertTokenToDecimal } from './helpers/token-helpers'
-import { _18_BI, ADDRESS_ZERO, ONE_BI, ZERO_BD } from './generated/constants'
-import { getLiquidityMiningSeasonId, LiquidityMiningVestingPositionStatus } from './helpers/liquidity-mining-helpers'
+import { _18_BI, ADDRESS_ZERO, ARB_ADDRESS, ONE_BI, ZERO_BD } from './generated/constants'
+import {
+  getLiquidityMiningSeasonId,
+  handleVestingPositionClose,
+  LiquidityMiningVestingPositionStatus,
+} from './helpers/liquidity-mining-helpers'
 import { createUserIfNecessary } from './helpers/user-helpers'
-import { getOrCreateDolomiteMarginForCall, weiToPar } from './helpers/margin-helpers'
+import {
+  getOrCreateDolomiteMarginForCall,
+  getOrCreateEffectiveUserTokenValue,
+  weiToPar,
+} from './helpers/margin-helpers'
 import { ProtocolType } from './helpers/margin-types'
 import { getOrCreateTransaction } from './amm-core'
-import { ARB_ADDRESS } from './generated/constants'
 
 export function handleVestingPositionCreated(event: VestingPositionCreatedEvent): void {
   let transaction = getOrCreateTransaction(event)
@@ -35,10 +42,15 @@ export function handleVestingPositionCreated(event: VestingPositionCreatedEvent)
   position.openTransaction = transaction.id
   position.startTimestamp = event.params.vestingPosition.startTime
   position.oARBAmount = convertTokenToDecimal(event.params.vestingPosition.amount, _18_BI)
-  position.arbAmountPar = weiToPar(position.oARBAmount, index, _18_BI);
+  position.arbAmountPar = weiToPar(position.oARBAmount, index, _18_BI)
   position.ethSpent = ZERO_BD
   position.arbTaxesPaid = ZERO_BD
   position.save()
+
+  let arbToken = Token.load(ARB_ADDRESS) as Token
+  let effectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(position.owner, arbToken)
+  effectiveUserTokenValue.totalParValue = effectiveUserTokenValue.totalParValue.plus(position.arbAmountPar)
+  effectiveUserTokenValue.save()
 }
 
 export function handleVestingPositionTransfer(event: VestingPositionTransferEvent): void {
@@ -62,6 +74,16 @@ export function handleVestingPositionTransfer(event: VestingPositionTransferEven
     transfer.vestingPosition = position.id
     transfer.save()
 
+    let arbToken = Token.load(ARB_ADDRESS) as Token
+
+    let fromEffectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(transfer.fromUser, arbToken)
+    fromEffectiveUserTokenValue.totalParValue = fromEffectiveUserTokenValue.totalParValue.minus(position.arbAmountPar)
+    fromEffectiveUserTokenValue.save()
+
+    let toEffectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(transfer.toUser, arbToken)
+    toEffectiveUserTokenValue.totalParValue = toEffectiveUserTokenValue.totalParValue.plus(position.arbAmountPar)
+    toEffectiveUserTokenValue.save()
+
     dolomiteMargin.vestingPositionTransferCount = dolomiteMargin.vestingPositionTransferCount.plus(ONE_BI)
     dolomiteMargin.save()
   }
@@ -78,6 +100,8 @@ export function handleVestingPositionClosed(event: VestingPositionClosedEvent): 
   position.ethSpent = convertTokenToDecimal(event.params.ethCostPaid, _18_BI)
   position.status = LiquidityMiningVestingPositionStatus.CLOSED
   position.save()
+
+  handleVestingPositionClose(position)
 }
 
 export function handleVestingPositionForceClosed(event: VestingPositionForceClosedEvent): void {
@@ -91,6 +115,8 @@ export function handleVestingPositionForceClosed(event: VestingPositionForceClos
   position.arbTaxesPaid = convertTokenToDecimal(event.params.arbTax, _18_BI)
   position.status = LiquidityMiningVestingPositionStatus.FORCE_CLOSED
   position.save()
+
+  handleVestingPositionClose(position)
 }
 
 export function handleVestingPositionEmergencyWithdraw(event: VestingPositionEmergencyWithdrawEvent): void {
@@ -104,9 +130,12 @@ export function handleVestingPositionEmergencyWithdraw(event: VestingPositionEme
   position.arbTaxesPaid = convertTokenToDecimal(event.params.arbTax, _18_BI)
   position.status = LiquidityMiningVestingPositionStatus.EMERGENCY_CLOSED
   position.save()
+
+  handleVestingPositionClose(position)
 }
 
 const seasonNumber = 0
+
 export function handleOArbClaimed(event: OARBClaimedEvent): void {
   let claim = new LiquidityMiningClaim(`${event.params.user.toHexString()}-${event.params.epoch.toString()}`)
   claim.user = event.params.user.toHexString()
