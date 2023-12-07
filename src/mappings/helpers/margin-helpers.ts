@@ -85,7 +85,7 @@ export function deleteTokenValueIfNecessary(
 export function deleteUserParValueIfNecessary(
   userParValue: UserParValue,
 ): boolean {
-  if (userParValue.totalParValue.equals(ZERO_BD)) {
+  if (userParValue.totalSupplyPar.equals(ZERO_BD) && userParValue.totalBorrowPar.equals(ZERO_BD)) {
     store.remove('UserParValue', userParValue.id)
     return true
   }
@@ -128,7 +128,8 @@ export function getOrCreateEffectiveUserTokenValue(effectiveUser: string, token:
     tokenValue = new UserParValue(id)
     tokenValue.user = effectiveUser
     tokenValue.token = token.id
-    tokenValue.totalParValue = ZERO_BD
+    tokenValue.totalSupplyPar = ZERO_BD
+    tokenValue.totalBorrowPar = ZERO_BD
     tokenValue.save()
   }
 
@@ -427,7 +428,36 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
     otherUser = User.load(otherAccountOwner.toHexString())
   }
   if (otherUser === null || marginAccount.effectiveUser != otherUser.effectiveUser) {
-    effectiveUserTokenValue.totalParValue = effectiveUserTokenValue.totalParValue.plus(deltaPar)
+    if (tokenValue.valuePar.gt(ZERO_BD)) {
+      if (deltaPar.lt(ZERO_BD) && absBD(deltaPar).ge(tokenValue.valuePar)) {
+        // Range bound the deltaPar to the tokenValue.valuePar
+        effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.minus(tokenValue.valuePar)
+
+        let borrowDelta = absBD(deltaPar).minus(tokenValue.valuePar)
+        effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.plus(borrowDelta)
+      } else {
+        effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.plus(deltaPar)
+      }
+    } else if (tokenValue.valuePar.lt(ZERO_BD)) {
+      if (deltaPar.gt(ZERO_BD) && deltaPar.ge(absBD(tokenValue.valuePar))) {
+        // Range bound the deltaPar to the tokenValue.valuePar
+        effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.minus(
+          absBD(tokenValue.valuePar)
+        )
+
+        let supplyDelta = deltaPar.minus(absBD(tokenValue.valuePar))
+        effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.plus(supplyDelta)
+      } else {
+        effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.minus(deltaPar)
+      }
+    } else {
+      // tokenValue.valuePar.eq(ZERO_BD)
+      if (deltaPar.gt(ZERO_BD)) {
+        effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.plus(deltaPar)
+      } else if (deltaPar.lt(ZERO_BD)) {
+        effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.minus(deltaPar)
+      }
+    }
   }
   tokenValue.valuePar = balanceUpdate.valuePar
   log.info(

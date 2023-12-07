@@ -1,17 +1,22 @@
 import {
   EmergencyWithdraw as VestingPositionEmergencyWithdrawEvent,
   PositionClosed as VestingPositionClosedEvent,
+  PositionDurationExtended as VestingPositionDurationExtendedEvent,
   PositionForceClosed as VestingPositionForceClosedEvent,
   Transfer as VestingPositionTransferEvent,
   VestingPositionCreated as VestingPositionCreatedEvent,
+  LevelRequestInitiated as LevelRequestInitiatedEvent,
+  LevelRequestFinalized as LevelRequestFinalizedEvent,
 } from '../types/LiquidityMiningVester/LiquidityMiningVester'
 import { Claimed as OARBClaimedEvent } from '../types/LiquidityMiningClaimer/LiquidityMiningClaimer'
 import {
   InterestIndex,
   LiquidityMiningClaim,
   LiquidityMiningSeason,
-  LiquidityMiningVestingPosition, Token,
+  LiquidityMiningVestingPosition,
+  Token,
   VestingPositionTransfer,
+  LevelUpdateRequest,
 } from '../types/schema'
 import { convertTokenToDecimal } from './helpers/token-helpers'
 import { _18_BI, ADDRESS_ZERO, ARB_ADDRESS, ONE_BI, ZERO_BD } from './generated/constants'
@@ -49,8 +54,15 @@ export function handleVestingPositionCreated(event: VestingPositionCreatedEvent)
 
   let arbToken = Token.load(ARB_ADDRESS) as Token
   let effectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(position.owner, arbToken)
-  effectiveUserTokenValue.totalParValue = effectiveUserTokenValue.totalParValue.plus(position.arbAmountPar)
+  effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.plus(position.arbAmountPar)
   effectiveUserTokenValue.save()
+}
+
+export function handleVestingPositionDurationExtended(event: VestingPositionDurationExtendedEvent): void {
+  let positionId = event.params.vestingId.toString()
+  let position = LiquidityMiningVestingPosition.load(positionId) as LiquidityMiningVestingPosition
+  position.duration = event.params.newDuration
+  position.save()
 }
 
 export function handleVestingPositionTransfer(event: VestingPositionTransferEvent): void {
@@ -77,11 +89,11 @@ export function handleVestingPositionTransfer(event: VestingPositionTransferEven
     let arbToken = Token.load(ARB_ADDRESS) as Token
 
     let fromEffectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(transfer.fromUser, arbToken)
-    fromEffectiveUserTokenValue.totalParValue = fromEffectiveUserTokenValue.totalParValue.minus(position.arbAmountPar)
+    fromEffectiveUserTokenValue.totalSupplyPar = fromEffectiveUserTokenValue.totalSupplyPar.minus(position.arbAmountPar)
     fromEffectiveUserTokenValue.save()
 
     let toEffectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(transfer.toUser, arbToken)
-    toEffectiveUserTokenValue.totalParValue = toEffectiveUserTokenValue.totalParValue.plus(position.arbAmountPar)
+    toEffectiveUserTokenValue.totalSupplyPar = toEffectiveUserTokenValue.totalSupplyPar.plus(position.arbAmountPar)
     toEffectiveUserTokenValue.save()
 
     dolomiteMargin.vestingPositionTransferCount = dolomiteMargin.vestingPositionTransferCount.plus(ONE_BI)
@@ -153,4 +165,25 @@ export function handleOArbClaimed(event: OARBClaimedEvent): void {
   }
   season.totalClaimAmount = season.totalClaimAmount.plus(claim.amount)
   season.save()
+}
+
+export function handleLevelRequestInitiated(event: LevelRequestInitiatedEvent): void {
+  let transaction = getOrCreateTransaction(event)
+  createUserIfNecessary(event.params.user)
+
+  let request = new LevelUpdateRequest(event.params.requestId.toString())
+  request.user = event.params.user.toHexString()
+  request.requestId = event.params.requestId
+  request.initiateTransaction = transaction.id
+  request.save()
+}
+
+export function handleLevelRequestFinalized(event: LevelRequestFinalizedEvent): void {
+  let transaction = getOrCreateTransaction(event)
+
+  let request = LevelUpdateRequest.load(event.params.requestId.toString()) as LevelUpdateRequest
+  request.fulfilmentTransaction = transaction.id
+  request.isFulfilled = true
+  request.level = event.params.level.toI32()
+  request.save()
 }

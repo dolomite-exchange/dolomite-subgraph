@@ -281,6 +281,8 @@ dataSources:
       eventHandlers:
         - event: VestingPositionCreated((address,uint256,uint256,uint256,uint256))
           handler: handleVestingPositionCreated
+        - event: PositionDurationExtended(indexed uint256,uint256)
+          handler: handleVestingPositionDurationExtended
         - event: Transfer(indexed address,indexed address,indexed uint256)
           handler: handleVestingPositionTransfer
         - event: PositionClosed(indexed address,uint256,uint256)
@@ -289,6 +291,10 @@ dataSources:
           handler: handleVestingPositionForceClosed
         - event: EmergencyWithdraw(indexed address,uint256,uint256)
           handler: handleVestingPositionEmergencyWithdraw
+        - event: LevelRequestInitiated(address,uint256)
+          handler: handleLevelRequestInitiated
+        - event: LevelRequestFinalized(address,uint256,uint256)
+          handler: handleLevelRequestFinalized
   - kind: ethereum/contract
     name: LiquidityMiningClaimer
     network: {{network}}

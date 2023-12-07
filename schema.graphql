@@ -197,7 +197,8 @@ type UserParValue @entity {
   id: ID! # Defined as "userAddress-tokenAddress"
   user: User!
   token: Token!
-  totalParValue: BigDecimal!
+  totalSupplyPar: BigDecimal!
+  totalBorrowPar: BigDecimal!
 }
 
 type AmmLiquidityPosition @entity {
@@ -952,4 +953,14 @@ type LiquidityMiningSeason @entity {
   user: User!
   seasonNumber: Int!
   totalClaimAmount: BigDecimal!
+}
+
+type LevelUpdateRequest @entity {
+  id: ID! # Defined as "requestId"
+  requestId: BigInt!
+  user: User!
+  level: Int!
+  isFulfilled: Boolean!
+  initiateTransaction: Transaction!
+  fulfilmentTransaction: Transaction
 }

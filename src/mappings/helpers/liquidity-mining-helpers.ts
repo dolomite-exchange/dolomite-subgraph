@@ -19,6 +19,6 @@ export function getLiquidityMiningSeasonId(userAddress: Address, seasonNumber: n
 export function handleVestingPositionClose(position: LiquidityMiningVestingPosition): void {
   let arbToken = Token.load(ARB_ADDRESS) as Token
   let effectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(position.owner, arbToken)
-  effectiveUserTokenValue.totalParValue = effectiveUserTokenValue.totalParValue.minus(position.arbAmountPar)
+  effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.minus(position.arbAmountPar)
   effectiveUserTokenValue.save()
 }
