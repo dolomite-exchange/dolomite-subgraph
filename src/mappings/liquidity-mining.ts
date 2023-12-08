@@ -33,6 +33,7 @@ import {
 } from './helpers/margin-helpers'
 import { ProtocolType } from './helpers/margin-types'
 import { getOrCreateTransaction } from './amm-core'
+import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 
 export function handleVestingPositionCreated(event: VestingPositionCreatedEvent): void {
   let transaction = getOrCreateTransaction(event)
@@ -66,39 +67,49 @@ export function handleVestingPositionDurationExtended(event: VestingPositionDura
 }
 
 export function handleVestingPositionTransfer(event: VestingPositionTransferEvent): void {
-  if (event.params.from.toHexString() != ADDRESS_ZERO && event.params.to.toHexString() != ADDRESS_ZERO) {
+  if (event.params.to.toHexString() != ADDRESS_ZERO) {
     createUserIfNecessary(event.params.to)
+  }
+
+  let transaction = getOrCreateTransaction(event)
+
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Core)
+  let transfer = new VestingPositionTransfer(dolomiteMargin.vestingPositionTransferCount.toString())
+  transfer.transaction = transaction.id
+  transfer.logIndex = event.logIndex
+  transfer.serialId = dolomiteMargin.vestingPositionTransferCount
+
+  if (event.params.from.toHexString() != ADDRESS_ZERO) {
+    transfer.fromEffectiveUser = getEffectiveUserForAddress(event.params.from).id
+  }
+
+  if (event.params.to.toHexString() != ADDRESS_ZERO) {
+    transfer.toEffectiveUser = getEffectiveUserForAddress(event.params.to).id
+  }
+
+  transfer.vestingPosition = event.params.tokenId.toString()
+  transfer.save()
+
+  if (transfer.fromEffectiveUser !== null && transfer.toEffectiveUser !== null) {
     let position = LiquidityMiningVestingPosition.load(
       event.params.tokenId.toString(),
     ) as LiquidityMiningVestingPosition
     position.owner = event.params.to.toHexString()
     position.save()
 
-    let transaction = getOrCreateTransaction(event)
-
-    let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Core)
-    let transfer = new VestingPositionTransfer(dolomiteMargin.vestingPositionTransferCount.toString())
-    transfer.transaction = transaction.id
-    transfer.logIndex = event.logIndex
-    transfer.serialId = dolomiteMargin.vestingPositionTransferCount
-    transfer.fromUser = event.params.from.toHexString()
-    transfer.toUser = event.params.to.toHexString()
-    transfer.vestingPosition = position.id
-    transfer.save()
-
     let arbToken = Token.load(ARB_ADDRESS) as Token
 
-    let fromEffectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(transfer.fromUser, arbToken)
+    let fromEffectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(transfer.fromEffectiveUser as string, arbToken)
     fromEffectiveUserTokenValue.totalSupplyPar = fromEffectiveUserTokenValue.totalSupplyPar.minus(position.arbAmountPar)
     fromEffectiveUserTokenValue.save()
 
-    let toEffectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(transfer.toUser, arbToken)
+    let toEffectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(transfer.toEffectiveUser as string, arbToken)
     toEffectiveUserTokenValue.totalSupplyPar = toEffectiveUserTokenValue.totalSupplyPar.plus(position.arbAmountPar)
     toEffectiveUserTokenValue.save()
-
-    dolomiteMargin.vestingPositionTransferCount = dolomiteMargin.vestingPositionTransferCount.plus(ONE_BI)
-    dolomiteMargin.save()
   }
+
+  dolomiteMargin.vestingPositionTransferCount = dolomiteMargin.vestingPositionTransferCount.plus(ONE_BI)
+  dolomiteMargin.save()
 }
 
 export function handleVestingPositionClosed(event: VestingPositionClosedEvent): void {

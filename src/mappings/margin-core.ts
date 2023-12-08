@@ -141,7 +141,7 @@ export function handleDeposit(event: DepositEvent): void {
     event.params.update.deltaWei.sign,
     token,
   )
-  let accountUpdateOne = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event, null)
+  let accountUpdateOne = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -210,7 +210,7 @@ export function handleWithdraw(event: WithdrawEvent): void {
     event.params.update.deltaWei.sign,
     token,
   )
-  let accountUpdateOne = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event, null)
+  let accountUpdateOne = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -279,7 +279,7 @@ export function handleTransfer(event: TransferEvent): void {
     event.params.updateOne.deltaWei.sign,
     token,
   )
-  let accountUpdate1 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate1, event, event.params.accountTwoOwner)
+  let accountUpdate1 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate1, event)
 
   let balanceUpdate2 = new BalanceUpdate(
     event.params.accountTwoOwner,
@@ -290,7 +290,7 @@ export function handleTransfer(event: TransferEvent): void {
     event.params.updateTwo.deltaWei.sign,
     token,
   )
-  let accountUpdate2 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate2, event, event.params.accountOneOwner)
+  let accountUpdate2 = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdate2, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -395,7 +395,7 @@ export function handleBuy(event: BuyEvent): void {
     makerToken,
   )
   // Don't do a variable assignment here since it's overwritten below
-  let makerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event, null)
+  let makerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountOwner,
@@ -406,7 +406,7 @@ export function handleBuy(event: BuyEvent): void {
     event.params.takerUpdate.deltaWei.sign,
     takerToken,
   )
-  let takerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event, null)
+  let takerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -550,7 +550,7 @@ export function handleSell(event: SellEvent): void {
     makerToken,
   )
   // Don't do a variable assignment here since it's overwritten below
-  let makerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event, null)
+  let makerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
 
   let balanceUpdateTwo = new BalanceUpdate(
     event.params.accountOwner,
@@ -561,7 +561,7 @@ export function handleSell(event: SellEvent): void {
     event.params.takerUpdate.deltaWei.sign,
     takerToken,
   )
-  let takerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event, null)
+  let takerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
 
   let transaction = getOrCreateTransaction(event)
 
@@ -707,7 +707,6 @@ export function handleTrade(event: TradeEvent): void {
   let makerInputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
     balanceUpdateOne,
     event,
-    event.params.takerAccountOwner,
   )
 
   let balanceUpdateTwo = new BalanceUpdate(
@@ -722,7 +721,6 @@ export function handleTrade(event: TradeEvent): void {
   let makerOutputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
     balanceUpdateTwo,
     event,
-    event.params.takerAccountOwner,
   )
 
   let balanceUpdateThree = new BalanceUpdate(
@@ -737,7 +735,6 @@ export function handleTrade(event: TradeEvent): void {
   let takerInputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
     balanceUpdateThree,
     event,
-    event.params.makerAccountOwner,
   )
 
   let balanceUpdateFour = new BalanceUpdate(
@@ -752,7 +749,6 @@ export function handleTrade(event: TradeEvent): void {
   let takerOutputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
     balanceUpdateFour,
     event,
-    event.params.makerAccountOwner,
   )
 
   let transaction = getOrCreateTransaction(event)
@@ -1001,7 +997,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
   let liquidHeldAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
     balanceUpdateOne,
     event,
-    event.params.solidAccountOwner,
   )
 
   let balanceUpdateTwo = new BalanceUpdate(
@@ -1016,7 +1011,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
   let liquidOwedAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
     balanceUpdateTwo,
     event,
-    event.params.solidAccountOwner,
   )
 
   let balanceUpdateThree = new BalanceUpdate(
@@ -1031,7 +1025,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
   let solidHeldAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
     balanceUpdateThree,
     event,
-    event.params.liquidAccountOwner,
   )
 
   let balanceUpdateFour = new BalanceUpdate(
@@ -1046,7 +1039,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
   let solidOwedAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
     balanceUpdateFour,
     event,
-    event.params.liquidAccountOwner,
   )
 
   let transaction = getOrCreateTransaction(event)
@@ -1247,7 +1239,6 @@ export function handleVaporize(event: VaporizationEvent): void {
   let vaporOwedAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
     balanceUpdateOne,
     event,
-    event.params.solidAccountOwner,
   )
 
   let balanceUpdateTwo = new BalanceUpdate(
@@ -1262,7 +1253,6 @@ export function handleVaporize(event: VaporizationEvent): void {
   let solidHeldAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
     balanceUpdateTwo,
     event,
-    event.params.vaporAccountOwner,
   )
 
   let balanceUpdateThree = new BalanceUpdate(
@@ -1277,7 +1267,6 @@ export function handleVaporize(event: VaporizationEvent): void {
   let solidOwedAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
     balanceUpdateThree,
     event,
-    event.params.vaporAccountOwner,
   )
 
   let transaction = getOrCreateTransaction(event)

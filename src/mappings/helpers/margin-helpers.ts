@@ -355,7 +355,6 @@ class MarginAccountWithValueParChange {
 export function handleDolomiteMarginBalanceUpdateForAccount(
   balanceUpdate: BalanceUpdate,
   event: ethereum.Event,
-  otherAccountOwner: Address | null,
 ): MarginAccountWithValueParChange {
   let marginAccount = getOrCreateMarginAccount(balanceUpdate.accountOwner, balanceUpdate.accountNumber, event.block)
   let tokenValue = getOrCreateTokenValue(marginAccount, balanceUpdate.token)
@@ -423,42 +422,37 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
   }
 
   let deltaPar = balanceUpdate.valuePar.minus(tokenValue.valuePar)
-  let otherUser: User | null = null
-  if (otherAccountOwner !== null) {
-    otherUser = User.load(otherAccountOwner.toHexString())
-  }
-  if (otherUser === null || marginAccount.effectiveUser != otherUser.effectiveUser) {
-    if (tokenValue.valuePar.gt(ZERO_BD)) {
-      if (deltaPar.lt(ZERO_BD) && absBD(deltaPar).ge(tokenValue.valuePar)) {
-        // Range bound the deltaPar to the tokenValue.valuePar
-        effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.minus(tokenValue.valuePar)
+  if (tokenValue.valuePar.gt(ZERO_BD)) {
+    if (deltaPar.lt(ZERO_BD) && absBD(deltaPar).gt(tokenValue.valuePar)) {
+      // Range bound the deltaPar to the tokenValue.valuePar
+      effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.minus(tokenValue.valuePar)
 
-        let borrowDelta = absBD(deltaPar).minus(tokenValue.valuePar)
-        effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.plus(borrowDelta)
-      } else {
-        effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.plus(deltaPar)
-      }
-    } else if (tokenValue.valuePar.lt(ZERO_BD)) {
-      if (deltaPar.gt(ZERO_BD) && deltaPar.ge(absBD(tokenValue.valuePar))) {
-        // Range bound the deltaPar to the tokenValue.valuePar
-        effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.minus(
-          absBD(tokenValue.valuePar)
-        )
-
-        let supplyDelta = deltaPar.minus(absBD(tokenValue.valuePar))
-        effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.plus(supplyDelta)
-      } else {
-        effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.minus(deltaPar)
-      }
+      let borrowDelta = absBD(deltaPar).minus(tokenValue.valuePar)
+      effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.plus(borrowDelta)
     } else {
-      // tokenValue.valuePar.eq(ZERO_BD)
-      if (deltaPar.gt(ZERO_BD)) {
-        effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.plus(deltaPar)
-      } else if (deltaPar.lt(ZERO_BD)) {
-        effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.minus(deltaPar)
-      }
+      effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.plus(deltaPar)
+    }
+  } else if (tokenValue.valuePar.lt(ZERO_BD)) {
+    if (deltaPar.gt(ZERO_BD) && deltaPar.gt(absBD(tokenValue.valuePar))) {
+      // Range bound the deltaPar to the tokenValue.valuePar
+      effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.minus(
+        absBD(tokenValue.valuePar)
+      )
+
+      let supplyDelta = deltaPar.minus(absBD(tokenValue.valuePar))
+      effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.plus(supplyDelta)
+    } else {
+      effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.minus(deltaPar)
+    }
+  } else {
+    // tokenValue.valuePar.eq(ZERO_BD)
+    if (deltaPar.gt(ZERO_BD)) {
+      effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.plus(deltaPar)
+    } else if (deltaPar.lt(ZERO_BD)) {
+      effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.minus(deltaPar)
     }
   }
+
   tokenValue.valuePar = balanceUpdate.valuePar
   log.info(
     'Balance changed for account {} to value {}',

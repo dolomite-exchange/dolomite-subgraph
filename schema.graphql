@@ -934,8 +934,8 @@ type VestingPositionTransfer @entity {
   logIndex: BigInt!
   serialId: BigInt!
 
-  fromUser: User!
-  toUser: User!
+  fromEffectiveUser: User
+  toEffectiveUser: User
 
   vestingPosition: LiquidityMiningVestingPosition!
 }
