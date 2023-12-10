@@ -1,22 +1,22 @@
 import {
   EmergencyWithdraw as VestingPositionEmergencyWithdrawEvent,
+  LevelRequestFinalized as LevelRequestFinalizedEvent,
+  LevelRequestInitiated as LevelRequestInitiatedEvent,
   PositionClosed as VestingPositionClosedEvent,
   PositionDurationExtended as VestingPositionDurationExtendedEvent,
   PositionForceClosed as VestingPositionForceClosedEvent,
-  Transfer as VestingPositionTransferEvent,
+  Transfer as LiquidityMiningVestingPositionTransferEvent,
   VestingPositionCreated as VestingPositionCreatedEvent,
-  LevelRequestInitiated as LevelRequestInitiatedEvent,
-  LevelRequestFinalized as LevelRequestFinalizedEvent,
 } from '../types/LiquidityMiningVester/LiquidityMiningVester'
 import { Claimed as OARBClaimedEvent } from '../types/LiquidityMiningClaimer/LiquidityMiningClaimer'
 import {
   InterestIndex,
   LiquidityMiningClaim,
+  LiquidityMiningLevelUpdateRequest,
   LiquidityMiningSeason,
   LiquidityMiningVestingPosition,
+  LiquidityMiningVestingPositionTransfer,
   Token,
-  VestingPositionTransfer,
-  LevelUpdateRequest,
 } from '../types/schema'
 import { convertTokenToDecimal } from './helpers/token-helpers'
 import { _18_BI, ADDRESS_ZERO, ARB_ADDRESS, ONE_BI, ZERO_BD } from './generated/constants'
@@ -44,9 +44,10 @@ export function handleVestingPositionCreated(event: VestingPositionCreatedEvent)
   position.status = LiquidityMiningVestingPositionStatus.ACTIVE
   position.creator = event.params.vestingPosition.creator.toHexString()
   position.owner = event.params.vestingPosition.creator.toHexString()
-  position.duration = event.params.vestingPosition.duration
   position.openTransaction = transaction.id
   position.startTimestamp = event.params.vestingPosition.startTime
+  position.duration = event.params.vestingPosition.duration
+  position.endTimestamp = position.startTimestamp.plus(position.duration)
   position.oARBAmount = convertTokenToDecimal(event.params.vestingPosition.amount, _18_BI)
   position.arbAmountPar = weiToPar(position.oARBAmount, index, _18_BI)
   position.ethSpent = ZERO_BD
@@ -66,7 +67,7 @@ export function handleVestingPositionDurationExtended(event: VestingPositionDura
   position.save()
 }
 
-export function handleVestingPositionTransfer(event: VestingPositionTransferEvent): void {
+export function handleVestingPositionTransfer(event: LiquidityMiningVestingPositionTransferEvent): void {
   if (event.params.to.toHexString() != ADDRESS_ZERO) {
     createUserIfNecessary(event.params.to)
   }
@@ -74,7 +75,7 @@ export function handleVestingPositionTransfer(event: VestingPositionTransferEven
   let transaction = getOrCreateTransaction(event)
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Core)
-  let transfer = new VestingPositionTransfer(dolomiteMargin.vestingPositionTransferCount.toString())
+  let transfer = new LiquidityMiningVestingPositionTransfer(dolomiteMargin.vestingPositionTransferCount.toString())
   transfer.transaction = transaction.id
   transfer.logIndex = event.logIndex
   transfer.serialId = dolomiteMargin.vestingPositionTransferCount
@@ -182,7 +183,7 @@ export function handleLevelRequestInitiated(event: LevelRequestInitiatedEvent): 
   let transaction = getOrCreateTransaction(event)
   createUserIfNecessary(event.params.user)
 
-  let request = new LevelUpdateRequest(event.params.requestId.toString())
+  let request = new LiquidityMiningLevelUpdateRequest(event.params.requestId.toString())
   request.user = event.params.user.toHexString()
   request.requestId = event.params.requestId
   request.initiateTransaction = transaction.id
@@ -192,7 +193,9 @@ export function handleLevelRequestInitiated(event: LevelRequestInitiatedEvent): 
 export function handleLevelRequestFinalized(event: LevelRequestFinalizedEvent): void {
   let transaction = getOrCreateTransaction(event)
 
-  let request = LevelUpdateRequest.load(event.params.requestId.toString()) as LevelUpdateRequest
+  let request = LiquidityMiningLevelUpdateRequest.load(
+    event.params.requestId.toString()
+  ) as LiquidityMiningLevelUpdateRequest
   request.fulfilmentTransaction = transaction.id
   request.isFulfilled = true
   request.level = event.params.level.toI32()
