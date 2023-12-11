@@ -187,6 +187,7 @@ export function handleLevelRequestInitiated(event: LevelRequestInitiatedEvent): 
   request.user = event.params.user.toHexString()
   request.requestId = event.params.requestId
   request.initiateTransaction = transaction.id
+  request.isFulfilled = false
   request.save()
 }
 

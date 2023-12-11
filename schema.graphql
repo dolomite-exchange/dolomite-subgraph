@@ -962,7 +962,7 @@ type LiquidityMiningLevelUpdateRequest @entity {
   id: ID! # Defined as "requestId"
   requestId: BigInt!
   user: User!
-  level: Int!
+  level: Int
   isFulfilled: Boolean!
   initiateTransaction: Transaction!
   fulfilmentTransaction: Transaction
