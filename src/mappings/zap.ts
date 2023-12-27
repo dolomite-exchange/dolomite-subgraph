@@ -1,4 +1,4 @@
-import { BigDecimal, log } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, ethereum, log } from '@graphprotocol/graph-ts'
 import { ZapExecuted as ZapExecutedEvent } from '../types/Zap/GenericTraderProxy'
 import {
   DolomiteMargin,
@@ -11,7 +11,8 @@ import {
 } from '../types/schema'
 import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 import {
-  DOLOMITE_MARGIN_ADDRESS,
+  BORROW_POSITION_PROXY_V1_ADDRESS, BORROW_POSITION_PROXY_V2_ADDRESS,
+  DOLOMITE_MARGIN_ADDRESS, EVENT_EMITTER_PROXY_ADDRESS, GENERIC_TRADER_PROXY_V1,
   ONE_BI,
   ZERO_BD, ZERO_BI,
 } from './generated/constants'
@@ -22,7 +23,20 @@ import {
   removeTradeMetricsIfNecessaryFromExternalLiquidityTrade,
 } from './helpers/zap-helpers'
 
+function isContractUnknown(event: ethereum.Event): boolean {
+  return event.address.notEqual(Address.fromString(GENERIC_TRADER_PROXY_V1))
+    && event.address.notEqual(Address.fromString(EVENT_EMITTER_PROXY_ADDRESS))
+}
+
 export function handleZapExecuted(event: ZapExecutedEvent): void {
+  if (isContractUnknown(event)) {
+    log.warning(
+      'handleZapExecuted: event address does not match GenericTraderProxyV1 or EventEmitterRegistry address',
+      [],
+    )
+    return
+  }
+
   log.info(
     'Handling zap for hash and index: {}-{}',
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
