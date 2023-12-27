@@ -11,8 +11,9 @@ import {
 } from '../types/schema'
 import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 import {
-  BORROW_POSITION_PROXY_V1_ADDRESS, BORROW_POSITION_PROXY_V2_ADDRESS,
-  DOLOMITE_MARGIN_ADDRESS, EVENT_EMITTER_PROXY_ADDRESS, GENERIC_TRADER_PROXY_V1,
+  DOLOMITE_MARGIN_ADDRESS,
+  EVENT_EMITTER_PROXY_ADDRESS,
+  GENERIC_TRADER_PROXY_V1,
   ONE_BI,
   ZERO_BD, ZERO_BI,
 } from './generated/constants'
