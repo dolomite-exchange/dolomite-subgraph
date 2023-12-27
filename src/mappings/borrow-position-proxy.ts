@@ -1,6 +1,4 @@
-import {
-  BorrowPositionOpen as BorrowPositionOpenEvent,
-} from '../types/BorrowPositionProxy/BorrowPositionProxy'
+import { BorrowPositionOpen as BorrowPositionOpenEvent } from '../types/BorrowPositionProxy/BorrowPositionProxy'
 import { BorrowPositionStatus, getBorrowPositionId } from './helpers/borrow-position-helpers'
 import { BorrowPosition, DolomiteMargin, User } from '../types/schema'
 import { getOrCreateMarginAccount } from './helpers/margin-helpers'
@@ -9,17 +7,24 @@ import {
   BORROW_POSITION_PROXY_V1_ADDRESS,
   BORROW_POSITION_PROXY_V2_ADDRESS,
   DOLOMITE_MARGIN_ADDRESS,
+  EVENT_EMITTER_PROXY_ADDRESS,
   ONE_BI,
 } from './generated/constants'
-import { Address, log } from '@graphprotocol/graph-ts'
+import { Address, ethereum, log } from '@graphprotocol/graph-ts'
 import { getEffectiveUserForAddressString } from './helpers/isolation-mode-helpers'
 
-export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
-  if (
-    event.address.notEqual(Address.fromString(BORROW_POSITION_PROXY_V1_ADDRESS))
+function isContractUnknown(event: ethereum.Event): boolean {
+  return event.address.notEqual(Address.fromString(BORROW_POSITION_PROXY_V1_ADDRESS))
     && event.address.notEqual(Address.fromString(BORROW_POSITION_PROXY_V2_ADDRESS))
-  ) {
-    log.warning('handleOpenBorrowPosition: event address does not match any known BorrowPositionProxy address', [])
+    && event.address.notEqual(Address.fromString(EVENT_EMITTER_PROXY_ADDRESS))
+}
+
+export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
+  if (isContractUnknown(event)) {
+    log.warning(
+      'handleOpenBorrowPosition: event address does not match BorrowPositionProxy or EventEmitterRegistry address',
+      [],
+    )
     return
   }
 

@@ -17,6 +17,7 @@ import {
   DOLOMITE_AMM_ROUTER_PROXY_V1_ADDRESS,
   DOLOMITE_AMM_ROUTER_PROXY_V2_ADDRESS,
   DOLOMITE_MARGIN_ADDRESS,
+  EVENT_EMITTER_PROXY_ADDRESS,
   ONE_BI,
   USD_PRECISION,
   ZERO_BD,
@@ -69,12 +70,20 @@ function updateMarginPositionForTrade(
     absBD(convertStructToDecimalAppliedValue(inputTokenNewPar, owedToken.decimals)) :
     absBD(convertStructToDecimalAppliedValue(outputTokenNewPar, owedToken.decimals))
 
-  let heldTokenIndex = marginPosition.heldToken == positionChangeEvent.inputToken.id ? inputTokenIndex : outputTokenIndex
-  let owedTokenIndex = marginPosition.owedToken == positionChangeEvent.inputToken.id ? inputTokenIndex : outputTokenIndex
+  let heldTokenIndex = marginPosition.heldToken == positionChangeEvent.inputToken.id
+    ? inputTokenIndex
+    : outputTokenIndex
+  let owedTokenIndex = marginPosition.owedToken == positionChangeEvent.inputToken.id
+    ? inputTokenIndex
+    : outputTokenIndex
 
   // if the trader is closing the position, they are sizing down the collateral and debt
-  let inputAmountWei = !positionChangeEvent.isOpen ? positionChangeEvent.inputWei.neg() : positionChangeEvent.inputWei
-  let outputAmountWei = !positionChangeEvent.isOpen ? positionChangeEvent.outputWei.neg() : positionChangeEvent.outputWei
+  let inputAmountWei = !positionChangeEvent.isOpen
+    ? positionChangeEvent.inputWei.neg()
+    : positionChangeEvent.inputWei
+  let outputAmountWei = !positionChangeEvent.isOpen
+    ? positionChangeEvent.outputWei.neg()
+    : positionChangeEvent.outputWei
 
   let heldAmountWei = marginPosition.heldToken == positionChangeEvent.inputToken.id ? inputAmountWei : outputAmountWei
   let owedAmountWei = marginPosition.owedToken == positionChangeEvent.inputToken.id ? inputAmountWei : outputAmountWei
@@ -159,6 +168,7 @@ function updateMarginPositionForTrade(
 function isContractUnknown(event: ethereum.Event): boolean {
   return event.address.notEqual(Address.fromHexString(DOLOMITE_AMM_ROUTER_PROXY_V1_ADDRESS))
     && event.address.notEqual(Address.fromHexString(DOLOMITE_AMM_ROUTER_PROXY_V2_ADDRESS))
+    && event.address.notEqual(Address.fromHexString(EVENT_EMITTER_PROXY_ADDRESS))
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -168,7 +178,7 @@ export function handleMarginPositionOpen(event: MarginPositionOpenEvent): void {
     return
   }
   let borrowPosition = BorrowPosition.load(
-    `${event.params.user.toHexString()}-${event.params.accountIndex.toString()}`
+    `${event.params.user.toHexString()}-${event.params.accountIndex.toString()}`,
   )
   if (borrowPosition !== null) {
     log.debug('Ignoring event because it is a borrow position: {}', [event.transaction.hash.toHexString()])
@@ -229,7 +239,7 @@ export function handleMarginPositionClose(event: MarginPositionCloseEvent): void
     return
   }
   let borrowPosition = BorrowPosition.load(
-    `${event.params.user.toHexString()}-${event.params.accountIndex.toString()}`
+    `${event.params.user.toHexString()}-${event.params.accountIndex.toString()}`,
   )
   if (borrowPosition !== null) {
     log.debug('Ignoring event because it is a borrow position: {}', [event.transaction.hash.toHexString()])

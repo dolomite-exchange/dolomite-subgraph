@@ -64,6 +64,8 @@ export const DOLOMITE_AMM_ROUTER_PROXY_V2_ADDRESS = '{{dolomiteAmmRouterProxyV2A
 
 export const DOLOMITE_MARGIN_ADDRESS = '{{dolomiteMarginAddress}}'.toLowerCase()
 
+export const EVENT_EMITTER_PROXY_ADDRESS = '{{eventEmitterRegistryAddress}}'.toLowerCase()
+
 export const EXPIRY_ADDRESS = '{{expiryAddress}}'.toLowerCase()
 
 export const FACTORY_ADDRESS = '{{dolomiteAmmFactoryAddress}}'.toLowerCase()

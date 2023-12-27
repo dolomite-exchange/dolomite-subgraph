@@ -198,7 +198,6 @@ dataSources:
     name: Zap
     network: {{network}}
     source:
-      address: '{{genericTraderProxyAddress}}'
       abi: GenericTraderProxy
       startBlock: {{genericTraderProxyStartBlock}}
     mapping:
