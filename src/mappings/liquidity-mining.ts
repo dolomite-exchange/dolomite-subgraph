@@ -64,6 +64,7 @@ export function handleVestingPositionDurationExtended(event: VestingPositionDura
   let positionId = event.params.vestingId.toString()
   let position = LiquidityMiningVestingPosition.load(positionId) as LiquidityMiningVestingPosition
   position.duration = event.params.newDuration
+  position.endTimestamp = position.startTimestamp.plus(position.duration)
   position.save()
 }
 
