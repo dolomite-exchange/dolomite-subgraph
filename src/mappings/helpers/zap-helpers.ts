@@ -2,6 +2,7 @@ import { Address, BigInt, Bytes, crypto, ethereum, log, TypedMap } from '@graphp
 import { MAGIC_GLP_UNWRAPPER_TRADER_ADDRESS, MAGIC_GLP_WRAPPER_TRADER_ADDRESS, ONE_BI } from '../generated/constants'
 import { ZapExecuted as ZapExecutedEvent, ZapExecutedTradersPathStruct } from '../../types/Zap/GenericTraderProxy'
 import { DolomiteMargin, MarginAccount, Token, TokenMarketIdReverseLookup, Trade, User } from '../../types/schema'
+import { subtractDayAndHourlyVolumeForTrade } from '../day-updates'
 
 const LIQUIDITY_TOKEN_ADDRESS_MAP: TypedMap<string, string> = new TypedMap<string, string>()
 LIQUIDITY_TOKEN_ADDRESS_MAP.set(MAGIC_GLP_UNWRAPPER_TRADER_ADDRESS, 'true')
@@ -85,6 +86,8 @@ export function removeTradeMetricsForTrader(
         effectiveMakerUser.save()
       }
     }
+
+    subtractDayAndHourlyVolumeForTrade(trade)
   }
 }
 

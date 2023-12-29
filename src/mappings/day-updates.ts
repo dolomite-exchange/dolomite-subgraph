@@ -3,7 +3,8 @@ import {
   AmmPair,
   AmmPairDayData,
   AmmPairHourData,
-  DolomiteDayData, DolomiteHourData,
+  DolomiteDayData,
+  DolomiteHourData,
   DolomiteMargin,
   Liquidation,
   MostRecentTrade,
@@ -693,10 +694,45 @@ export function updateTimeDataForVaporization(
     dolomiteDayData.dailyVaporizationVolumeUSD = dolomiteDayData.dailyVaporizationVolumeUSD.plus(vaporizationVolumeUSD)
     dolomiteDayData.dailyVaporizationCount = dolomiteDayData.dailyVaporizationCount.plus(ONE_BI)
 
-    dolomiteHourData.hourlyVaporizationVolumeUSD = dolomiteHourData.hourlyVaporizationVolumeUSD.plus(vaporizationVolumeUSD)
+    dolomiteHourData.hourlyVaporizationVolumeUSD = dolomiteHourData.hourlyVaporizationVolumeUSD
+      .plus(vaporizationVolumeUSD)
     dolomiteHourData.hourlyVaporizationCount = dolomiteHourData.hourlyVaporizationCount.plus(ONE_BI)
 
     tokenDayData.save()
     dolomiteDayData.save()
   }
+}
+
+export function subtractDayAndHourlyVolumeForTrade(trade: Trade): void {
+  let dayData = DolomiteDayData.load(getDayId(trade.timestamp)) as DolomiteDayData
+  dayData.totalTradeCount = dayData.totalTradeCount.minus(ONE_BI)
+  dayData.dailyTradeVolumeUSD = dayData.dailyTradeVolumeUSD.minus(trade.takerAmountUSD)
+
+  let takerTokenDayData = TokenDayData.load(`${trade.takerToken}-${getDayId(trade.timestamp)}`) as TokenDayData
+  takerTokenDayData.dailyTradeVolumeToken = takerTokenDayData.dailyTradeVolumeToken.minus(trade.takerTokenDeltaWei)
+  takerTokenDayData.dailyTradeVolumeUSD = takerTokenDayData.dailyTradeVolumeUSD.minus(trade.takerAmountUSD)
+  takerTokenDayData.dailyTradeCount = takerTokenDayData.dailyTradeCount.minus(ONE_BI)
+  takerTokenDayData.save()
+
+  let makerTokenDayData = TokenDayData.load(`${trade.makerToken}-${getDayId(trade.timestamp)}`) as TokenDayData
+  makerTokenDayData.dailyTradeVolumeToken = makerTokenDayData.dailyTradeVolumeToken.minus(trade.makerTokenDeltaWei)
+  makerTokenDayData.dailyTradeVolumeUSD = makerTokenDayData.dailyTradeVolumeUSD.minus(trade.makerAmountUSD)
+  makerTokenDayData.dailyTradeCount = makerTokenDayData.dailyTradeCount.minus(ONE_BI)
+  makerTokenDayData.save()
+
+  let hourData = DolomiteDayData.load(getHourId(trade.timestamp)) as DolomiteDayData
+  hourData.totalTradeCount = hourData.totalTradeCount.minus(ONE_BI)
+  hourData.dailyTradeVolumeUSD = hourData.dailyTradeVolumeUSD.minus(trade.takerAmountUSD)
+
+  let takerTokenHourData = TokenDayData.load(`${trade.takerToken}-${getHourId(trade.timestamp)}`) as TokenDayData
+  takerTokenHourData.dailyTradeVolumeToken = takerTokenHourData.dailyTradeVolumeToken.minus(trade.takerTokenDeltaWei)
+  takerTokenHourData.dailyTradeVolumeUSD = takerTokenHourData.dailyTradeVolumeUSD.minus(trade.takerAmountUSD)
+  takerTokenHourData.dailyTradeCount = takerTokenHourData.dailyTradeCount.minus(ONE_BI)
+  takerTokenHourData.save()
+
+  let makerTokenHourData = TokenDayData.load(`${trade.makerToken}-${getHourId(trade.timestamp)}`) as TokenDayData
+  makerTokenHourData.dailyTradeVolumeToken = makerTokenHourData.dailyTradeVolumeToken.minus(trade.makerTokenDeltaWei)
+  makerTokenHourData.dailyTradeVolumeUSD = makerTokenHourData.dailyTradeVolumeUSD.minus(trade.makerAmountUSD)
+  makerTokenHourData.dailyTradeCount = makerTokenHourData.dailyTradeCount.minus(ONE_BI)
+  makerTokenHourData.save()
 }
