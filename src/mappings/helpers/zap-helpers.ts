@@ -41,9 +41,12 @@ export function removeTradeMetricsForTrader(
 ): void {
   let trades = getTradesByTrader(tradesForTransaction, trader.trader)
   for (let i = 0; i < trades.length; i++) {
-    log.info('Removing trade volume for trader: {}', [trader.trader.toHexString()])
     let trade = trades[i] as Trade
+    if (!trade.traderAddress.equals(trader.trader)) {
+      continue
+    }
 
+    log.info('Removing trade volume for trader: {}', [trader.trader.toHexString()])
     dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.minus(ONE_BI)
     dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.minus(trade.takerAmountUSD)
     // dolomiteMargin is saved later
