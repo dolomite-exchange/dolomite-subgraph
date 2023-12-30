@@ -720,9 +720,9 @@ export function subtractDayAndHourlyVolumeForTrade(trade: Trade): void {
   makerTokenDayData.dailyTradeCount = makerTokenDayData.dailyTradeCount.minus(ONE_BI)
   makerTokenDayData.save()
 
-  let hourData = DolomiteDayData.load(getHourId(trade.timestamp)) as DolomiteDayData
+  let hourData = DolomiteHourData.load(getHourId(trade.timestamp)) as DolomiteHourData
   hourData.totalTradeCount = hourData.totalTradeCount.minus(ONE_BI)
-  hourData.dailyTradeVolumeUSD = hourData.dailyTradeVolumeUSD.minus(trade.takerAmountUSD)
+  hourData.hourlyTradeVolumeUSD = hourData.hourlyTradeVolumeUSD.minus(trade.takerAmountUSD)
 
   let takerTokenHourData = TokenDayData.load(`${trade.takerToken}-${getHourId(trade.timestamp)}`) as TokenDayData
   takerTokenHourData.dailyTradeVolumeToken = takerTokenHourData.dailyTradeVolumeToken.minus(trade.takerTokenDeltaWei)
