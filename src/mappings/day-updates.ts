@@ -724,15 +724,15 @@ export function subtractDayAndHourlyVolumeForTrade(trade: Trade): void {
   hourData.totalTradeCount = hourData.totalTradeCount.minus(ONE_BI)
   hourData.hourlyTradeVolumeUSD = hourData.hourlyTradeVolumeUSD.minus(trade.takerAmountUSD)
 
-  let takerTokenHourData = TokenDayData.load(`${trade.takerToken}-${getHourId(trade.timestamp)}`) as TokenDayData
-  takerTokenHourData.dailyTradeVolumeToken = takerTokenHourData.dailyTradeVolumeToken.minus(trade.takerTokenDeltaWei)
-  takerTokenHourData.dailyTradeVolumeUSD = takerTokenHourData.dailyTradeVolumeUSD.minus(trade.takerAmountUSD)
-  takerTokenHourData.dailyTradeCount = takerTokenHourData.dailyTradeCount.minus(ONE_BI)
+  let takerTokenHourData = TokenHourData.load(`${trade.takerToken}-${getHourId(trade.timestamp)}`) as TokenHourData
+  takerTokenHourData.hourlyTradeVolumeToken = takerTokenHourData.hourlyTradeVolumeToken.minus(trade.takerTokenDeltaWei)
+  takerTokenHourData.hourlyTradeVolumeUSD = takerTokenHourData.hourlyTradeVolumeUSD.minus(trade.takerAmountUSD)
+  takerTokenHourData.hourlyTradeCount = takerTokenHourData.hourlyTradeCount.minus(ONE_BI)
   takerTokenHourData.save()
 
-  let makerTokenHourData = TokenDayData.load(`${trade.makerToken}-${getHourId(trade.timestamp)}`) as TokenDayData
-  makerTokenHourData.dailyTradeVolumeToken = makerTokenHourData.dailyTradeVolumeToken.minus(trade.makerTokenDeltaWei)
-  makerTokenHourData.dailyTradeVolumeUSD = makerTokenHourData.dailyTradeVolumeUSD.minus(trade.makerAmountUSD)
-  makerTokenHourData.dailyTradeCount = makerTokenHourData.dailyTradeCount.minus(ONE_BI)
+  let makerTokenHourData = TokenHourData.load(`${trade.makerToken}-${getHourId(trade.timestamp)}`) as TokenHourData
+  makerTokenHourData.hourlyTradeVolumeToken = makerTokenHourData.hourlyTradeVolumeToken.minus(trade.makerTokenDeltaWei)
+  makerTokenHourData.hourlyTradeVolumeUSD = makerTokenHourData.hourlyTradeVolumeUSD.minus(trade.makerAmountUSD)
+  makerTokenHourData.hourlyTradeCount = makerTokenHourData.hourlyTradeCount.minus(ONE_BI)
   makerTokenHourData.save()
 }
