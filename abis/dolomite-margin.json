@@ -1,5 +1,183 @@
 [
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "accountOwner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "contract IAccountRiskOverrideSetter",
+        "name": "accountRiskOverrideSetter",
+        "type": "address"
+      }
+    ],
+    "name": "LogSetAccountRiskOverrideSetter",
+    "type": "event"
+  },
+  {
+    "indexed": false,
+    "internalType": "contract IAccountRiskOverrideSetter",
+    "name": "accountRiskOverrideSetter",
+    "type": "address"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "callbackGasLimit",
+        "type": "uint256"
+      }
+    ],
+    "name": "LogSetCallbackGasLimit",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "contract IAccountRiskOverrideSetter",
+        "name": "defaultAccountRiskOverrideSetter",
+        "type": "address"
+      }
+    ],
+    "name": "LogSetDefaultAccountRiskOverrideSetter",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "contract IOracleSentinel",
+        "name": "oracleSentinel",
+        "type": "address"
+      }
+    ],
+    "name": "LogSetOracleSentinel",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "marketId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Decimal.D256",
+        "name": "liquidationSpreadPremium",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogSetLiquidationSpreadPremium",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "marketId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "sign",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Types.Wei",
+        "name": "maxSupplyWei",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogSetMaxSupplyWei",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "marketId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "sign",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Types.Wei",
+        "name": "maxBorrowWei",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogSetMaxBorrowWei",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "marketId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "value",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Decimal.D256",
+        "name": "earningsRateOverride",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogSetEarningsRateOverride",
+    "type": "event"
+  },
+  {
     "inputs": [
       {
         "components": [
@@ -3651,6 +3829,19 @@
       }
     ],
     "name": "LogSetMaxNumberOfMarketsWithBalancesAndDebt",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "accountMaxNumberOfMarketsWithBalances",
+        "type": "uint256"
+      }
+    ],
+    "name": "LogSetAccountMaxNumberOfMarketsWithBalances",
     "type": "event"
   },
   {

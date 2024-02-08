@@ -9,24 +9,36 @@ import {
   LogSetIsClosing as IsClosingUpdateEvent,
   LogSetLiquidationSpread as LiquidationSpreadUpdateEvent,
   LogSetMarginPremium as MarginPremiumUpdateEvent,
+  LogSetSpreadPremium as SpreadPremiumUpdateEvent,
+  LogSetLiquidationSpreadPremium as LiquidationSpreadPremiumUpdateEvent,
+  LogSetMaxWei as MaxWeiUpdateEvent,
+  LogSetMaxSupplyWei as MaxSupplyWeiUpdateEvent,
+  LogSetMaxBorrowWei as MaxBorrowWeiUpdateEvent,
+  LogSetEarningsRateOverride as EarningsRateOverrideUpdateEvent,
   LogSetMarginRatio as MarginRatioUpdateEvent,
   LogSetMaxNumberOfMarketsWithBalancesAndDebt as MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent,
-  LogSetMaxWei as MaxWeiUpdateEvent,
+  LogSetAccountMaxNumberOfMarketsWithBalances as MaxNumberOfMarketsWithBalancesAndDebtUpdateEventV2,
   LogSetMinBorrowedValue as MinBorrowedValueUpdateEvent,
   LogSetPriceOracle as PriceOracleUpdateEvent,
-  LogSetSpreadPremium as MarketSpreadPremiumUpdateEvent,
+  LogSetOracleSentinel as OracleSentinelUpdateEvent,
+  LogSetCallbackGasLimit as CallbackGasLimitUpdateEvent,
+  LogSetDefaultAccountRiskOverrideSetter as DefaultAccountRiskOverrideSetterUpdateEvent,
+  LogSetAccountRiskOverrideSetter as AccountRiskOverrideSetterUpdateEvent,
+  LogSetGlobalOperator as GlobalOperatorUpdateEvent,
+  LogSetAutoTraderIsSpecial as AutoTraderIsSpecialUpdateEvent,
 } from '../types/MarginAdmin/DolomiteMargin'
 import {
-  DolomiteMargin,
+  DolomiteMargin, GlobalOperator,
   InterestIndex,
   InterestRate,
   MarketRiskInfo,
-  OraclePrice,
+  OraclePrice, SpecialAutoTrader,
   Token,
   TokenMarketIdReverseLookup,
   TotalPar,
 } from '../types/schema'
 import {
+  _18_BI,
   ADDRESS_ZERO,
   DOLOMITE_MARGIN_ADDRESS,
   INTEREST_PRECISION,
@@ -44,8 +56,9 @@ import {
   updateInterestRate,
 } from './interest-setter'
 import { convertTokenToDecimal, initializeToken } from './helpers/token-helpers'
+import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
+import { createUserIfNecessary } from './helpers/user-helpers'
 
-// noinspection JSUnusedGlobalSymbols
 export function handleMarketAdded(event: AddMarketEvent): void {
   log.info(
     'Adding market[{}] for token {} for hash and index: {}-{}',
@@ -113,7 +126,6 @@ export function handleMarketAdded(event: AddMarketEvent): void {
   totalPar.save()
 }
 
-// noinspection JSUnusedGlobalSymbols
 export function handleMarketRemoved(event: RemoveMarketEvent): void {
   log.info(
     'Removing market[{}] for token {} for hash and index: {}-{}',
@@ -138,7 +150,192 @@ export function handleMarketRemoved(event: RemoveMarketEvent): void {
   store.remove('TotalPar', id)
 }
 
-// noinspection JSUnusedGlobalSymbols
+export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
+  log.info(
+    'Handling set_market_closing for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  marketInfo.isBorrowingDisabled = event.params.isClosing
+  marketInfo.save()
+}
+
+export function handleSetPriceOracle(event: PriceOracleUpdateEvent): void {
+  log.info(
+    'Handling price oracle change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  marketInfo.oracle = event.params.priceOracle
+  marketInfo.save()
+}
+
+export function handleSetInterestSetter(event: InterestSetterUpdateEvent): void {
+  log.info(
+    'Handling interest setter change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let interestRate = InterestRate.load(token.id) as InterestRate
+  interestRate.interestSetter = event.params.interestSetter
+
+  interestRate.optimalUtilizationRate = getOptimalUtilizationRate(event.params.interestSetter)
+  interestRate.lowerOptimalRate = getLowerOptimalRate(event.params.interestSetter)
+  interestRate.upperOptimalRate = getUpperOptimalRate(event.params.interestSetter)
+  interestRate.save()
+
+  let totalPar = TotalPar.load(token.id) as TotalPar
+  let index = InterestIndex.load(token.id) as InterestIndex
+  let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
+  updateInterestRate(token, totalPar, index, dolomiteMargin)
+}
+
+export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
+  log.info(
+    'Handling margin premium change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  let marginPremium = new BigDecimal(event.params.marginPremium.value)
+  marketInfo.marginPremium = marginPremium.div(ONE_ETH_BD)
+  marketInfo.save()
+}
+
+export function handleSetLiquidationSpreadPremium(event: SpreadPremiumUpdateEvent): void {
+  log.info(
+    'Handling liquidation spread premium change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  let spreadPremium = new BigDecimal(event.params.spreadPremium.value)
+  marketInfo.liquidationRewardPremium = spreadPremium.div(ONE_ETH_BD)
+  marketInfo.save()
+}
+
+export function handleSetLiquidationSpreadPremiumV2(event: LiquidationSpreadPremiumUpdateEvent): void {
+  log.info(
+    'Handling liquidation spread premium change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  let spreadPremium = new BigDecimal(event.params.liquidationSpreadPremium.value)
+  marketInfo.liquidationRewardPremium = spreadPremium.div(ONE_ETH_BD)
+  marketInfo.save()
+}
+
+export function handleSetMaxSupplyWei(event: MaxWeiUpdateEvent): void {
+  log.info(
+    'Handling max wei change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  if (event.params.maxWei.value.equals(ZERO_BI)) {
+    marketInfo.supplyMaxWei = null
+  } else {
+    marketInfo.supplyMaxWei = convertTokenToDecimal(event.params.maxWei.value, token.decimals)
+  }
+  marketInfo.save()
+}
+
+export function handleSetMaxSupplyWeiV2(event: MaxSupplyWeiUpdateEvent): void {
+  log.info(
+    'Handling max wei change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  if (event.params.maxSupplyWei.value.equals(ZERO_BI)) {
+    marketInfo.supplyMaxWei = null
+  } else {
+    marketInfo.supplyMaxWei = convertTokenToDecimal(event.params.maxSupplyWei.value, token.decimals)
+  }
+  marketInfo.save()
+}
+
+export function handleSetMaxBorrowWei(event: MaxBorrowWeiUpdateEvent): void {
+  log.info(
+    'Handling max wei change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  if (event.params.maxBorrowWei.value.equals(ZERO_BI)) {
+    marketInfo.borrowMaxWei = null
+  } else {
+    marketInfo.borrowMaxWei = convertTokenToDecimal(event.params.maxBorrowWei.value, token.decimals)
+  }
+  marketInfo.save()
+}
+
+export function handleSetEarningsRateOverride(event: EarningsRateOverrideUpdateEvent): void {
+  log.info(
+    'Handling max wei change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
+  let token = Token.load(tokenAddress) as Token
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
+  if (event.params.earningsRateOverride.value.equals(ZERO_BI)) {
+    marketInfo.earningsRateOverride = null
+  } else {
+    marketInfo.earningsRateOverride = convertTokenToDecimal(event.params.earningsRateOverride.value, _18_BI)
+  }
+  marketInfo.save()
+}
+
+export function handleMarginRatioUpdate(event: MarginRatioUpdateEvent): void {
+  log.info(
+    'Handling liquidation ratio change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let liquidationRatioBD = new BigDecimal(event.params.marginRatio.value)
+
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
+  dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
+    .plus(ONE_BD)
+  dolomiteMargin.save()
+}
+
+export function handleLiquidationSpreadUpdate(event: LiquidationSpreadUpdateEvent): void {
+  log.info(
+    'Handling liquidation ratio change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  let liquidationPremiumBD = new BigDecimal(event.params.liquidationSpread.value)
+
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
+  dolomiteMargin.liquidationReward = liquidationPremiumBD.div(ONE_ETH_BD)
+    .plus(ONE_BD)
+  dolomiteMargin.save()
+}
+
 export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
   log.info(
     'Handling earnings rate change for hash and index: {}-{}',
@@ -173,51 +370,6 @@ export function handleEarningsRateUpdate(event: EarningsRateUpdateEvent): void {
   }
 }
 
-// noinspection JSUnusedGlobalSymbols
-export function handleSetLiquidationReward(event: LiquidationSpreadUpdateEvent): void {
-  log.info(
-    'Handling liquidation ratio change for hash and index: {}-{}',
-    [event.transaction.hash.toHexString(), event.logIndex.toString()],
-  )
-
-  let liquidationPremiumBD = new BigDecimal(event.params.liquidationSpread.value)
-
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.liquidationReward = liquidationPremiumBD.div(ONE_ETH_BD)
-    .plus(ONE_BD)
-  dolomiteMargin.save()
-}
-
-// noinspection JSUnusedGlobalSymbols
-export function handleSetMaxNumberOfMarketsWithBalancesAndDebt(
-  event: MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent,
-): void {
-  log.info(
-    'Handling max # of markets with balances and debt change for hash and index: {}-{}',
-    [event.transaction.hash.toHexString(), event.logIndex.toString()],
-  )
-
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = event.params.maxNumberOfMarketsWithBalancesAndDebt
-  dolomiteMargin.save()
-}
-
-// noinspection JSUnusedGlobalSymbols
-export function handleSetLiquidationRatio(event: MarginRatioUpdateEvent): void {
-  log.info(
-    'Handling liquidation ratio change for hash and index: {}-{}',
-    [event.transaction.hash.toHexString(), event.logIndex.toString()],
-  )
-
-  let liquidationRatioBD = new BigDecimal(event.params.marginRatio.value)
-
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
-    .plus(ONE_BD)
-  dolomiteMargin.save()
-}
-
-// noinspection JSUnusedGlobalSymbols
 export function handleSetMinBorrowedValue(event: MinBorrowedValueUpdateEvent): void {
   log.info(
     'Handling min borrowed value change for hash and index: {}-{}',
@@ -232,97 +384,115 @@ export function handleSetMinBorrowedValue(event: MinBorrowedValueUpdateEvent): v
   dolomiteMargin.save()
 }
 
-// noinspection JSUnusedGlobalSymbols
-export function handleSetMarginPremium(event: MarginPremiumUpdateEvent): void {
+export function handleSetMaxNumberOfMarketsWithBalances(
+  event: MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent,
+): void {
   log.info(
-    'Handling margin premium change for hash and index: {}-{}',
+    'Handling max # of markets with balances and debt change for hash and index: {}-{}',
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
-  let token = Token.load(tokenAddress) as Token
-  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
-  let marginPremium = new BigDecimal(event.params.marginPremium.value)
-  marketInfo.marginPremium = marginPremium.div(ONE_ETH_BD)
-  marketInfo.save()
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
+  dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = event.params.maxNumberOfMarketsWithBalancesAndDebt
+  dolomiteMargin.save()
 }
 
-// noinspection JSUnusedGlobalSymbols
-export function handleSetLiquidationSpreadPremium(event: MarketSpreadPremiumUpdateEvent): void {
+export function handleSetMaxNumberOfMarketsWithBalancesV2(
+  event: MaxNumberOfMarketsWithBalancesAndDebtUpdateEventV2,
+): void {
   log.info(
-    'Handling liquidation spread premium change for hash and index: {}-{}',
+    'Handling max # of markets with balances and debt change for hash and index: {}-{}',
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
-  let token = Token.load(tokenAddress) as Token
-  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
-  let spreadPremium = new BigDecimal(event.params.spreadPremium.value)
-  marketInfo.liquidationRewardPremium = spreadPremium.div(ONE_ETH_BD)
-  marketInfo.save()
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
+  dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = event.params.accountMaxNumberOfMarketsWithBalances
+  dolomiteMargin.save()
 }
 
-// noinspection JSUnusedGlobalSymbols
-export function handleSetIsMarketClosing(event: IsClosingUpdateEvent): void {
+export function handleSetOracleSentinel(event: OracleSentinelUpdateEvent): void {
   log.info(
-    'Handling set_market_closing for hash and index: {}-{}',
+    'Handling oracle sentinel change for hash and index: {}-{}',
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
-  let token = Token.load(tokenAddress) as Token
-  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
-  marketInfo.isBorrowingDisabled = event.params.isClosing
-  marketInfo.save()
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
+  dolomiteMargin.oracleSentinel = event.params.oracleSentinel
+  dolomiteMargin.save()
 }
 
-// noinspection JSUnusedGlobalSymbols
-export function handleSetMaxWei(event: MaxWeiUpdateEvent): void {
+export function handleSetCallbackGasLimit(event: CallbackGasLimitUpdateEvent): void {
   log.info(
-    'Handling max wei change for hash and index: {}-{}',
+    'Handling callback gas limit change for hash and index: {}-{}',
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
-  let token = Token.load(tokenAddress) as Token
-  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
-  marketInfo.supplyMaxWei = convertTokenToDecimal(event.params.maxWei.value, token.decimals)
-  marketInfo.save()
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
+  dolomiteMargin.callbackGasLimit = event.params.callbackGasLimit
+  dolomiteMargin.save()
 }
 
-// noinspection JSUnusedGlobalSymbols
-export function handleSetPriceOracle(event: PriceOracleUpdateEvent): void {
+export function handleSetDefaultAccountRiskOverrideSetter(event: DefaultAccountRiskOverrideSetterUpdateEvent): void {
   log.info(
-    'Handling oracle change for hash and index: {}-{}',
+    'Handling default account risk override setter change for hash and index: {}-{}',
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
-  let token = Token.load(tokenAddress) as Token
-  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
-  marketInfo.oracle = event.params.priceOracle
-  marketInfo.save()
+  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
+  if (event.params.defaultAccountRiskOverrideSetter.equals(Address.fromString(ADDRESS_ZERO))) {
+    dolomiteMargin.defaultAccountRiskOverrideSetter = null
+  } else {
+    dolomiteMargin.defaultAccountRiskOverrideSetter = event.params.defaultAccountRiskOverrideSetter
+  }
+  dolomiteMargin.save()
 }
 
-// noinspection JSUnusedGlobalSymbols
-export function handleSetInterestSetter(event: InterestSetterUpdateEvent): void {
+export function handleSetAccountRiskOverrideSetter(event: AccountRiskOverrideSetterUpdateEvent): void {
   log.info(
-    'Handling interest setter change for hash and index: {}-{}',
+    'Handling account risk override setter change for hash and index: {}-{}',
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.marketId.toString())!.token
-  let token = Token.load(tokenAddress) as Token
-  let interestRate = InterestRate.load(token.id) as InterestRate
-  interestRate.interestSetter = event.params.interestSetter
+  createUserIfNecessary(event.params.accountOwner)
+  let user = getEffectiveUserForAddress(event.params.accountOwner)
+  if (event.params.accountRiskOverrideSetter.equals(Address.fromString(ADDRESS_ZERO))) {
+    user.accountRiskOverrideSetter = null
+  } else {
+    user.accountRiskOverrideSetter = event.params.accountRiskOverrideSetter
+  }
+  user.save()
+}
 
-  interestRate.optimalUtilizationRate = getOptimalUtilizationRate(event.params.interestSetter)
-  interestRate.lowerOptimalRate = getLowerOptimalRate(event.params.interestSetter)
-  interestRate.upperOptimalRate = getUpperOptimalRate(event.params.interestSetter)
-  interestRate.save()
+export function handleSetGlobalOperator(event: GlobalOperatorUpdateEvent): void {
+  log.info(
+    'Handling global operator change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
 
-  let totalPar = TotalPar.load(token.id) as TotalPar
-  let index = InterestIndex.load(token.id) as InterestIndex
-  let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
-  updateInterestRate(token, totalPar, index, dolomiteMargin)
+  if (!event.params.approved) {
+    store.remove('GlobalOperator', event.params.operator.toHexString())
+  } else {
+    let globalOperator = GlobalOperator.load(event.params.operator.toHexString())
+    if (globalOperator === null) {
+      globalOperator = new GlobalOperator(event.params.operator.toHexString())
+      globalOperator.save()
+    }
+  }
+}
+
+export function handleSetAutoTraderIsSpecial(event: AutoTraderIsSpecialUpdateEvent): void {
+  log.info(
+    'Handling special auto trader change for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+  )
+
+  if (!event.params.isSpecial) {
+    store.remove('SpecialAutoTrader', event.params.autoTrader.toHexString())
+  } else {
+    let autoTrader = SpecialAutoTrader.load(event.params.autoTrader.toHexString())
+    if (autoTrader === null) {
+      autoTrader = new SpecialAutoTrader(event.params.autoTrader.toHexString())
+      autoTrader.save()
+    }
+  }
 }

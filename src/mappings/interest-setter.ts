@@ -1,5 +1,5 @@
 import { Address, BigDecimal, BigInt } from '@graphprotocol/graph-ts'
-import { DolomiteMargin, InterestIndex, InterestRate, Token, TotalPar } from '../types/schema'
+import { DolomiteMargin, InterestIndex, InterestRate, MarketRiskInfo, Token, TotalPar } from '../types/schema'
 import {
   AAVE_ALT_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS,
   AAVE_STABLE_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS,
@@ -183,22 +183,30 @@ export function updateInterestRate(
     supplyWeiBI,
     interestRate,
   )
+  let marketInfo = MarketRiskInfo.load(token.id) as MarketRiskInfo
   let interestPerYearBD = new BigDecimal(interestRatePerSecond.times(SECONDS_IN_YEAR))
   interestRate.borrowInterestRate = interestPerYearBD.div(ONE_ETH_BD)
+
+  let earningsRate: BigDecimal
+  if (marketInfo.earningsRateOverride !== null) {
+    earningsRate = marketInfo.earningsRateOverride as BigDecimal
+  } else {
+    earningsRate = dolomiteMargin.earningsRate
+  }
 
   // set the supplyInterestRate
   if (borrowWei.lt(supplyWei)) {
     // the supply interest rate is spread across the supplied balance, which is paid on the borrow amount. Therefore,
     // the interest owed must be scaled down by the supplied we vs owed wei
     interestRate.supplyInterestRate = interestRate.borrowInterestRate
-      .times(dolomiteMargin.earningsRate)
+      .times(earningsRate)
       .truncate(INTEREST_PRECISION)
       .times(borrowWei)
       .div(supplyWei)
       .truncate(INTEREST_PRECISION)
   } else {
     interestRate.supplyInterestRate = interestRate.borrowInterestRate
-      .times(dolomiteMargin.earningsRate)
+      .times(earningsRate)
       .truncate(INTEREST_PRECISION)
   }
 

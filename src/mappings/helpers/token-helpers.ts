@@ -3,8 +3,7 @@ import { DolomiteMarginERC20 } from '../../types/MarginAdmin/DolomiteMarginERC20
 import { Token, TokenMarketIdReverseLookup } from '../../types/schema'
 import {
   CHAIN_ID,
-  isArbitrumGoerli,
-  isArbitrumMainnet,
+  isArbitrumOne,
   TEN_BI,
   USDC_ADDRESS,
   ZERO_BD,
@@ -113,10 +112,7 @@ export function initializeToken(token: Token, marketId: BigInt): void {
   token.supplyLiquidityUSD = ZERO_BD
   token.transactionCount = ZERO_BI
 
-  if (isArbitrumGoerli() && token.symbol == 'dPTSynInd') {
-    // this token says it has 18 decimals on-chain but that's incorrect
-    token.decimals = BigInt.fromI32(6)
-  } else if (isArbitrumMainnet() && token.id == USDC_ADDRESS) {
+  if (isArbitrumOne() && token.id == USDC_ADDRESS) {
     token.name = 'Bridged USDC'
     token.symbol = 'USDC.e'
   }

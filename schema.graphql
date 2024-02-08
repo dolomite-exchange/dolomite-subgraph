@@ -31,6 +31,9 @@ type DolomiteMargin @entity {
   minBorrowedValue: BigDecimal!
   maxNumberOfMarketsWithBalancesAndDebt: BigInt!
   expiryRampTime: BigInt!
+  oracleSentinel: Bytes
+  callbackGasLimit: BigInt
+  defaultAccountRiskOverrideSetter: Bytes
 
   # current liquidity across all markets
   supplyLiquidityUSD: BigDecimal!
@@ -58,6 +61,14 @@ type DolomiteMargin @entity {
   vaporizationCount: BigInt!
   zapCount: BigInt!
   vestingPositionTransferCount: BigInt!
+}
+
+type GlobalOperator @entity {
+  id: ID! # the address of the global operator
+}
+
+type SpecialAutoTrader @entity {
+  id: ID! # the address of the auto trader
 }
 
 type Token @entity {
@@ -164,6 +175,7 @@ type AmmPair @entity {
 type User @entity {
   id: ID! # the user's address
   effectiveUser: User! # the user's owner or self if an EOA (differs for IsolationMode users)
+  accountRiskOverrideSetter: Bytes
   liquidityPositions: [AmmLiquidityPosition!] @derivedFrom(field: "user")
   marginAccounts: [MarginAccount!] @derivedFrom(field: "user")
   borrowPositions: [BorrowPosition!] @derivedFrom(field: "effectiveUser")
@@ -565,7 +577,9 @@ type MarketRiskInfo @entity {
   marginPremium: BigDecimal!
   liquidationRewardPremium: BigDecimal!
   isBorrowingDisabled: Boolean!
-  supplyMaxWei: BigDecimal!
+  supplyMaxWei: BigDecimal
+  borrowMaxWei: BigDecimal
+  earningsRateOverride: BigDecimal
   oracle: Bytes! # address of the price oracle
 }
 

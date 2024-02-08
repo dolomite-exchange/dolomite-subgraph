@@ -108,22 +108,50 @@ dataSources:
           handler: handleMarketAdded
         - event: LogRemoveMarket(uint256,address)
           handler: handleMarketRemoved
-        - event: LogSetEarningsRate((uint256))
-          handler: handleEarningsRateUpdate
-        - event: LogSetMaxNumberOfMarketsWithBalancesAndDebt(uint256)
-          handler: handleSetMaxNumberOfMarketsWithBalancesAndDebt
-        - event: LogSetMarginPremium(uint256,(uint256))
-          handler: handleSetMarginPremium
-        - event: LogSetSpreadPremium(uint256,(uint256))
-          handler: handleSetLiquidationSpreadPremium
         - event: LogSetIsClosing(uint256,bool)
           handler: handleSetIsMarketClosing
-        - event: LogSetMaxWei(uint256,(bool,uint256))
-          handler: handleSetMaxWei
         - event: LogSetPriceOracle(uint256,address)
           handler: handleSetPriceOracle
         - event: LogSetInterestSetter(uint256,address)
           handler: handleSetInterestSetter
+        - event: LogSetMarginPremium(uint256,(uint256))
+          handler: handleSetMarginPremium
+        - event: LogSetSpreadPremium(uint256,(uint256))
+          handler: handleSetLiquidationSpreadPremium
+        - event: LogSetLiquidationSpreadPremium(uint256,(uint256))
+          handler: handleSetLiquidationSpreadPremiumV2
+        - event: LogSetMaxWei(uint256,(bool,uint256))
+          handler: handleSetMaxSupplyWei
+        - event: LogSetMaxSupplyWei(uint256,(bool,uint256))
+          handler: handleSetMaxSupplyWeiV2
+        - event: LogSetMaxBorrowWei(uint256,(bool,uint256))
+          handler: handleSetMaxBorrowWei
+        - event: LogSetEarningsRateOverride(uint256,(uint256))
+          handler: handleSetEarningsRateOverride
+        - event: LogSetMarginRatio((uint256))
+          handler: handleMarginRatioUpdate
+        - event: LogSetLiquidationSpread((uint256))
+          handler: handleLiquidationSpreadUpdate
+        - event: LogSetEarningsRate((uint256))
+          handler: handleEarningsRateUpdate
+        - event: LogSetMinBorrowedValue((uint256))
+          handler: handleSetMinBorrowedValue
+        - event: LogSetMaxNumberOfMarketsWithBalancesAndDebt(uint256)
+          handler: handleSetMaxNumberOfMarketsWithBalances
+        - event: LogSetAccountMaxNumberOfMarketsWithBalances(uint256)
+          handler: handleSetMaxNumberOfMarketsWithBalancesV2
+        - event: LogSetOracleSentinel(address)
+          handler: handleSetOracleSentinel
+        - event: LogSetCallbackGasLimit(uint256)
+          handler: handleSetCallbackGasLimit
+        - event: LogSetDefaultAccountRiskOverrideSetter(address)
+          handler: handleSetDefaultAccountRiskOverrideSetter
+        - event: LogSetAccountRiskOverrideSetter(address,address)
+          handler: handleSetAccountRiskOverrideSetter
+        - event: LogSetGlobalOperator(address,bool)
+          handler: handleSetGlobalOperator
+        - event: LogSetAutoTraderIsSpecial(address,bool)
+          handler: handleSetAutoTraderIsSpecial
   - kind: ethereum/contract
     name: DolomiteAmmRouter
     network: {{network}}
