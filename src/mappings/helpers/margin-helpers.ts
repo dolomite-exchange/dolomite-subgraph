@@ -1,12 +1,6 @@
 import { Address, BigDecimal, BigInt, ethereum, log, store } from '@graphprotocol/graph-ts'
 import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../../types/MarginAdmin/DolomiteMargin'
 import { DolomiteMarginExpiry as DolomiteMarginExpiryAdminProtocol } from '../../types/MarginAdmin/DolomiteMarginExpiry'
-import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../../types/MarginCore/DolomiteMargin'
-import { DolomiteMarginExpiry as DolomiteMarginExpiryCoreProtocol } from '../../types/MarginCore/DolomiteMarginExpiry'
-import { DolomiteMargin as DolomiteMarginExpiryProtocol } from '../../types/MarginExpiry/DolomiteMargin'
-import {
-  DolomiteMarginExpiry as DolomiteMarginExpiryExpiryProtocol,
-} from '../../types/MarginExpiry/DolomiteMarginExpiry'
 import {
   DolomiteMargin,
   InterestIndex,
@@ -28,6 +22,7 @@ import {
   DOLOMITE_MARGIN_ADDRESS,
   EXPIRY_ADDRESS,
   FIVE_BD,
+  isArbitrumOne,
   ONE_BD,
   ONE_BI,
   ONE_ETH_BD,
@@ -186,53 +181,14 @@ export function getOrCreateDolomiteMarginForCall(
     dolomiteMargin.marginPositionCount = ZERO_BI
     dolomiteMargin.borrowPositionCount = ZERO_BI
 
-    if (protocolType == ProtocolType.Core) {
-      let marginProtocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-      let expiryProtocol = DolomiteMarginExpiryCoreProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
-      let riskParams = marginProtocol.getRiskParams()
-
-      let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
-      let liquidationRewardBD = new BigDecimal(riskParams.liquidationSpread.value)
-      let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
-      let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
-
-      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
-        .plus(ONE_BD)
-      dolomiteMargin.liquidationReward = liquidationRewardBD.div(ONE_ETH_BD)
-        .plus(ONE_BD)
-      dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
-      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
-        .div(ONE_ETH_BD)
-      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = riskParams.maxNumberOfMarketsWithBalancesAndDebt
-      dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
-    } else if (protocolType == ProtocolType.Admin) {
+    if (protocolType == ProtocolType.Admin) {
       let marginProtocol = DolomiteMarginAdminProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
       let expiryProtocol = DolomiteMarginExpiryAdminProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
-      let riskParams = marginProtocol.getRiskParams()
 
-      let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
-      let liquidationRewardBD = new BigDecimal(riskParams.liquidationSpread.value)
-      let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
-      let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
-
-      dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
-        .plus(ONE_BD)
-      dolomiteMargin.liquidationReward = liquidationRewardBD.div(ONE_ETH_BD)
-        .plus(ONE_BD)
-      dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
-      dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
-        .div(ONE_ETH_BD)
-      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = riskParams.maxNumberOfMarketsWithBalancesAndDebt
-      dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
-    } else {
-      let marginProtocol = DolomiteMarginExpiryProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-      let expiryProtocol = DolomiteMarginExpiryExpiryProtocol.bind(Address.fromString(EXPIRY_ADDRESS))
-      let riskParams = marginProtocol.getRiskParams()
-
-      let liquidationRatioBD = new BigDecimal(riskParams.marginRatio.value)
-      let liquidationRewardBD = new BigDecimal(riskParams.liquidationSpread.value)
-      let earningsRateBD = new BigDecimal(riskParams.earningsRate.value)
-      let minBorrowedValueBD = new BigDecimal(riskParams.minBorrowedValue.value)
+      let liquidationRatioBD = new BigDecimal(marginProtocol.getMarginRatio().value)
+      let liquidationRewardBD = new BigDecimal(marginProtocol.getLiquidationSpread().value)
+      let earningsRateBD = new BigDecimal(marginProtocol.getEarningsRate().value)
+      let minBorrowedValueBD = new BigDecimal(marginProtocol.getMinBorrowedValue().value)
 
       dolomiteMargin.liquidationRatio = liquidationRatioBD.div(ONE_ETH_BD)
         .plus(ONE_BD)
@@ -241,8 +197,20 @@ export function getOrCreateDolomiteMarginForCall(
       dolomiteMargin.earningsRate = earningsRateBD.div(ONE_ETH_BD)
       dolomiteMargin.minBorrowedValue = minBorrowedValueBD.div(ONE_ETH_BD)
         .div(ONE_ETH_BD)
-      dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = riskParams.maxNumberOfMarketsWithBalancesAndDebt
-      dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
+      dolomiteMargin.accountMaxNumberOfMarketsWithBalances = marginProtocol.getAccountMaxNumberOfMarketsWithBalances()
+
+      if (!isArbitrumOne()) {
+        dolomiteMargin.oracleSentinel = marginProtocol.getOracleSentinel()
+        dolomiteMargin.callbackGasLimit = marginProtocol.getCallbackGasLimit()
+        dolomiteMargin.defaultAccountRiskOverrideSetter = marginProtocol.getDefaultAccountRiskOverrideSetter()
+      }
+
+      let result = expiryProtocol.try_g_expiryRampTime()
+      if (!result.reverted) {
+        dolomiteMargin.expiryRampTime = result.value
+      } else {
+        dolomiteMargin.expiryRampTime = ZERO_BI
+      }
     }
 
     dolomiteMargin.totalBorrowVolumeUSD = ZERO_BD
@@ -436,7 +404,7 @@ export function handleDolomiteMarginBalanceUpdateForAccount(
     if (deltaPar.gt(ZERO_BD) && deltaPar.gt(absBD(tokenValue.valuePar))) {
       // Range bound the deltaPar to the tokenValue.valuePar
       effectiveUserTokenValue.totalBorrowPar = effectiveUserTokenValue.totalBorrowPar.minus(
-        absBD(tokenValue.valuePar)
+        absBD(tokenValue.valuePar),
       )
 
       let supplyDelta = deltaPar.minus(absBD(tokenValue.valuePar))

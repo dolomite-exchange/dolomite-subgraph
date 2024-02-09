@@ -1,5 +1,5 @@
-specVersion: 0.0.2
-description: Dolomite is a decentralized exchange for margin trading tokens using AMM pools.
+specVersion: 1.0.0
+description: Dolomite is a next-gen lending platform for L2s
 repository: https://github.com/dolomite-exchange/dolomite-subgraph
 #features:
 #  - grafting
@@ -136,10 +136,8 @@ dataSources:
           handler: handleEarningsRateUpdate
         - event: LogSetMinBorrowedValue((uint256))
           handler: handleSetMinBorrowedValue
-        - event: LogSetMaxNumberOfMarketsWithBalancesAndDebt(uint256)
-          handler: handleSetMaxNumberOfMarketsWithBalances
         - event: LogSetAccountMaxNumberOfMarketsWithBalances(uint256)
-          handler: handleSetMaxNumberOfMarketsWithBalancesV2
+          handler: handleSetMaxNumberOfMarketsWithBalances
         - event: LogSetOracleSentinel(address)
           handler: handleSetOracleSentinel
         - event: LogSetCallbackGasLimit(uint256)

@@ -29,7 +29,7 @@ type DolomiteMargin @entity {
   liquidationReward: BigDecimal!
   earningsRate: BigDecimal!
   minBorrowedValue: BigDecimal!
-  maxNumberOfMarketsWithBalancesAndDebt: BigInt!
+  accountMaxNumberOfMarketsWithBalances: BigInt!
   expiryRampTime: BigInt!
   oracleSentinel: Bytes
   callbackGasLimit: BigInt

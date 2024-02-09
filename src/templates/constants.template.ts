@@ -9,7 +9,12 @@ import {
 } from '@graphprotocol/graph-ts'
 
 export const MAINNET_NETWORK = 'mainnet'
+
 export const ARBITRUM_ONE_NETWORK = 'arbitrum-one'
+
+export const BASE_NETWORK = 'base'
+
+export const POLYGON_ZKEVM_NETWORK = 'polygon-zkevm'
 
 export const ZERO_BYTES = Bytes.empty()
 
@@ -103,6 +108,8 @@ export const USDT_WETH_PAIR = '{{wethUsdtAddress}}'.toLowerCase()
 export const CHAIN_IDS: TypedMap<string, BigInt> = new TypedMap<string, BigInt>()
 CHAIN_IDS.set(MAINNET_NETWORK, BigInt.fromI32(1))
 CHAIN_IDS.set(ARBITRUM_ONE_NETWORK, BigInt.fromI32(42161))
+CHAIN_IDS.set(BASE_NETWORK, BigInt.fromI32(8453))
+CHAIN_IDS.set(POLYGON_ZKEVM_NETWORK, BigInt.fromI32(1101))
 
 const WHITELISTS: TypedMap<string, string[]> = new TypedMap<string, string[]>()
 WHITELISTS.set(ARBITRUM_ONE_NETWORK, [
@@ -113,6 +120,8 @@ WHITELISTS.set(ARBITRUM_ONE_NETWORK, [
   WBTC_ADDRESS,
   LINK_ADDRESS,
 ])
+WHITELISTS.set(BASE_NETWORK, [])
+WHITELISTS.set(POLYGON_ZKEVM_NETWORK, [])
 export const WHITELIST: string[] = WHITELISTS.get(NETWORK) as string[]
 
 export const CHAIN_ID: i32 = (CHAIN_IDS.get(NETWORK) as BigInt).toI32()

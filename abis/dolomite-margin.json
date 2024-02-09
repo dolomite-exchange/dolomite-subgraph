@@ -1,5 +1,44 @@
 [
   {
+    "inputs": [],
+    "name": "getDefaultAccountRiskOverrideSetter",
+    "outputs": [
+      {
+        "internalType": "contract IDolomiteAccountRiskOverrideSetter",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCallbackGasLimit",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getOracleSentinel",
+    "outputs": [
+      {
+        "internalType": "contract IDolomiteOracleSentinel",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -17,12 +56,6 @@
     ],
     "name": "LogSetAccountRiskOverrideSetter",
     "type": "event"
-  },
-  {
-    "indexed": false,
-    "internalType": "contract IAccountRiskOverrideSetter",
-    "name": "accountRiskOverrideSetter",
-    "type": "address"
   },
   {
     "anonymous": false,
@@ -49,6 +82,19 @@
     ],
     "name": "LogSetDefaultAccountRiskOverrideSetter",
     "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "getAccountMaxNumberOfMarketsWithBalances",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
     "anonymous": false,
@@ -176,110 +222,6 @@
     ],
     "name": "LogSetEarningsRateOverride",
     "type": "event"
-  },
-  {
-    "inputs": [
-      {
-        "components": [
-          {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Decimal.D256",
-            "name": "marginRatio",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Decimal.D256",
-            "name": "liquidationSpread",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Decimal.D256",
-            "name": "earningsRate",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Monetary.Value",
-            "name": "minBorrowedValue",
-            "type": "tuple"
-          },
-          {
-            "internalType": "uint256",
-            "name": "maxNumberOfMarketsWithBalancesAndDebt",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.RiskParams",
-        "name": "riskParams",
-        "type": "tuple"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint64",
-            "name": "marginRatioMax",
-            "type": "uint64"
-          },
-          {
-            "internalType": "uint64",
-            "name": "liquidationSpreadMax",
-            "type": "uint64"
-          },
-          {
-            "internalType": "uint64",
-            "name": "earningsRateMax",
-            "type": "uint64"
-          },
-          {
-            "internalType": "uint64",
-            "name": "marginPremiumMax",
-            "type": "uint64"
-          },
-          {
-            "internalType": "uint64",
-            "name": "spreadPremiumMax",
-            "type": "uint64"
-          },
-          {
-            "internalType": "uint128",
-            "name": "minBorrowedValueMax",
-            "type": "uint128"
-          }
-        ],
-        "internalType": "struct Storage.RiskLimits",
-        "name": "riskLimits",
-        "type": "tuple"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "constructor"
   },
   {
     "anonymous": false,
@@ -1569,21 +1511,6 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "getMaxNumberOfMarketsWithBalancesAndDebt",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
     "name": "getMinBorrowedValue",
     "outputs": [
       {
@@ -1744,76 +1671,6 @@
           }
         ],
         "internalType": "struct Storage.RiskLimits",
-        "name": "",
-        "type": "tuple"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "getRiskParams",
-    "outputs": [
-      {
-        "components": [
-          {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Decimal.D256",
-            "name": "marginRatio",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Decimal.D256",
-            "name": "liquidationSpread",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Decimal.D256",
-            "name": "earningsRate",
-            "type": "tuple"
-          },
-          {
-            "components": [
-              {
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256"
-              }
-            ],
-            "internalType": "struct Monetary.Value",
-            "name": "minBorrowedValue",
-            "type": "tuple"
-          },
-          {
-            "internalType": "uint256",
-            "name": "maxNumberOfMarketsWithBalancesAndDebt",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.RiskParams",
         "name": "",
         "type": "tuple"
       }
@@ -2200,21 +2057,6 @@
       }
     ],
     "name": "ownerSetMarginRatio",
-    "outputs": [],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "maxNumberOfMarketsWithBalancesAndDebt",
-        "type": "uint256"
-      }
-    ],
-    "name": "ownerSetMaxNumberOfMarketsWithBalancesAndDebt",
     "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
@@ -3816,19 +3658,6 @@
       }
     ],
     "name": "LogSetMarginRatio",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "maxNumberOfMarketsWithBalancesAndDebt",
-        "type": "uint256"
-      }
-    ],
-    "name": "LogSetMaxNumberOfMarketsWithBalancesAndDebt",
     "type": "event"
   },
   {

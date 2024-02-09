@@ -16,8 +16,7 @@ import {
   LogSetMaxBorrowWei as MaxBorrowWeiUpdateEvent,
   LogSetEarningsRateOverride as EarningsRateOverrideUpdateEvent,
   LogSetMarginRatio as MarginRatioUpdateEvent,
-  LogSetMaxNumberOfMarketsWithBalancesAndDebt as MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent,
-  LogSetAccountMaxNumberOfMarketsWithBalances as MaxNumberOfMarketsWithBalancesAndDebtUpdateEventV2,
+  LogSetAccountMaxNumberOfMarketsWithBalances as MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent,
   LogSetMinBorrowedValue as MinBorrowedValueUpdateEvent,
   LogSetPriceOracle as PriceOracleUpdateEvent,
   LogSetOracleSentinel as OracleSentinelUpdateEvent,
@@ -40,7 +39,7 @@ import {
 import {
   _18_BI,
   ADDRESS_ZERO,
-  DOLOMITE_MARGIN_ADDRESS,
+  DOLOMITE_MARGIN_ADDRESS, EXPIRY_ADDRESS,
   INTEREST_PRECISION,
   ONE_BD,
   ONE_ETH_BD,
@@ -58,6 +57,7 @@ import {
 import { convertTokenToDecimal, initializeToken } from './helpers/token-helpers'
 import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 import { createUserIfNecessary } from './helpers/user-helpers'
+import { DolomiteMarginExpiry } from '../types/MarginAdmin/DolomiteMarginExpiry'
 
 export function handleMarketAdded(event: AddMarketEvent): void {
   log.info(
@@ -393,20 +393,7 @@ export function handleSetMaxNumberOfMarketsWithBalances(
   )
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = event.params.maxNumberOfMarketsWithBalancesAndDebt
-  dolomiteMargin.save()
-}
-
-export function handleSetMaxNumberOfMarketsWithBalancesV2(
-  event: MaxNumberOfMarketsWithBalancesAndDebtUpdateEventV2,
-): void {
-  log.info(
-    'Handling max # of markets with balances and debt change for hash and index: {}-{}',
-    [event.transaction.hash.toHexString(), event.logIndex.toString()],
-  )
-
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
-  dolomiteMargin.maxNumberOfMarketsWithBalancesAndDebt = event.params.accountMaxNumberOfMarketsWithBalances
+  dolomiteMargin.accountMaxNumberOfMarketsWithBalances = event.params.accountMaxNumberOfMarketsWithBalances
   dolomiteMargin.save()
 }
 
@@ -493,6 +480,12 @@ export function handleSetAutoTraderIsSpecial(event: AutoTraderIsSpecialUpdateEve
     if (autoTrader === null) {
       autoTrader = new SpecialAutoTrader(event.params.autoTrader.toHexString())
       autoTrader.save()
+    }
+    if (autoTrader.id == EXPIRY_ADDRESS) {
+      let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
+      let expiryProtocol = DolomiteMarginExpiry.bind(Address.fromString(EXPIRY_ADDRESS))
+      dolomiteMargin.expiryRampTime = expiryProtocol.g_expiryRampTime()
+      dolomiteMargin.save()
     }
   }
 }
