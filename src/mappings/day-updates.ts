@@ -105,7 +105,7 @@ function setupDolomiteHourData(dolomiteHourData: DolomiteHourData): DolomiteHour
 }
 
 export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
-  let factory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
+  let factory = AmmFactory.load(FACTORY_ADDRESS)
   let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
   let dayId = getDayId(event.block.timestamp)
 
@@ -116,16 +116,22 @@ export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
   }
 
   // ## Daily Liquidity
-  dolomiteDayData.ammLiquidityUSD = factory.ammLiquidityUSD
   dolomiteDayData.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD
   dolomiteDayData.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD
 
   // ## Total Counts
   dolomiteDayData.totalAllTransactionCount = dolomiteMargin.transactionCount
-  dolomiteDayData.totalAmmTradeCount = factory.transactionCount
   dolomiteDayData.totalLiquidationCount = dolomiteMargin.liquidationCount
   dolomiteDayData.totalTradeCount = dolomiteMargin.tradeCount
   dolomiteDayData.totalVaporizationCount = dolomiteMargin.vaporizationCount
+
+  if (factory) {
+    dolomiteDayData.ammLiquidityUSD = factory.ammLiquidityUSD
+    dolomiteDayData.totalAmmTradeCount = factory.transactionCount
+  } else {
+    dolomiteDayData.ammLiquidityUSD = ZERO_BD
+    dolomiteDayData.totalAmmTradeCount = ZERO_BI
+  }
 
   dolomiteDayData.save()
 
@@ -133,7 +139,7 @@ export function updateDolomiteDayData(event: ethereum.Event): DolomiteDayData {
 }
 
 export function updateDolomiteHourData(event: ethereum.Event): DolomiteHourData {
-  let factory = AmmFactory.load(FACTORY_ADDRESS) as AmmFactory
+  let factory = AmmFactory.load(FACTORY_ADDRESS)
   let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
   let hourId = getHourId(event.block.timestamp)
 
@@ -144,16 +150,22 @@ export function updateDolomiteHourData(event: ethereum.Event): DolomiteHourData 
   }
 
   // ## Hourly Liquidity
-  dolomiteHourData.ammLiquidityUSD = factory.ammLiquidityUSD
   dolomiteHourData.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD
   dolomiteHourData.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD
 
   // ## Total Counts
   dolomiteHourData.totalAllTransactionCount = dolomiteMargin.transactionCount
-  dolomiteHourData.totalAmmTradeCount = factory.transactionCount
   dolomiteHourData.totalLiquidationCount = dolomiteMargin.liquidationCount
   dolomiteHourData.totalTradeCount = dolomiteMargin.tradeCount
   dolomiteHourData.totalVaporizationCount = dolomiteMargin.vaporizationCount
+
+  if (factory) {
+    dolomiteHourData.ammLiquidityUSD = factory.ammLiquidityUSD
+    dolomiteHourData.totalAmmTradeCount = factory.transactionCount
+  } else {
+    dolomiteHourData.ammLiquidityUSD = ZERO_BD
+    dolomiteHourData.totalAmmTradeCount = ZERO_BI
+  }
 
   dolomiteHourData.save()
 
