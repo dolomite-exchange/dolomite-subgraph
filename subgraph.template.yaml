@@ -274,7 +274,7 @@ dataSources:
           handler: handleAsyncDepositCancelled
         - event: AsyncDepositCancelledFailed(indexed bytes32,indexed address,string)
           handler: handleAsyncDepositCancelledFailed
-        - event: AsyncWithdrawalCreated(indexed bytes32,indexed address,(bytes32,address,uint256,uint256,address,uint256,bool))
+        - event: AsyncWithdrawalCreated(indexed bytes32,indexed address,(bytes32,address,uint256,uint256,address,uint256,bool,bool,bytes))
           handler: handleAsyncWithdrawalCreated
         - event: AsyncWithdrawalOutputAmountUpdated(indexed bytes32,indexed address,uint256)
           handler: handleAsyncWithdrawalOutputAmountUpdated

@@ -924,6 +924,8 @@ type AsyncWithdrawal @entity {
   minOutputAmount: BigDecimal!
   outputAmount: BigDecimal!
   isRetryable: Boolean!
+  isLiquidation: Boolean!
+  extraData: Bytes!
 }
 
 type LiquidityMiningVestingPosition @entity {

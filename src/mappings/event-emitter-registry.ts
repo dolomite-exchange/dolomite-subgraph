@@ -42,7 +42,7 @@ export function handleAsyncDepositCreated(event: AsyncDepositCreatedEvent): void
   deposit.outputToken = outputToken.id
   deposit.minOutputAmount = convertTokenToDecimal(event.params.deposit.outputAmount, outputToken.decimals)
   deposit.outputAmount = convertTokenToDecimal(event.params.deposit.outputAmount, outputToken.decimals)
-  deposit.isRetryable = false
+  deposit.isRetryable = event.params.deposit.isRetryable
   deposit.save()
 }
 
@@ -56,14 +56,12 @@ export function handleAsyncDepositOutputAmountUpdated(event: AsyncDepositOutputA
 export function handleAsyncDepositExecuted(event: AsyncDepositExecutedEvent): void {
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
   deposit.status = AsyncDepositStatus.DEPOSIT_EXECUTED
-  deposit.isRetryable = false
   deposit.save()
 }
 
 export function handleAsyncDepositFailed(event: AsyncDepositFailedEvent): void {
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
   deposit.status = AsyncDepositStatus.DEPOSIT_FAILED
-  deposit.isRetryable = false
   deposit.save()
 }
 
@@ -77,12 +75,12 @@ export function handleAsyncDepositCancelled(event: AsyncDepositCancelledEvent): 
 export function handleAsyncDepositCancelledFailed(event: AsyncDepositCancelledFailedEvent): void {
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
   deposit.status = AsyncDepositStatus.DEPOSIT_CANCELLED_FAILED
-  deposit.isRetryable = false
+  deposit.isRetryable = true
   deposit.save()
 }
 
 export function handleAsyncWithdrawalCreated(event: AsyncWithdrawalCreatedEvent): void {
-  let withdrawal = new AsyncDeposit(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key))
+  let withdrawal = new AsyncWithdrawal(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key))
   let inputToken = Token.load(event.params.token.toHexString()) as Token
   let outputToken = Token.load(event.params.withdrawal.outputToken.toHexString()) as Token
 
@@ -102,7 +100,9 @@ export function handleAsyncWithdrawalCreated(event: AsyncWithdrawalCreatedEvent)
   withdrawal.outputToken = outputToken.id
   withdrawal.minOutputAmount = convertTokenToDecimal(event.params.withdrawal.outputAmount, outputToken.decimals)
   withdrawal.outputAmount = convertTokenToDecimal(event.params.withdrawal.outputAmount, outputToken.decimals)
-  withdrawal.isRetryable = false
+  withdrawal.isRetryable = event.params.withdrawal.isRetryable
+  withdrawal.isLiquidation = event.params.withdrawal.isLiquidation
+  withdrawal.extraData = event.params.withdrawal.extraData
   withdrawal.save()
 }
 
@@ -141,7 +141,6 @@ export function handleAsyncWithdrawalCancelled(event: AsyncWithdrawalCancelledEv
     event.params.token,
     event.params.key,
   )) as AsyncWithdrawal
-  withdrawal.status = AsyncWithdrawalStatus.WITHDRAWAL_EXECUTION_FAILED
-  withdrawal.isRetryable = false
+  withdrawal.status = AsyncWithdrawalStatus.WITHDRAWAL_CANCELLED
   withdrawal.save()
 }

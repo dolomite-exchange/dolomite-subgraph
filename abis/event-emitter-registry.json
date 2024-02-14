@@ -244,6 +244,16 @@
             "internalType": "bool",
             "name": "isRetryable",
             "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "isLiquidation",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes",
+            "name": "extraData",
+            "type": "bytes"
           }
         ],
         "indexed": false,
@@ -328,27 +338,399 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "internalType": "uint8",
-        "name": "version",
-        "type": "uint8"
+        "indexed": true,
+        "internalType": "address",
+        "name": "borrower",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "borrowAccountNumber",
+        "type": "uint256"
       }
     ],
-    "name": "Initialized",
+    "name": "BorrowPositionOpen",
     "type": "event"
   },
   {
-    "inputs": [],
-    "name": "DOLOMITE_MARGIN",
-    "outputs": [
+    "anonymous": false,
+    "inputs": [
       {
-        "internalType": "contract IDolomiteMargin",
-        "name": "",
+        "indexed": true,
+        "internalType": "address",
+        "name": "accountOwner",
         "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "accountNumber",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "inputToken",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "outputToken",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "withdrawalToken",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "inputBalanceUpdate",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "outputBalanceUpdate",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "marginWithdrawalUpdate",
+        "type": "tuple"
       }
     ],
-    "stateMutability": "view",
-    "type": "function"
+    "name": "MarginPositionClose",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "accountOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "accountNumber",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "inputToken",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "outputToken",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "depositToken",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "inputBalanceUpdate",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "outputBalanceUpdate",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "marginDepositUpdate",
+        "type": "tuple"
+      }
+    ],
+    "name": "MarginPositionOpen",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "accountOwner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "accountNumber",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "marketIdsPath",
+        "type": "uint256[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "enum IGenericTraderBase.TraderType",
+            "name": "traderType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "makerAccountIndex",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "trader",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes",
+            "name": "tradeData",
+            "type": "bytes"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct IGenericTraderBase.TraderParam[]",
+        "name": "tradersPath",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "ZapExecuted",
+    "type": "event"
   },
   {
     "inputs": [
@@ -581,6 +963,16 @@
             "internalType": "bool",
             "name": "isRetryable",
             "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "isLiquidation",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes",
+            "name": "extraData",
+            "type": "bytes"
           }
         ],
         "internalType": "struct IUpgradeableAsyncIsolationModeUnwrapperTrader.WithdrawalInfo",
@@ -658,8 +1050,381 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "initialize",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_accountOwner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_accountNumber",
+        "type": "uint256"
+      }
+    ],
+    "name": "emitBorrowPositionOpen",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_accountOwner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_accountNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_inputToken",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_outputToken",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_withdrawalToken",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "_inputBalanceUpdate",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "_outputBalanceUpdate",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "_marginWithdrawalUpdate",
+        "type": "tuple"
+      }
+    ],
+    "name": "emitMarginPositionClose",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_accountOwner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_accountNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_inputToken",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_outputToken",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_depositToken",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "_inputBalanceUpdate",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "_outputBalanceUpdate",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Wei",
+            "name": "deltaWei",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bool",
+                "name": "sign",
+                "type": "bool"
+              },
+              {
+                "internalType": "uint128",
+                "name": "value",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct IDolomiteStructs.Par",
+            "name": "newPar",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct IEventEmitterRegistry.BalanceUpdate",
+        "name": "_marginDepositUpdate",
+        "type": "tuple"
+      }
+    ],
+    "name": "emitMarginPositionOpen",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_accountOwner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_accountNumber",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "_marketIdsPath",
+        "type": "uint256[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "enum IGenericTraderBase.TraderType",
+            "name": "traderType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "makerAccountIndex",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "trader",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes",
+            "name": "tradeData",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct IGenericTraderBase.TraderParam[]",
+        "name": "_tradersPath",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "emitZapExecuted",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
