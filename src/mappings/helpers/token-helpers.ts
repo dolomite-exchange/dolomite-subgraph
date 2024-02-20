@@ -3,7 +3,7 @@ import { DolomiteMarginERC20 } from '../../types/MarginAdmin/DolomiteMarginERC20
 import { Token, TokenMarketIdReverseLookup } from '../../types/schema'
 import {
   CHAIN_ID,
-  isArbitrumOne,
+  isArbitrumOne, isPolygonZkEvm,
   TEN_BI,
   USDC_ADDRESS,
   ZERO_BD,
@@ -115,6 +115,9 @@ export function initializeToken(token: Token, marketId: BigInt): void {
   if (isArbitrumOne() && token.id == USDC_ADDRESS) {
     token.name = 'Bridged USDC'
     token.symbol = 'USDC.e'
+  } else if (isPolygonZkEvm() && token.id == USDC_ADDRESS) {
+    token.name = 'Bridged USDC'
+    token.symbol = 'USDC.E'
   }
 
   // dfsGLP doesn't have the "Dolomite Isolation:" prefix, so it's an edge-case

@@ -389,7 +389,6 @@ type TokenHourData @entity {
   hourlyVaporizationCount: BigInt!
 
   # Price stats
-  ammPriceUSD: BigDecimal!
   openPriceUSD: BigDecimal!
   highPriceUSD: BigDecimal!
   lowPriceUSD: BigDecimal!
@@ -434,7 +433,6 @@ type TokenDayData @entity {
   dailyVaporizationCount: BigInt!
 
   # Price stats
-  ammPriceUSD: BigDecimal!
   openPriceUSD: BigDecimal!
   highPriceUSD: BigDecimal!
   lowPriceUSD: BigDecimal!

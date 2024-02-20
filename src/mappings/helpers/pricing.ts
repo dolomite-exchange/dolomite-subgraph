@@ -8,7 +8,10 @@ import {
 import { DolomiteMargin as DolomiteMarginAdminProtocol } from '../../types/MarginAdmin/DolomiteMargin'
 import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../../types/MarginCore/DolomiteMargin'
 import { DolomiteMargin as DolomiteMarginExpiryProtocol } from '../../types/MarginExpiry/DolomiteMargin'
-import { DolomiteMargin as DolomiteMarginPositionProtocol } from '../../types/DolomiteAmmRouter/DolomiteMargin'
+import {
+  DolomiteMargin as DolomiteMarginPositionProtocol,
+  DolomiteMargin__getMarketPriceResultValue0Struct,
+} from '../../types/DolomiteAmmRouter/DolomiteMargin'
 import { DolomiteMargin as DolomiteMarginZapProtocol } from '../../types/Zap/DolomiteMargin'
 import {
   AmmPair,
@@ -28,7 +31,6 @@ import {
   WETH_USDC_ADDRESS,
   WHITELIST,
   ZERO_BD,
-  ZERO_BI
 } from '../generated/constants'
 import { ProtocolType } from './margin-types'
 import { convertTokenToDecimal } from './token-helpers'
@@ -95,39 +97,50 @@ let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('10000')
 // minimum liquidity for price to get tracked
 let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
 
+function convertPriceToDecimal(rawPrice: BigInt, token: Token): BigDecimal {
+  return convertTokenToDecimal(rawPrice, BigInt.fromI32(36 - token.decimals.toI32()))
+}
+
 export function getTokenOraclePriceUSD(token: Token, event: ethereum.Event, protocolType: string): BigDecimal {
   let oraclePrice = OraclePrice.load(token.id) as OraclePrice
   if (oraclePrice.blockHash.equals(event.block.hash)) {
     return oraclePrice.price
   } else {
     log.info(
-      'Getting oracle price for block number {} with hash {}',
-      [event.block.number.toString(), event.block.hash.toHexString()]
+      'Getting oracle price for block number {} with hash {} for token {}',
+      [event.block.number.toString(), event.block.hash.toHexString(), token.id]
     )
-    let tokenAmountBI: BigInt
+    let price: BigDecimal
     if (protocolType == ProtocolType.Core) {
       let marginProtocol = DolomiteMarginCoreProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+      let call = marginProtocol.try_getMarketPrice(token.marketId)
+      price = call.reverted ? oraclePrice.price : convertPriceToDecimal(call.value.value, token)
     } else if (protocolType == ProtocolType.Admin) {
       let marginProtocol = DolomiteMarginAdminProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+      let call = marginProtocol.try_getMarketPrice(token.marketId)
+      price = call.reverted ? oraclePrice.price : convertPriceToDecimal(call.value.value, token)
     } else if (protocolType == ProtocolType.Expiry) {
       let marginProtocol = DolomiteMarginExpiryProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+      let call = marginProtocol.try_getMarketPrice(token.marketId)
+      price = call.reverted ? oraclePrice.price : convertPriceToDecimal(call.value.value, token)
     } else if (protocolType == ProtocolType.Amm) {
       let marginProtocol = DolomiteMarginAmmProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+      let call = marginProtocol.try_getMarketPrice(token.marketId)
+      price = call.reverted ? oraclePrice.price : convertPriceToDecimal(call.value.value, token)
     } else if (protocolType == ProtocolType.Position) {
       let marginProtocol = DolomiteMarginPositionProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+      let call = marginProtocol.try_getMarketPrice(token.marketId)
+      price = call.reverted ? oraclePrice.price : convertPriceToDecimal(call.value.value, token)
     } else if (protocolType == ProtocolType.Position) {
       let marginProtocol = DolomiteMarginZapProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
-      tokenAmountBI = marginProtocol.getMarketPrice(token.marketId).value
+      let call = marginProtocol.try_getMarketPrice(token.marketId)
+      price = call.reverted ? oraclePrice.price : convertPriceToDecimal(call.value.value, token)
     } else {
-      log.error('Invalid protocol type, found {}', [protocolType])
-      tokenAmountBI = ZERO_BI
+      log.critical('Invalid protocol type, found {}', [protocolType])
+      price = ZERO_BD
     }
-    oraclePrice.price = convertTokenToDecimal(tokenAmountBI, BigInt.fromI32(36 - token.decimals.toI32()))
+
+    oraclePrice.price = price
     oraclePrice.blockHash = event.block.hash
     oraclePrice.blockNumber = event.block.number
     oraclePrice.save()

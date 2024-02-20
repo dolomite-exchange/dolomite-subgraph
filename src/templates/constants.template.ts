@@ -133,3 +133,7 @@ if (WHITELIST.filter(value => value.toLowerCase() == ADDRESS_ZERO || value.lengt
 export function isArbitrumOne(): boolean {
   return NETWORK == ARBITRUM_ONE_NETWORK
 }
+
+export function isPolygonZkEvm(): boolean {
+  return NETWORK == POLYGON_ZKEVM_NETWORK
+}

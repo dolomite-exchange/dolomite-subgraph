@@ -288,7 +288,6 @@ function setupTokenHourData(
     tokenHourData.openPriceUSD = previousHourToken.closePriceUSD
   }
 
-  tokenHourData.ammPriceUSD = ZERO_BD
   tokenHourData.highPriceUSD = tokenHourData.openPriceUSD
   tokenHourData.lowPriceUSD = tokenHourData.openPriceUSD
   tokenHourData.closePriceUSD = tokenHourData.openPriceUSD
@@ -297,8 +296,6 @@ function setupTokenHourData(
 }
 
 export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Event): TokenHourData {
-  let ethToken = Token.load(WETH_ADDRESS) as Token
-  let ethPriceUSD = getTokenOraclePriceUSD(ethToken, event, ProtocolType.Amm)
   let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Amm)
   let hourId = getHourId(event.block.timestamp)
   let tokenHourID = `${token.id}-${hourId}`
@@ -315,7 +312,6 @@ export function updateTokenHourDataForAmmEvent(token: Token, event: ethereum.Eve
     )
   }
 
-  tokenHourData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(USD_PRECISION)
   tokenHourData.ammLiquidityToken = token.ammTradeLiquidity
   tokenHourData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
   tokenHourData.hourlyAllTransactionCount = tokenHourData.hourlyAllTransactionCount.plus(ONE_BI)
@@ -385,7 +381,6 @@ function setupTokenDayData(
     tokenDayData.openPriceUSD = previousHourToken.closePriceUSD
   }
 
-  tokenDayData.ammPriceUSD = ZERO_BD
   tokenDayData.highPriceUSD = tokenDayData.openPriceUSD
   tokenDayData.lowPriceUSD = tokenDayData.openPriceUSD
   tokenDayData.closePriceUSD = tokenDayData.openPriceUSD
@@ -394,8 +389,6 @@ function setupTokenDayData(
 }
 
 export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Event): TokenDayData {
-  let ethToken = Token.load(WETH_ADDRESS) as Token
-  let ethPriceUSD = getTokenOraclePriceUSD(ethToken, event, ProtocolType.Amm)
   let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Amm)
   let dayId = getDayId(event.block.timestamp)
   let tokenDayID = `${token.id}-${dayId}`
@@ -406,7 +399,6 @@ export function updateTokenDayDataForAmmEvent(token: Token, event: ethereum.Even
     setupTokenDayData(tokenDayData as TokenDayData, BigInt.fromString(dayId).toI32(), token, event, ProtocolType.Amm)
   }
 
-  tokenDayData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(USD_PRECISION)
   tokenDayData.ammLiquidityToken = token.ammTradeLiquidity
   tokenDayData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
   tokenDayData.dailyAllTransactionCount = tokenDayData.dailyAllTransactionCount.plus(ONE_BI)
@@ -430,12 +422,9 @@ export function updateAndReturnTokenHourDataForMarginEvent(token: Token, event: 
       ProtocolType.Core,
     )
 
-    let ethToken = Token.load(WETH_ADDRESS) as Token
-    let ethPriceUSD = getTokenOraclePriceUSD(ethToken, event, ProtocolType.Core)
     let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
 
     // Initialize the AMM data
-    tokenHourData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(USD_PRECISION)
     tokenHourData.ammLiquidityToken = token.ammTradeLiquidity
     tokenHourData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
   }
@@ -462,12 +451,9 @@ export function updateAndReturnTokenDayDataForMarginEvent(token: Token, event: e
     tokenDayData = new TokenDayData(tokenDayID)
     setupTokenDayData(tokenDayData as TokenDayData, BigInt.fromString(dayId).toI32(), token, event, ProtocolType.Core)
 
-    let ethToken = Token.load(WETH_ADDRESS) as Token
-    let ethPriceUSD = getTokenOraclePriceUSD(ethToken, event, ProtocolType.Core)
     let tokenPriceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
 
     // Initialize the AMM data
-    tokenDayData.ammPriceUSD = (token.derivedETH as BigDecimal).times(ethPriceUSD).truncate(USD_PRECISION)
     tokenDayData.ammLiquidityToken = token.ammTradeLiquidity
     tokenDayData.ammLiquidityUSD = token.ammTradeLiquidity.times(tokenPriceUSD).truncate(USD_PRECISION)
   }

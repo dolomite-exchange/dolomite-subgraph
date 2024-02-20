@@ -88,8 +88,8 @@ export function handleIndexUpdate(event: IndexUpdateEvent): void {
 // noinspection JSUnusedGlobalSymbols
 export function handleOraclePriceUpdate(event: OraclePriceEvent): void {
   log.info(
-    'Handling oracle price update for hash and index: {}-{}',
-    [event.transaction.hash.toHexString(), event.logIndex.toString()],
+    'Handling oracle price update for block hash, hash and index: {}-{}-{}',
+    [event.block.hash.toHexString(), event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
   let tokenAddress = TokenMarketIdReverseLookup.load(event.params.market.toString())!.token
