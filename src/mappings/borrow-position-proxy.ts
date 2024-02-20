@@ -4,6 +4,7 @@ import { BorrowPosition, DolomiteMargin, User } from '../types/schema'
 import { getOrCreateMarginAccount } from './helpers/margin-helpers'
 import { getOrCreateTransaction } from './amm-core'
 import {
+  _100_BI,
   BORROW_POSITION_PROXY_V1_ADDRESS,
   BORROW_POSITION_PROXY_V2_ADDRESS,
   DOLOMITE_MARGIN_ADDRESS,
@@ -23,6 +24,13 @@ export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
   if (isContractUnknown(event)) {
     log.warning(
       'handleOpenBorrowPosition: event address does not match BorrowPositionProxy or EventEmitterRegistry address',
+      [],
+    )
+    return
+  }
+  if (event.params.accountIndex.lt(_100_BI)) {
+    log.warning(
+      'handleOpenBorrowPosition: attempted to open a borrow position within a Dolomite Balance',
       [],
     )
     return
