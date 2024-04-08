@@ -203,6 +203,7 @@ type User @entity {
   totalZapCount: BigInt!
 
   isEffectiveUser: Boolean!
+  isolationModeVault: IsolationModeVaultReverseLookup @derivedFrom(field: "vault")
 }
 
 type UserParValue @entity {
