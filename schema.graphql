@@ -959,7 +959,8 @@ type LiquidityMiningVestingPositionTransfer @entity {
 }
 
 type LiquidityMiningClaim @entity {
-  id: ID! # Defined as "user-epoch"
+  id: ID! # Defined as "distributor-user-epoch"
+  distributor: Bytes!
   user: User!
   epoch: Int!
   seasonNumber: Int!
@@ -967,7 +968,8 @@ type LiquidityMiningClaim @entity {
 }
 
 type LiquidityMiningSeason @entity {
-  id: ID! # Defined as "user-seasonNumber"
+  id: ID! # Defined as "distributor-user-seasonNumber"
+  distributor: Bytes!
   user: User!
   seasonNumber: Int!
   totalClaimAmount: BigDecimal!

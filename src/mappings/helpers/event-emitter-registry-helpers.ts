@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types,@typescript-eslint/camelcase */
-import { Address, Bytes } from '@graphprotocol/graph-ts'
+import { Address, BigInt, Bytes } from '@graphprotocol/graph-ts'
 
 export class AsyncDepositStatus {
   public static CREATED: string = 'CREATED'
@@ -16,7 +16,10 @@ export class AsyncWithdrawalStatus {
   public static WITHDRAWAL_CANCELLED: string = 'WITHDRAWAL_CANCELLED'
 }
 
-
 export function getAsyncDepositOrWithdrawalKey(token: Address, key: Bytes): string {
   return `${token.toHexString()}-${key.toHexString()}`
+}
+
+export function getRewardClaimerKey(distributor: Address, user: Address, epoch: BigInt): string {
+  return `${distributor.toHexString()}-${user.toHexString()}-${epoch.toString()}`
 }

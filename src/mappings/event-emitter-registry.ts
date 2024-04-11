@@ -10,6 +10,7 @@ import {
   AsyncWithdrawalExecuted as AsyncWithdrawalExecutedEvent,
   AsyncWithdrawalFailed as AsyncWithdrawalFailedEvent,
   AsyncWithdrawalOutputAmountUpdated as AsyncWithdrawalOutputAmountUpdatedEvent,
+  RewardClaimed as RewardClaimedEvent,
 } from '../types/EventEmitterRegistry/EventEmitterRegistry'
 import { AsyncDeposit, AsyncWithdrawal, Token } from '../types/schema'
 import { getOrCreateMarginAccount } from './helpers/margin-helpers'
@@ -20,6 +21,8 @@ import {
   getAsyncDepositOrWithdrawalKey,
 } from './helpers/event-emitter-registry-helpers'
 import { convertTokenToDecimal } from './helpers/token-helpers'
+import { handleClaim } from './helpers/liquidity-mining-helpers'
+import { ZERO_BI } from './generated/constants'
 
 export function handleAsyncDepositCreated(event: AsyncDepositCreatedEvent): void {
   let deposit = new AsyncDeposit(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key))
@@ -143,4 +146,10 @@ export function handleAsyncWithdrawalCancelled(event: AsyncWithdrawalCancelledEv
   )) as AsyncWithdrawal
   withdrawal.status = AsyncWithdrawalStatus.WITHDRAWAL_CANCELLED
   withdrawal.save()
+}
+
+const seasonNumber = ZERO_BI
+
+export function handleRewardClaimed(event: RewardClaimedEvent): void {
+  handleClaim(event.params.distributor, event.params.user, event.params.epoch, seasonNumber, event.params.amount)
 }

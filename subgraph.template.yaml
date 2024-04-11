@@ -284,6 +284,8 @@ dataSources:
           handler: handleAsyncWithdrawalFailed
         - event: AsyncWithdrawalCancelled(indexed bytes32,indexed address)
           handler: handleAsyncWithdrawalCancelled
+        - event: RewardClaimed(indexed address,indexed address,uint256,uint256)
+          handler: handleRewardClaimed
   - kind: ethereum/contract
     name: LiquidityMiningVester
     network: {{network}}

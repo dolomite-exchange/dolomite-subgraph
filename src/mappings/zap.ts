@@ -56,8 +56,6 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
   let amountInUSD: BigDecimal = ZERO_BD
   let amountOutToken: BigDecimal = ZERO_BD
   let amountOutUSD: BigDecimal = ZERO_BD
-  let transferInLogIndex = ZERO_BI
-  let transferOutLogIndex = ZERO_BI
   for (let i = 0; i < transfers.length; i++) {
     let toMarginAccount = MarginAccount.load(transfers[i].toMarginAccount) as MarginAccount
     let fromMarginAccount = MarginAccount.load(transfers[i].fromMarginAccount) as MarginAccount
@@ -65,12 +63,10 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
       // Transfers into the zap account are the amount in
       amountInToken = absBD(transfers[i].amountDeltaWei)
       amountInUSD = absBD(transfers[i].amountUSDDeltaWei)
-      transferInLogIndex = transfers[i].logIndex
     } else if (fromMarginAccount.accountNumber.equals(zapAccountNumber)) {
       // Transfers out of the zap account are the amount out
       amountOutToken = absBD(transfers[i].amountDeltaWei)
       amountOutUSD = absBD(transfers[i].amountUSDDeltaWei)
-      transferOutLogIndex = transfers[i].logIndex
     }
 
     if (amountInToken.notEqual(ZERO_BD) && amountOutToken.notEqual(ZERO_BD)) {

@@ -11,17 +11,15 @@ import {
 import { Claimed as OARBClaimedEvent } from '../types/LiquidityMiningClaimer/LiquidityMiningClaimer'
 import {
   InterestIndex,
-  LiquidityMiningClaim,
   LiquidityMiningLevelUpdateRequest,
-  LiquidityMiningSeason,
   LiquidityMiningVestingPosition,
   LiquidityMiningVestingPositionTransfer,
   Token,
 } from '../types/schema'
 import { convertTokenToDecimal } from './helpers/token-helpers'
-import { _18_BI, ADDRESS_ZERO, ARB_ADDRESS, ONE_BI, ZERO_BD } from './generated/constants'
+import { _18_BI, ADDRESS_ZERO, ARB_ADDRESS, ONE_BI, ZERO_BD, ZERO_BI } from './generated/constants'
 import {
-  getLiquidityMiningSeasonId,
+  handleClaim,
   handleVestingPositionClose,
   LiquidityMiningVestingPositionStatus,
 } from './helpers/liquidity-mining-helpers'
@@ -159,25 +157,10 @@ export function handleVestingPositionEmergencyWithdraw(event: VestingPositionEme
   handleVestingPositionClose(position)
 }
 
-const seasonNumber = 0
+const seasonNumber = ZERO_BI
 
 export function handleOArbClaimed(event: OARBClaimedEvent): void {
-  let claim = new LiquidityMiningClaim(`${event.params.user.toHexString()}-${event.params.epoch.toString()}`)
-  claim.user = event.params.user.toHexString()
-  claim.epoch = event.params.epoch.toI32()
-  claim.seasonNumber = seasonNumber
-  claim.amount = convertTokenToDecimal(event.params.amount, _18_BI)
-  claim.save()
-
-  let season = LiquidityMiningSeason.load(getLiquidityMiningSeasonId(event.params.user, seasonNumber))
-  if (season === null) {
-    season = new LiquidityMiningSeason(getLiquidityMiningSeasonId(event.params.user, seasonNumber))
-    season.user = claim.user
-    season.seasonNumber = seasonNumber
-    season.totalClaimAmount = ZERO_BD
-  }
-  season.totalClaimAmount = season.totalClaimAmount.plus(claim.amount)
-  season.save()
+  handleClaim(event.address, event.params.user, event.params.epoch, seasonNumber, event.params.amount)
 }
 
 export function handleLevelRequestInitiated(event: LevelRequestInitiatedEvent): void {
@@ -196,7 +179,7 @@ export function handleLevelRequestFinalized(event: LevelRequestFinalizedEvent): 
   let transaction = getOrCreateTransaction(event)
 
   let request = LiquidityMiningLevelUpdateRequest.load(
-    event.params.requestId.toString()
+    event.params.requestId.toString(),
   ) as LiquidityMiningLevelUpdateRequest
   request.fulfilmentTransaction = transaction.id
   request.isFulfilled = true
