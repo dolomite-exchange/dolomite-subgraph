@@ -112,6 +112,11 @@ type Token @entity {
   pairDayDataQuote: [AmmPairDayData!]! @derivedFrom(field: "token1")
   pairBase: [AmmPair!]! @derivedFrom(field: "token0")
   pairQuote: [AmmPair!]! @derivedFrom(field: "token1")
+
+  interestRate: InterestRate! @derivedFrom(field: "token")
+  interestIndex: InterestIndex! @derivedFrom(field: "token")
+  riskInfo: MarketRiskInfo! @derivedFrom(field: "token")
+  totalPar: TotalPar! @derivedFrom(field: "token")
 }
 
 type TokenMarketIdReverseLookup @entity {
@@ -559,6 +564,14 @@ type InterestIndex @entity {
   lastUpdate: BigInt!
 }
 
+type InterestIndexSnapshot @entity {
+  id: ID! # Defined as token address - last update
+  token: Token!
+  borrowIndex: BigDecimal!
+  supplyIndex: BigDecimal!
+  updateTimestamp: BigInt!
+}
+
 type InterestRate @entity {
   id: ID! # Defined as token address
   interestSetter: Bytes!
@@ -644,6 +657,8 @@ type Deposit @entity {
   amountDeltaWei: BigDecimal!
   amountDeltaPar: BigDecimal!
 
+  interestIndex: InterestIndexSnapshot!
+
   # derived info
   amountUSDDeltaWei: BigDecimal!
 }
@@ -661,6 +676,8 @@ type Withdrawal @entity {
 
   amountDeltaWei: BigDecimal!
   amountDeltaPar: BigDecimal!
+
+  interestIndex: InterestIndexSnapshot!
 
   # derived info
   amountUSDDeltaWei: BigDecimal!
@@ -683,6 +700,7 @@ type Transfer @entity {
   effectiveUsers: [User!]! # set to the marginAccount.user or owner of an isolation mode address
 
   token: Token!
+  interestIndex: InterestIndexSnapshot!
 
   amountDeltaWei: BigDecimal!
   fromAmountDeltaPar: BigDecimal!
@@ -707,8 +725,8 @@ type Liquidation @entity {
   borrowedToken: Token!
   effectiveUsers: [User!]! # set to the marginAccount.user or owner of an isolation mode address
 
-  borrowedTokenAmountDeltaWei: BigDecimal!
   heldTokenAmountDeltaWei: BigDecimal!
+  borrowedTokenAmountDeltaWei: BigDecimal!
 
   solidBorrowedTokenAmountDeltaPar: BigDecimal!
   solidHeldTokenAmountDeltaPar: BigDecimal!
@@ -716,6 +734,9 @@ type Liquidation @entity {
   liquidHeldTokenAmountDeltaPar: BigDecimal!
 
   heldTokenLiquidationRewardWei: BigDecimal!
+
+  heldInterestIndex: InterestIndexSnapshot!
+  borrowedInterestIndex: InterestIndexSnapshot!
 
   # derived info
   borrowedTokenAmountUSD: BigDecimal! # The amount of borrowedTokenAmount liquidated
@@ -740,6 +761,9 @@ type Vaporization @entity {
 
   borrowedTokenAmountDeltaWei: BigDecimal!
   heldTokenAmountDeltaWei: BigDecimal!
+
+  heldInterestIndex: InterestIndexSnapshot!
+  borrowedInterestIndex: InterestIndexSnapshot!
 
   vaporBorrowedTokenAmountDeltaPar: BigDecimal!
   solidHeldTokenAmountDeltaPar: BigDecimal!
@@ -768,6 +792,9 @@ type Trade @entity {
 
   takerToken: Token! # the token sold (spent) by the `takerAccount`
   makerToken: Token! # the token sold (spent) by the `makerAccount`
+
+  takerInterestIndex: InterestIndexSnapshot!
+  makerInterestIndex: InterestIndexSnapshot!
 
   takerTokenDeltaWei: BigDecimal! # the `takerToken` spent by the `takerAccount`
   makerTokenDeltaWei: BigDecimal! # the `makerToken` received by the `takerAccount` (spent by the `makerAccount`)

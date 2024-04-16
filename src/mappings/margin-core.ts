@@ -41,7 +41,7 @@ import {
 import { _18_BI, EXPIRY_ADDRESS, ONE_BI, USD_PRECISION, ZERO_BD, ZERO_BI } from './generated/constants'
 import { convertStructToDecimalAppliedValue } from './helpers/amm-helpers'
 import { updateBorrowPositionForLiquidation } from './helpers/borrow-position-helpers'
-import { absBD } from './helpers/helpers'
+import { absBD, getOrCreateInterestIndexSnapshotAndReturnId } from './helpers/helpers'
 import { getEffectiveUserForAddress, getEffectiveUserForAddressString } from './helpers/isolation-mode-helpers'
 import {
   canBeMarginPosition,
@@ -156,12 +156,14 @@ export function handleDeposit(event: DepositEvent): void {
 
   let deltaWeiStruct = new ValueStruct(event.params.update.deltaWei)
   let newParStruct = new ValueStruct(event.params.update.newPar)
+  let marketIndex = InterestIndex.load(token.id) as InterestIndex
 
   deposit.transaction = transaction.id
   deposit.logIndex = event.logIndex
   deposit.effectiveUser = getEffectiveUserForAddress(event.params.accountOwner).id
   deposit.marginAccount = accountUpdateOne.marginAccount.id
   deposit.token = token.id
+  deposit.interestIndex = getOrCreateInterestIndexSnapshotAndReturnId(marketIndex)
   deposit.from = event.params.from
   deposit.amountDeltaWei = convertStructToDecimalAppliedValue(deltaWeiStruct, token.decimals)
   deposit.amountDeltaPar = accountUpdateOne.deltaPar
@@ -170,7 +172,6 @@ export function handleDeposit(event: DepositEvent): void {
 
   dolomiteMargin.totalSupplyVolumeUSD = dolomiteMargin.totalSupplyVolumeUSD.plus(deposit.amountUSDDeltaWei)
 
-  let marketIndex = InterestIndex.load(token.id) as InterestIndex
   let isVirtualTransfer = false
   changeProtocolBalance(
     event,
@@ -226,12 +227,14 @@ export function handleWithdraw(event: WithdrawEvent): void {
   let deltaWeiStruct = new ValueStruct(event.params.update.deltaWei)
   let deltaWeiStructAbs = deltaWeiStruct.abs()
   let newParStruct = new ValueStruct(event.params.update.newPar)
+  let marketIndex = InterestIndex.load(token.id) as InterestIndex
 
   withdrawal.transaction = transaction.id
   withdrawal.logIndex = event.logIndex
   withdrawal.effectiveUser = getEffectiveUserForAddress(event.params.accountOwner).id
   withdrawal.marginAccount = accountUpdateOne.marginAccount.id
   withdrawal.token = token.id
+  withdrawal.interestIndex = getOrCreateInterestIndexSnapshotAndReturnId(marketIndex)
   withdrawal.to = event.params.to
   withdrawal.amountDeltaWei = convertStructToDecimalAppliedValue(deltaWeiStructAbs, token.decimals)
   withdrawal.amountDeltaPar = accountUpdateOne.deltaPar
@@ -242,7 +245,6 @@ export function handleWithdraw(event: WithdrawEvent): void {
   accountUpdateOne.marginAccount.save()
   withdrawal.save()
 
-  let marketIndex = InterestIndex.load(token.id) as InterestIndex
   let isVirtualTransfer = false
   changeProtocolBalance(
     event,
@@ -323,6 +325,9 @@ export function handleTransfer(event: TransferEvent): void {
 
   transfer.token = token.id
 
+  let marketIndex = InterestIndex.load(token.id) as InterestIndex
+  transfer.interestIndex = getOrCreateInterestIndexSnapshotAndReturnId(marketIndex);
+
   let amountDeltaWei = new ValueStruct(event.params.updateOne.deltaWei)
   let priceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
   transfer.amountDeltaWei = convertStructToDecimalAppliedValue(amountDeltaWei.abs(), token.decimals)
@@ -335,7 +340,6 @@ export function handleTransfer(event: TransferEvent): void {
   accountUpdate2.marginAccount.save()
   transfer.save()
 
-  let marketIndex = InterestIndex.load(token.id) as InterestIndex
   let isVirtualTransfer = true
   changeProtocolBalance(
     event,
@@ -434,6 +438,12 @@ export function handleBuy(event: BuyEvent): void {
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
 
+  let makerIndex = InterestIndex.load(makerToken.id) as InterestIndex
+  let takerIndex = InterestIndex.load(takerToken.id) as InterestIndex
+
+  trade.takerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(takerIndex)
+  trade.makerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(makerIndex)
+
   let takerDeltaWeiStruct = new ValueStruct(event.params.takerUpdate.deltaWei)
   trade.takerTokenDeltaWei = convertStructToDecimalAppliedValue(takerDeltaWeiStruct.abs(), takerToken.decimals)
 
@@ -460,8 +470,6 @@ export function handleBuy(event: BuyEvent): void {
 
   saveMostRecentTrade(trade)
 
-  let makerIndex = InterestIndex.load(makerToken.id) as InterestIndex
-  let takerIndex = InterestIndex.load(takerToken.id) as InterestIndex
   let isVirtualTransfer = false
 
   let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
@@ -589,6 +597,12 @@ export function handleSell(event: SellEvent): void {
   trade.takerToken = takerToken.id
   trade.makerToken = makerToken.id
 
+  let makerIndex = InterestIndex.load(makerToken.id) as InterestIndex
+  let takerIndex = InterestIndex.load(takerToken.id) as InterestIndex
+
+  trade.takerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(takerIndex);
+  trade.makerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(makerIndex);
+
   let takerDeltaWeiStruct = new ValueStruct(event.params.takerUpdate.deltaWei)
   trade.takerTokenDeltaWei = convertStructToDecimalAppliedValue(takerDeltaWeiStruct.abs(), takerToken.decimals)
 
@@ -615,8 +629,6 @@ export function handleSell(event: SellEvent): void {
 
   saveMostRecentTrade(trade)
 
-  let makerIndex = InterestIndex.load(makerToken.id) as InterestIndex
-  let takerIndex = InterestIndex.load(takerToken.id) as InterestIndex
   let isVirtualTransfer = false
 
   let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
@@ -778,6 +790,12 @@ export function handleTrade(event: TradeEvent): void {
   trade.takerToken = inputToken.id
   trade.makerToken = outputToken.id
 
+  let inputIndex = InterestIndex.load(inputToken.id) as InterestIndex
+  let outputIndex = InterestIndex.load(outputToken.id) as InterestIndex
+
+  trade.takerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(inputIndex)
+  trade.makerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(outputIndex)
+
   let takerInputDeltaWeiStruct = new ValueStruct(event.params.takerInputUpdate.deltaWei)
   let takerOutputDeltaWeiStruct = new ValueStruct(event.params.takerOutputUpdate.deltaWei)
   let takerToken = takerInputDeltaWeiStruct.applied()
@@ -817,8 +835,6 @@ export function handleTrade(event: TradeEvent): void {
 
   saveMostRecentTrade(trade)
 
-  let inputIndex = InterestIndex.load(inputToken.id) as InterestIndex
-  let outputIndex = InterestIndex.load(outputToken.id) as InterestIndex
   let isVirtualTransfer = true
 
   let takerInputNewParStruct = new ValueStruct(event.params.takerInputUpdate.newPar)
@@ -1064,6 +1080,12 @@ export function handleLiquidate(event: LiquidationEvent): void {
   liquidation.heldToken = heldToken.id
   liquidation.borrowedToken = owedToken.id
 
+  let heldIndex = InterestIndex.load(heldToken.id) as InterestIndex
+  let owedIndex = InterestIndex.load(owedToken.id) as InterestIndex
+
+  liquidation.heldInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(heldIndex)
+  liquidation.borrowedInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(owedIndex)
+
   let solidHeldDeltaWeiStruct = new ValueStruct(event.params.solidHeldUpdate.deltaWei)
   let solidHeldNewParStruct = new ValueStruct(event.params.solidHeldUpdate.newPar)
   liquidation.heldTokenAmountDeltaWei = convertStructToDecimalAppliedValue(
@@ -1118,8 +1140,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
     dolomiteMargin.totalLiquidationVolumeUSD.plus(liquidation.borrowedTokenAmountUSD)
   dolomiteMargin.save()
 
-  let heldIndex = InterestIndex.load(heldToken.id) as InterestIndex
-  let owedIndex = InterestIndex.load(owedToken.id) as InterestIndex
   let isVirtualTransfer = true
   changeProtocolBalance(
     event,
@@ -1301,6 +1321,12 @@ export function handleVaporize(event: VaporizationEvent): void {
   vaporization.heldToken = heldToken.id
   vaporization.borrowedToken = owedToken.id
 
+  let heldIndex = InterestIndex.load(heldToken.id) as InterestIndex
+  let owedIndex = InterestIndex.load(owedToken.id) as InterestIndex
+
+  vaporization.heldInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(heldIndex)
+  vaporization.borrowedInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(owedIndex)
+
   let borrowedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
   vaporization.borrowedTokenAmountDeltaWei = convertStructToDecimalAppliedValue(
     borrowedDeltaWeiStruct.abs(),
@@ -1327,8 +1353,6 @@ export function handleVaporize(event: VaporizationEvent): void {
   dolomiteMargin.totalVaporizationVolumeUSD = dolomiteMargin.totalVaporizationVolumeUSD.plus(vaporization.amountUSDVaporized)
   dolomiteMargin.save()
 
-  let heldIndex = InterestIndex.load(heldToken.id) as InterestIndex
-  let owedIndex = InterestIndex.load(owedToken.id) as InterestIndex
   let isVirtualTransfer = true
   changeProtocolBalance(
     event,
