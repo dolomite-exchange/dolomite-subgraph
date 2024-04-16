@@ -243,6 +243,8 @@ type AmmLiquidityPositionSnapshot @entity {
   reserveUSD: BigDecimal! # snapshot of pair reserves in USD
   liquidityTokenTotalSupply: BigDecimal! # snapshot of pool token supply
   liquidityTokenBalance: BigDecimal! # snapshot of users pool token balance
+  token0InterestIndex: InterestIndexSnapshot!
+  token1InterestIndex: InterestIndexSnapshot!
 }
 
 type Transaction @entity {
@@ -955,7 +957,7 @@ type AsyncWithdrawal @entity {
 }
 
 type LiquidityMiningVestingPosition @entity {
-  id: ID! # Defined as "NFT_ID"
+  id: ID! # Defined as "contract-NFT_ID"
   status: String! # one of ACTIVE, CLOSED, FORCE_CLOSED, EMERGENCY_CLOSED
   creator: User!
   owner: User!
@@ -963,10 +965,11 @@ type LiquidityMiningVestingPosition @entity {
   startTimestamp: BigInt!
   endTimestamp: BigInt!
   closeTimestamp: BigInt
-  oARBAmount: BigDecimal!
-  arbAmountPar: BigDecimal!
-  ethSpent: BigDecimal!
-  arbTaxesPaid: BigDecimal!
+  oTokenAmount: BigDecimal!
+  pairToken: Token!
+  pairAmountPar: BigDecimal!
+  tokenSpent: BigDecimal!
+  pairTaxesPaid: BigDecimal!
   openTransaction: Transaction!
   closeTransaction: Transaction
 
@@ -982,6 +985,7 @@ type LiquidityMiningVestingPositionTransfer @entity {
   fromEffectiveUser: User
   toEffectiveUser: User
 
+  pairInterestIndex: InterestIndexSnapshot!
   vestingPosition: LiquidityMiningVestingPosition!
 }
 

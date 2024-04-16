@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types,@typescript-eslint/camelcase */
 
-import { Address, BigInt } from '@graphprotocol/graph-ts'
+import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts'
 import { LiquidityMiningClaim, LiquidityMiningSeason, LiquidityMiningVestingPosition, Token } from '../../types/schema'
 import { _18_BI, ARB_ADDRESS, ZERO_BD } from '../generated/constants'
 import { getOrCreateEffectiveUserTokenValue } from './margin-helpers'
@@ -14,14 +14,22 @@ export class LiquidityMiningVestingPositionStatus {
   public static EMERGENCY_CLOSED: string = 'EMERGENCY_CLOSED'
 }
 
+export function getVestingPositionId(event: ethereum.Event, tokenId: BigInt): string {
+  return `${event.address.toHexString()}-${tokenId.toString()}`
+}
+
+export function getVestingPosition(event: ethereum.Event, tokenId: BigInt): LiquidityMiningVestingPosition {
+  return LiquidityMiningVestingPosition.load(getVestingPositionId(event, tokenId)) as LiquidityMiningVestingPosition
+}
+
 export function getLiquidityMiningSeasonId(distributor: Address, user: Address, season: BigInt): string {
   return `${distributor.toHexString()}-${user.toHexString()}-${season.toString()}`
 }
 
 export function handleVestingPositionClose(position: LiquidityMiningVestingPosition): void {
-  let arbToken = Token.load(ARB_ADDRESS) as Token
-  let effectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(position.owner, arbToken)
-  effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.minus(position.arbAmountPar)
+  let pairToken = Token.load(position.pairToken) as Token
+  let effectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(position.owner, pairToken)
+  effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.minus(position.pairAmountPar)
   effectiveUserTokenValue.save()
 }
 
