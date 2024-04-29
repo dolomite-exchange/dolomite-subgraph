@@ -14,7 +14,9 @@ export const ARBITRUM_ONE_NETWORK = 'arbitrum-one'
 
 export const BASE_NETWORK = 'base'
 
+export const MANTLE_NETWORK = 'mantle'
 export const POLYGON_ZKEVM_NETWORK = 'polygon-zkevm'
+export const X_LAYER_NETWORK = 'xlayer-mainnet'
 
 export const ZERO_BYTES = Bytes.empty()
 
@@ -109,7 +111,9 @@ export const CHAIN_IDS: TypedMap<string, BigInt> = new TypedMap<string, BigInt>(
 CHAIN_IDS.set(MAINNET_NETWORK, BigInt.fromI32(1))
 CHAIN_IDS.set(ARBITRUM_ONE_NETWORK, BigInt.fromI32(42161))
 CHAIN_IDS.set(BASE_NETWORK, BigInt.fromI32(8453))
+CHAIN_IDS.set(MANTLE_NETWORK, BigInt.fromI32(5000))
 CHAIN_IDS.set(POLYGON_ZKEVM_NETWORK, BigInt.fromI32(1101))
+CHAIN_IDS.set(X_LAYER_NETWORK, BigInt.fromI32(196))
 
 const WHITELISTS: TypedMap<string, string[]> = new TypedMap<string, string[]>()
 WHITELISTS.set(ARBITRUM_ONE_NETWORK, [
@@ -121,7 +125,9 @@ WHITELISTS.set(ARBITRUM_ONE_NETWORK, [
   LINK_ADDRESS,
 ])
 WHITELISTS.set(BASE_NETWORK, [])
+WHITELISTS.set(MANTLE_NETWORK, [])
 WHITELISTS.set(POLYGON_ZKEVM_NETWORK, [])
+WHITELISTS.set(X_LAYER_NETWORK, [])
 export const WHITELIST: string[] = WHITELISTS.get(NETWORK) as string[]
 
 export const CHAIN_ID: i32 = (CHAIN_IDS.get(NETWORK) as BigInt).toI32()
@@ -134,6 +140,14 @@ export function isArbitrumOne(): boolean {
   return NETWORK == ARBITRUM_ONE_NETWORK
 }
 
+export function isMantle(): boolean {
+  return NETWORK == MANTLE_NETWORK
+}
+
 export function isPolygonZkEvm(): boolean {
   return NETWORK == POLYGON_ZKEVM_NETWORK
+}
+
+export function isXLayer(): boolean {
+  return NETWORK == X_LAYER_NETWORK
 }
