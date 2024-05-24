@@ -2,10 +2,11 @@
 
 import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts'
 import { LiquidityMiningClaim, LiquidityMiningSeason, LiquidityMiningVestingPosition, Token } from '../../types/schema'
-import { _18_BI, ARB_ADDRESS, ZERO_BD } from '../generated/constants'
+import { _18_BI, ZERO_BD } from '../generated/constants'
 import { getOrCreateEffectiveUserTokenValue } from './margin-helpers'
 import { getRewardClaimerKey } from './event-emitter-registry-helpers'
 import { convertTokenToDecimal } from './token-helpers'
+import { createUserIfNecessary } from './user-helpers'
 
 export class LiquidityMiningVestingPositionStatus {
   public static ACTIVE: string = 'ACTIVE'
@@ -40,6 +41,8 @@ export function handleClaim(
   seasonNumber: BigInt,
   amount: BigInt,
 ): void {
+  createUserIfNecessary(user)
+
   let claim = new LiquidityMiningClaim(getRewardClaimerKey(distributor, user, epoch))
   claim.distributor = distributor
   claim.user = user.toHexString()
