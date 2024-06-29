@@ -97,9 +97,12 @@ function updateMarginPositionForTrade(
 
     marginPosition.initialOwedAmountPar = owedTokenNewPar
     marginPosition.initialOwedAmountWei = owedAmountWei
-    marginPosition.initialOwedPrice = absBD(heldAmountWei)
-      .div(absBD(owedAmountWei))
-      .truncate(18)
+
+    if (owedAmountWei.equals(ZERO_BD)) {
+      marginPosition.initialOwedPrice = ZERO_BD
+    } else {
+      marginPosition.initialOwedPrice = absBD(heldAmountWei).div(absBD(owedAmountWei)).truncate(18)
+    }
     marginPosition.initialOwedPriceUSD = marginPosition.initialOwedPrice.times(heldPriceUSD)
       .truncate(36)
     marginPosition.initialOwedAmountUSD = owedAmountWei.times(marginPosition.initialOwedPriceUSD)
@@ -107,9 +110,11 @@ function updateMarginPositionForTrade(
 
     marginPosition.initialHeldAmountPar = heldTokenNewPar
     marginPosition.initialHeldAmountWei = heldAmountWei.plus(positionChangeEvent.depositWei)
-    marginPosition.initialHeldPrice = absBD(owedAmountWei)
-      .div(absBD(heldAmountWei))
-      .truncate(18)
+    if (heldAmountWei.equals(ZERO_BD)) {
+      marginPosition.initialHeldPrice = ZERO_BD
+    } else {
+      marginPosition.initialHeldPrice = absBD(owedAmountWei).div(absBD(heldAmountWei)).truncate(18)
+    }
     marginPosition.initialHeldPriceUSD = marginPosition.initialHeldPrice.times(owedPriceUSD)
       .truncate(USD_PRECISION)
     marginPosition.initialHeldAmountUSD = marginPosition.initialHeldAmountWei.times(marginPosition.initialHeldPriceUSD)
@@ -138,8 +143,11 @@ function updateMarginPositionForTrade(
     let heldPriceUSD = getTokenOraclePriceUSD(heldToken, event, ProtocolType.Position)
     let owedPriceUSD = getTokenOraclePriceUSD(owedToken, event, ProtocolType.Position)
 
-    marginPosition.closeHeldPrice = owedAmountWei.div(heldAmountWei)
-      .truncate(18)
+    if (heldAmountWei.equals(ZERO_BD)) {
+      marginPosition.closeHeldPrice = ZERO_BD
+    } else {
+      marginPosition.closeHeldPrice = owedAmountWei.div(heldAmountWei).truncate(18)
+    }
     marginPosition.closeHeldPriceUSD = (marginPosition.closeHeldPrice as BigDecimal).times(owedPriceUSD)
       .truncate(USD_PRECISION)
     marginPosition.closeHeldAmountWei = marginPosition.initialHeldAmountPar.times(heldTokenIndex.supplyIndex)
@@ -148,8 +156,11 @@ function updateMarginPositionForTrade(
     marginPosition.closeHeldAmountSeized = ZERO_BD
     marginPosition.closeHeldAmountSeizedUSD = ZERO_BD
 
-    marginPosition.closeOwedPrice = heldAmountWei.div(owedAmountWei)
-      .truncate(18)
+    if (owedAmountWei.equals(ZERO_BD)) {
+      marginPosition.closeOwedPrice = ZERO_BD
+    } else {
+      marginPosition.closeOwedPrice = heldAmountWei.div(owedAmountWei).truncate(18)
+    }
     marginPosition.closeOwedPriceUSD = (marginPosition.closeOwedPrice as BigDecimal).times(heldPriceUSD)
       .truncate(36)
     marginPosition.closeOwedAmountWei = marginPosition.initialOwedAmountPar.times(owedTokenIndex.borrowIndex)
