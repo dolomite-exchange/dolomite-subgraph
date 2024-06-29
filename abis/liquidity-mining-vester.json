@@ -1,31 +1,5 @@
 [
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_dolomiteMargin",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_dolomiteRegistry",
-        "type": "address"
-      },
-      {
-        "internalType": "contract IWETH",
-        "name": "_weth",
-        "type": "address"
-      },
-      {
-        "internalType": "contract IERC20",
-        "name": "_arb",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {
@@ -119,7 +93,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "arbTax",
+        "name": "pairTax",
         "type": "uint256"
       }
     ],
@@ -169,19 +143,6 @@
       }
     ],
     "name": "HandlerSet",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint8",
-        "name": "version",
-        "type": "uint8"
-      }
-    ],
-    "name": "Initialized",
     "type": "event"
   },
   {
@@ -273,11 +234,11 @@
       {
         "indexed": false,
         "internalType": "address",
-        "name": "oARB",
+        "name": "oToken",
         "type": "address"
       }
     ],
-    "name": "OARBSet",
+    "name": "OTokenSet",
     "type": "event"
   },
   {
@@ -342,7 +303,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "arbTax",
+        "name": "pairTax",
         "type": "uint256"
       }
     ],
@@ -355,11 +316,11 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "promisedArbTokensSet",
+        "name": "promisedTokensSet",
         "type": "uint256"
       }
     ],
-    "name": "PromisedArbTokensSet",
+    "name": "PromisedTokensSet",
     "type": "event"
   },
   {
@@ -450,8 +411,79 @@
         "type": "tuple"
       }
     ],
-    "name": "VestingPositionCreated",
+    "name": "VestingPositionCreatedOld",
     "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "creator",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "id",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "duration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "oTokenAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pairAmount",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct IExternalVesterV1.VestingPosition",
+        "name": "vestingPosition",
+        "type": "tuple"
+      }
+    ],
+    "name": "VestingPositionCreatedNew",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "PAIR_TOKEN",
+    "outputs": [
+      {
+        "internalType": "contract IERC20",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "PAYMENT_TOKEN",
+    "outputs": [
+      {
+        "internalType": "contract IERC20",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
     "anonymous": false,
@@ -485,84 +517,6 @@
     "type": "event"
   },
   {
-    "inputs": [],
-    "name": "ARB",
-    "outputs": [
-      {
-        "internalType": "contract IERC20",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "ARB_MARKET_ID",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "DOLOMITE_MARGIN",
-    "outputs": [
-      {
-        "internalType": "contract IDolomiteMargin",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "DOLOMITE_REGISTRY",
-    "outputs": [
-      {
-        "internalType": "contract IDolomiteRegistry",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "WETH",
-    "outputs": [
-      {
-        "internalType": "contract IWETH",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "WETH_MARKET_ID",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -582,7 +536,7 @@
   },
   {
     "inputs": [],
-    "name": "availableArbTokens",
+    "name": "availableTokens",
     "outputs": [
       {
         "internalType": "uint256",
@@ -605,7 +559,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "balance",
         "type": "uint256"
       }
     ],
@@ -629,7 +583,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_nftId",
+        "name": "_id",
         "type": "uint256"
       },
       {
@@ -670,7 +624,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_nftId",
+        "name": "_id",
         "type": "uint256"
       }
     ],
@@ -705,7 +659,7 @@
         "type": "uint256"
       }
     ],
-    "name": "extendDurationForGrandfatheredPosition",
+    "name": "extendDurationForPosition",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -714,7 +668,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_nftId",
+        "name": "_id",
         "type": "uint256"
       }
     ],
@@ -748,7 +702,7 @@
     "outputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "operator",
         "type": "address"
       }
     ],
@@ -1003,23 +957,10 @@
   },
   {
     "inputs": [],
-    "name": "name",
+    "name": "oToken",
     "outputs": [
       {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "oARB",
-    "outputs": [
-      {
-        "internalType": "contract IOARB",
+        "internalType": "contract IERC20Mintable",
         "name": "",
         "type": "address"
       }
@@ -1039,7 +980,7 @@
     "outputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "owner",
         "type": "address"
       }
     ],
@@ -1159,11 +1100,24 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_fee",
+        "name": "_levelRequestFee",
         "type": "uint256"
       }
     ],
     "name": "ownerSetLevelRequestFee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_oToken",
+        "type": "address"
+      }
+    ],
+    "name": "ownerSetOToken",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1186,14 +1140,14 @@
         "type": "bool"
       }
     ],
-    "name": "ownerWithdrawArb",
+    "name": "ownerWithdrawToken",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [],
-    "name": "promisedArbTokens",
+    "name": "promisedTokens",
     "outputs": [
       {
         "internalType": "uint256",
@@ -1293,19 +1247,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "symbol",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -1343,25 +1284,6 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_tokenId",
-        "type": "uint256"
-      }
-    ],
-    "name": "tokenURI",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
       }
     ],
     "stateMutability": "view",
@@ -1436,7 +1358,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_nftId",
+        "name": "_id",
         "type": "uint256"
       }
     ],

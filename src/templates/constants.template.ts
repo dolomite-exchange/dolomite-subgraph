@@ -83,6 +83,10 @@ export const MAGIC_GLP_UNWRAPPER_TRADER_ADDRESS = '{{magicGlpUnwrapperTraderAddr
 
 export const MAGIC_GLP_WRAPPER_TRADER_ADDRESS = '{{magicGlpWrapperTraderAddress}}'.toLowerCase()
 
+export const GOARB_VESTER_PROXY_ADDRESS = '{{goArbLiquidityMiningVesterAddress}}'.toLowerCase()
+
+export const OARB_VESTER_PROXY_ADDRESS = '{{oArbLiquidityMiningVesterAddress}}'.toLowerCase()
+
 // ========================= Token Addresses =========================
 
 export const ARB_ADDRESS = '{{arbAddress}}'.toLowerCase()

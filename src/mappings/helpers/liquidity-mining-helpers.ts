@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types,@typescript-eslint/camelcase */
 
 import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts'
-import { LiquidityMiningClaim, LiquidityMiningSeason, LiquidityMiningVestingPosition, Token } from '../../types/schema'
+import {
+  LiquidityMiningClaim,
+  LiquidityMiningSeason,
+  LiquidityMiningVester,
+  LiquidityMiningVestingPosition,
+  Token,
+} from '../../types/schema'
 import { _18_BI, ZERO_BD } from '../generated/constants'
 import { getOrCreateEffectiveUserTokenValue } from './margin-helpers'
 import { getRewardClaimerKey } from './event-emitter-registry-helpers'
@@ -28,7 +34,8 @@ export function getLiquidityMiningSeasonId(distributor: Address, user: Address, 
 }
 
 export function handleVestingPositionClose(position: LiquidityMiningVestingPosition): void {
-  let pairToken = Token.load(position.pairToken) as Token
+  let vester = LiquidityMiningVester.load(position.vester) as LiquidityMiningVester
+  let pairToken = Token.load(vester.pairToken) as Token
   let effectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(position.owner, pairToken)
   effectiveUserTokenValue.totalSupplyPar = effectiveUserTokenValue.totalSupplyPar.minus(position.pairAmountPar)
   effectiveUserTokenValue.save()

@@ -956,8 +956,16 @@ type AsyncWithdrawal @entity {
   extraData: Bytes!
 }
 
+type LiquidityMiningVester @entity {
+  id: ID! # Defined as "contract"
+  oTokenAddress: Bytes!
+  pairToken: Token!
+  paymentToken: Token!
+}
+
 type LiquidityMiningVestingPosition @entity {
   id: ID! # Defined as "contract-NFT_ID"
+  vester: LiquidityMiningVester!
   status: String! # one of ACTIVE, CLOSED, FORCE_CLOSED, EMERGENCY_CLOSED
   creator: User!
   owner: User!
@@ -966,10 +974,9 @@ type LiquidityMiningVestingPosition @entity {
   endTimestamp: BigInt!
   closeTimestamp: BigInt
   oTokenAmount: BigDecimal!
-  pairToken: Token!
   pairAmountPar: BigDecimal!
-  tokenSpent: BigDecimal!
-  pairTaxesPaid: BigDecimal!
+  paymentAmountWei: BigDecimal
+  pairTaxesPaid: BigDecimal
   openTransaction: Transaction!
   closeTransaction: Transaction
 
@@ -985,7 +992,7 @@ type LiquidityMiningVestingPositionTransfer @entity {
   fromEffectiveUser: User
   toEffectiveUser: User
 
-  pairInterestIndex: InterestIndexSnapshot!
+  pairInterestIndex: InterestIndexSnapshot
   vestingPosition: LiquidityMiningVestingPosition!
 }
 

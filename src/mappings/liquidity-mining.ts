@@ -6,18 +6,30 @@ import {
   PositionDurationExtended as VestingPositionDurationExtendedEvent,
   PositionForceClosed as VestingPositionForceClosedEvent,
   Transfer as LiquidityMiningVestingPositionTransferEvent,
-  VestingPositionCreated as VestingPositionCreatedEvent,
+  VestingPositionCreatedOld as VestingPositionCreatedEventOld,
+  VestingPositionCreatedNew as VestingPositionCreatedEventNew,
+  LiquidityMiningVester as LiquidityMiningVesterProtocol
 } from '../types/LiquidityMiningVester/LiquidityMiningVester'
 import { Claimed as OARBClaimedEvent } from '../types/LiquidityMiningClaimer/LiquidityMiningClaimer'
 import {
   InterestIndex,
   LiquidityMiningLevelUpdateRequest,
+  LiquidityMiningVester,
   LiquidityMiningVestingPosition,
   LiquidityMiningVestingPositionTransfer,
   Token,
 } from '../types/schema'
 import { convertTokenToDecimal } from './helpers/token-helpers'
-import { _18_BI, ADDRESS_ZERO, ARB_ADDRESS, ONE_BI, ZERO_BD, ZERO_BI } from './generated/constants'
+import {
+  _18_BI,
+  ADDRESS_ZERO,
+  ARB_ADDRESS, GOARB_VESTER_PROXY_ADDRESS,
+  OARB_VESTER_PROXY_ADDRESS,
+  ONE_BI,
+  WETH_ADDRESS,
+  ZERO_BD,
+  ZERO_BI,
+} from './generated/constants'
 import {
   getVestingPosition,
   getVestingPositionId,
@@ -35,26 +47,106 @@ import { ProtocolType } from './helpers/margin-types'
 import { getOrCreateTransaction } from './amm-core'
 import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 import { getOrCreateInterestIndexSnapshotAndReturnId } from './helpers/helpers'
+import { Address, ethereum, BigInt, log } from '@graphprotocol/graph-ts'
 
-export function handleVestingPositionCreated(event: VestingPositionCreatedEvent): void {
+let OARB_VESTER_ADDRESS = Address.fromHexString('0x36416f30f6e3b03d846b63e8fc6dc0722ed73a02')
+let OARB_TOKEN_ADDRESS = Address.fromHexString('0xCBED801b4162bf2A19B06968663438b5165A6A93')
+
+function getOrCreateLiquidityMiningVester(event: ethereum.Event): LiquidityMiningVester {
+  let vester = LiquidityMiningVester.load(event.address.toHexString())
+  if (vester === null) {
+    vester = new LiquidityMiningVester(event.address.toHexString())
+    let protocol = LiquidityMiningVesterProtocol.bind(event.address)
+
+    let oTokenResult = protocol.try_oToken()
+    if (oTokenResult.reverted) {
+      if (event.address.equals(OARB_VESTER_ADDRESS)) {
+        vester.oTokenAddress = OARB_TOKEN_ADDRESS
+      } else {
+        vester.oTokenAddress = Address.fromHexString(ADDRESS_ZERO)
+      }
+    } else {
+      vester.oTokenAddress = oTokenResult.value
+    }
+
+    let pairTokenResult = protocol.try_PAIR_TOKEN()
+    if (pairTokenResult.reverted) {
+      if (event.address.equals(OARB_VESTER_ADDRESS)) {
+        vester.pairToken = ARB_ADDRESS
+      } else {
+        vester.pairToken = ADDRESS_ZERO
+      }
+    } else {
+      vester.pairToken = pairTokenResult.value.toHexString()
+    }
+
+    let paymentTokenResult = protocol.try_PAYMENT_TOKEN()
+    if (paymentTokenResult.reverted) {
+      if (event.address.equals(OARB_VESTER_ADDRESS)) {
+        vester.paymentToken = WETH_ADDRESS
+      } else {
+        vester.paymentToken = ADDRESS_ZERO
+      }
+    } else {
+      vester.paymentToken = paymentTokenResult.value.toHexString()
+    }
+
+    vester.save()
+  }
+  return vester
+}
+
+function isValidVester(event: ethereum.Event): boolean {
+  let vester: LiquidityMiningVester | null
+  if (event.address.equals(Address.fromHexString(GOARB_VESTER_PROXY_ADDRESS))) {
+    vester = getOrCreateLiquidityMiningVester(event)
+  } else if (event.address.equals(Address.fromHexString(OARB_VESTER_PROXY_ADDRESS))) {
+    vester = getOrCreateLiquidityMiningVester(event)
+  } else {
+    vester = LiquidityMiningVester.load(event.address.toHexString())
+  }
+
+  return vester !== null
+}
+
+function handleVestingPositionCreated(
+  event: ethereum.Event,
+  positionId: BigInt,
+  creator: Address,
+  startTime: BigInt,
+  duration: BigInt,
+  oTokenAmount: BigInt,
+  pairAmount: BigInt,
+): void {
+  if (!isValidVester(event)) {
+    log.info('Invalid vester, found {}', [event.address.toHexString()])
+    return
+  }
+
   let transaction = getOrCreateTransaction(event)
-  createUserIfNecessary(event.params.vestingPosition.creator)
+  createUserIfNecessary(creator)
 
-  // TODO: fix for other types of oTokens
-  let pairToken = Token.load(ARB_ADDRESS) as Token
-  let index = InterestIndex.load(pairToken.id) as InterestIndex
-  let position = new LiquidityMiningVestingPosition(getVestingPositionId(event, event.params.vestingPosition.id))
+  let vester = getOrCreateLiquidityMiningVester(event)
+
+  let position = new LiquidityMiningVestingPosition(getVestingPositionId(event, positionId))
   position.status = LiquidityMiningVestingPositionStatus.ACTIVE
-  position.creator = event.params.vestingPosition.creator.toHexString()
-  position.owner = event.params.vestingPosition.creator.toHexString()
+  position.creator = creator.toHexString()
+  position.owner = creator.toHexString()
   position.openTransaction = transaction.id
-  position.startTimestamp = event.params.vestingPosition.startTime
-  position.duration = event.params.vestingPosition.duration
+  position.startTimestamp = startTime
+  position.duration = duration
   position.endTimestamp = position.startTimestamp.plus(position.duration)
-  position.oTokenAmount = convertTokenToDecimal(event.params.vestingPosition.amount, _18_BI)
-  position.pairToken = pairToken.id
-  position.pairAmountPar = weiToPar(position.oTokenAmount, index, _18_BI)
-  position.tokenSpent = ZERO_BD
+  position.oTokenAmount = convertTokenToDecimal(oTokenAmount, _18_BI)
+
+  let pairToken = Token.load(vester.pairToken) as Token
+  let index = InterestIndex.load(vester.pairToken)
+  if (index === null) {
+    position.pairAmountPar = convertTokenToDecimal(pairAmount, pairToken.decimals)
+  } else {
+    position.pairAmountPar = weiToPar(convertTokenToDecimal(pairAmount, pairToken.decimals), index, pairToken.decimals)
+  }
+
+  position.paymentAmountWei = ZERO_BD
   position.pairTaxesPaid = ZERO_BD
   position.save()
 
@@ -63,7 +155,36 @@ export function handleVestingPositionCreated(event: VestingPositionCreatedEvent)
   effectiveUserTokenValue.save()
 }
 
+export function handleVestingPositionCreatedOld(event: VestingPositionCreatedEventOld): void {
+  handleVestingPositionCreated(
+    event,
+    event.params.vestingPosition.id,
+    event.params.vestingPosition.creator,
+    event.params.vestingPosition.startTime,
+    event.params.vestingPosition.duration,
+    event.params.vestingPosition.amount,
+    event.params.vestingPosition.amount,
+  )
+}
+
+export function handleVestingPositionCreatedNew(event: VestingPositionCreatedEventNew): void {
+  handleVestingPositionCreated(
+    event,
+    event.params.vestingPosition.id,
+    event.params.vestingPosition.creator,
+    event.params.vestingPosition.startTime,
+    event.params.vestingPosition.duration,
+    event.params.vestingPosition.oTokenAmount,
+    event.params.vestingPosition.pairAmount,
+  )
+}
+
 export function handleVestingPositionDurationExtended(event: VestingPositionDurationExtendedEvent): void {
+  if (!isValidVester(event)) {
+    log.info('Invalid vester, found {}', [event.address.toHexString()])
+    return
+  }
+
   let position = getVestingPosition(event, event.params.vestingId)
   position.duration = event.params.newDuration
   position.endTimestamp = position.startTimestamp.plus(position.duration)
@@ -71,6 +192,11 @@ export function handleVestingPositionDurationExtended(event: VestingPositionDura
 }
 
 export function handleVestingPositionTransfer(event: LiquidityMiningVestingPositionTransferEvent): void {
+  if (!isValidVester(event)) {
+    log.info('Invalid vester, found {}', [event.address.toHexString()])
+    return
+  }
+
   if (event.params.to.toHexString() != ADDRESS_ZERO) {
     createUserIfNecessary(event.params.to)
   }
@@ -91,9 +217,14 @@ export function handleVestingPositionTransfer(event: LiquidityMiningVestingPosit
     transfer.toEffectiveUser = getEffectiveUserForAddress(event.params.to).id
   }
 
+  let vester = LiquidityMiningVester.load(event.address.toHexString()) as LiquidityMiningVester
+  let pairToken = Token.load(vester.pairToken) as Token
+
   let vestingPosition = getVestingPosition(event, event.params.tokenId)
-  let marketInterestIndex = InterestIndex.load(vestingPosition.pairToken) as InterestIndex
-  transfer.pairInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(marketInterestIndex)
+  let marketInterestIndex = InterestIndex.load(vester.pairToken)
+  if (marketInterestIndex !== null) {
+    transfer.pairInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(marketInterestIndex)
+  }
 
   transfer.vestingPosition = vestingPosition.id
   transfer.save()
@@ -102,8 +233,6 @@ export function handleVestingPositionTransfer(event: LiquidityMiningVestingPosit
     let position = getVestingPosition(event, event.params.tokenId)
     position.owner = event.params.to.toHexString()
     position.save()
-
-    let pairToken = Token.load(vestingPosition.pairToken) as Token
 
     let fromEffectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(
       transfer.fromEffectiveUser as string,
@@ -123,12 +252,21 @@ export function handleVestingPositionTransfer(event: LiquidityMiningVestingPosit
 }
 
 export function handleVestingPositionClosed(event: VestingPositionClosedEvent): void {
+  if (!isValidVester(event)) {
+    log.info('Invalid vester, found {}', [event.address.toHexString()])
+    return
+  }
+
   let transaction = getOrCreateTransaction(event)
 
   let position = getVestingPosition(event, event.params.vestingId)
   position.closeTransaction = transaction.id
   position.closeTimestamp = event.block.timestamp
-  position.tokenSpent = convertTokenToDecimal(event.params.ethCostPaid, _18_BI)
+
+  let vester = LiquidityMiningVester.load(position.vester) as LiquidityMiningVester
+  let paymentToken = Token.load(vester.paymentToken) as Token
+  position.paymentAmountWei = convertTokenToDecimal(event.params.ethCostPaid, paymentToken.decimals)
+
   position.status = LiquidityMiningVestingPositionStatus.CLOSED
   position.save()
 
@@ -136,12 +274,21 @@ export function handleVestingPositionClosed(event: VestingPositionClosedEvent): 
 }
 
 export function handleVestingPositionForceClosed(event: VestingPositionForceClosedEvent): void {
+  if (!isValidVester(event)) {
+    log.info('Invalid vester, found {}', [event.address.toHexString()])
+    return
+  }
+
   let transaction = getOrCreateTransaction(event)
 
   let position = getVestingPosition(event, event.params.vestingId)
   position.closeTransaction = transaction.id
   position.closeTimestamp = event.block.timestamp
-  position.pairTaxesPaid = convertTokenToDecimal(event.params.arbTax, _18_BI)
+
+  let vester = LiquidityMiningVester.load(position.vester) as LiquidityMiningVester
+  let pairToken = Token.load(vester.pairToken) as Token
+  position.pairTaxesPaid = convertTokenToDecimal(event.params.pairTax, pairToken.decimals)
+
   position.status = LiquidityMiningVestingPositionStatus.FORCE_CLOSED
   position.save()
 
@@ -149,12 +296,17 @@ export function handleVestingPositionForceClosed(event: VestingPositionForceClos
 }
 
 export function handleVestingPositionEmergencyWithdraw(event: VestingPositionEmergencyWithdrawEvent): void {
+  if (!isValidVester(event)) {
+    log.info('Invalid vester, found {}', [event.address.toHexString()])
+    return
+  }
+
   let transaction = getOrCreateTransaction(event)
 
   let position = getVestingPosition(event, event.params.vestingId)
   position.closeTimestamp = event.block.timestamp
   position.closeTransaction = transaction.id
-  position.pairTaxesPaid = convertTokenToDecimal(event.params.arbTax, _18_BI)
+  position.pairTaxesPaid = convertTokenToDecimal(event.params.pairTax, _18_BI)
   position.status = LiquidityMiningVestingPositionStatus.EMERGENCY_CLOSED
   position.save()
 
@@ -168,6 +320,11 @@ export function handleOArbClaimed(event: OARBClaimedEvent): void {
 }
 
 export function handleLevelRequestInitiated(event: LevelRequestInitiatedEvent): void {
+  if (!isValidVester(event)) {
+    log.info('Invalid vester, found {}', [event.address.toHexString()])
+    return
+  }
+
   let transaction = getOrCreateTransaction(event)
   createUserIfNecessary(event.params.user)
 
@@ -180,6 +337,11 @@ export function handleLevelRequestInitiated(event: LevelRequestInitiatedEvent): 
 }
 
 export function handleLevelRequestFinalized(event: LevelRequestFinalizedEvent): void {
+  if (!isValidVester(event)) {
+    log.info('Invalid vester, found {}', [event.address.toHexString()])
+    return
+  }
+
   let transaction = getOrCreateTransaction(event)
 
   let request = LiquidityMiningLevelUpdateRequest.load(
