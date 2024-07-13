@@ -1,4 +1,9 @@
 import {
+  Address,
+  ethereum,
+  log,
+} from '@graphprotocol/graph-ts'
+import {
   AsyncDepositCancelled as AsyncDepositCancelledEvent,
   AsyncDepositCancelledFailed as AsyncDepositCancelledFailedEvent,
   AsyncDepositCreated as AsyncDepositCreatedEvent,
@@ -10,21 +15,46 @@ import {
   AsyncWithdrawalExecuted as AsyncWithdrawalExecutedEvent,
   AsyncWithdrawalFailed as AsyncWithdrawalFailedEvent,
   AsyncWithdrawalOutputAmountUpdated as AsyncWithdrawalOutputAmountUpdatedEvent,
+  DistributorRegistered as DistributorRegisteredEvent,
   RewardClaimed as RewardClaimedEvent,
 } from '../types/EventEmitterRegistry/EventEmitterRegistry'
-import { AsyncDeposit, AsyncWithdrawal, Token } from '../types/schema'
-import { getOrCreateMarginAccount } from './helpers/margin-helpers'
-import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
+import {
+  AsyncDeposit,
+  AsyncWithdrawal,
+  LiquidityMiningVester,
+  Token,
+} from '../types/schema'
+import {
+  EVENT_EMITTER_FROM_CORE_ADDRESS,
+  EVENT_EMITTER_PROXY_ADDRESS,
+  ZERO_BI,
+} from './generated/constants'
 import {
   AsyncDepositStatus,
   AsyncWithdrawalStatus,
   getAsyncDepositOrWithdrawalKey,
 } from './helpers/event-emitter-registry-helpers'
-import { convertTokenToDecimal } from './helpers/token-helpers'
+import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 import { handleClaim } from './helpers/liquidity-mining-helpers'
-import { ZERO_BI } from './generated/constants'
+import { getOrCreateMarginAccount } from './helpers/margin-helpers'
+import { convertTokenToDecimal } from './helpers/token-helpers'
+
+function requireIsValidEventEmitter(event: ethereum.Event): boolean {
+  let isValid = event.address.equals(Address.fromHexString(EVENT_EMITTER_PROXY_ADDRESS)) ||
+    event.address.equals(Address.fromHexString(EVENT_EMITTER_FROM_CORE_ADDRESS))
+  if (!isValid) {
+    log.info('Invalid event emitter, found {}', [event.address.toHexString()])
+    return false
+  }
+
+  return true
+}
 
 export function handleAsyncDepositCreated(event: AsyncDepositCreatedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   let deposit = new AsyncDeposit(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key))
   let inputToken = Token.load(event.params.deposit.inputToken.toHexString()) as Token
   let outputToken = Token.load(event.params.token.toHexString()) as Token
@@ -50,6 +80,10 @@ export function handleAsyncDepositCreated(event: AsyncDepositCreatedEvent): void
 }
 
 export function handleAsyncDepositOutputAmountUpdated(event: AsyncDepositOutputAmountUpdatedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
   let outputToken = Token.load(deposit.outputToken) as Token
   deposit.outputAmount = convertTokenToDecimal(event.params.outputAmount, outputToken.decimals)
@@ -57,18 +91,30 @@ export function handleAsyncDepositOutputAmountUpdated(event: AsyncDepositOutputA
 }
 
 export function handleAsyncDepositExecuted(event: AsyncDepositExecutedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
   deposit.status = AsyncDepositStatus.DEPOSIT_EXECUTED
   deposit.save()
 }
 
 export function handleAsyncDepositFailed(event: AsyncDepositFailedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
   deposit.status = AsyncDepositStatus.DEPOSIT_FAILED
   deposit.save()
 }
 
 export function handleAsyncDepositCancelled(event: AsyncDepositCancelledEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
   deposit.status = AsyncDepositStatus.DEPOSIT_CANCELLED
   deposit.isRetryable = false
@@ -76,6 +122,10 @@ export function handleAsyncDepositCancelled(event: AsyncDepositCancelledEvent): 
 }
 
 export function handleAsyncDepositCancelledFailed(event: AsyncDepositCancelledFailedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
   deposit.status = AsyncDepositStatus.DEPOSIT_CANCELLED_FAILED
   deposit.isRetryable = true
@@ -83,6 +133,10 @@ export function handleAsyncDepositCancelledFailed(event: AsyncDepositCancelledFa
 }
 
 export function handleAsyncWithdrawalCreated(event: AsyncWithdrawalCreatedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   let withdrawal = new AsyncWithdrawal(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key))
   let inputToken = Token.load(event.params.token.toHexString()) as Token
   let outputToken = Token.load(event.params.withdrawal.outputToken.toHexString()) as Token
@@ -110,6 +164,10 @@ export function handleAsyncWithdrawalCreated(event: AsyncWithdrawalCreatedEvent)
 }
 
 export function handleAsyncWithdrawalOutputAmountUpdated(event: AsyncWithdrawalOutputAmountUpdatedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   let withdrawal = AsyncWithdrawal.load(getAsyncDepositOrWithdrawalKey(
     event.params.token,
     event.params.key,
@@ -120,6 +178,10 @@ export function handleAsyncWithdrawalOutputAmountUpdated(event: AsyncWithdrawalO
 }
 
 export function handleAsyncWithdrawalExecuted(event: AsyncWithdrawalExecutedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   let withdrawal = AsyncWithdrawal.load(getAsyncDepositOrWithdrawalKey(
     event.params.token,
     event.params.key,
@@ -130,6 +192,10 @@ export function handleAsyncWithdrawalExecuted(event: AsyncWithdrawalExecutedEven
 }
 
 export function handleAsyncWithdrawalFailed(event: AsyncWithdrawalFailedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   let withdrawal = AsyncWithdrawal.load(getAsyncDepositOrWithdrawalKey(
     event.params.token,
     event.params.key,
@@ -140,6 +206,10 @@ export function handleAsyncWithdrawalFailed(event: AsyncWithdrawalFailedEvent): 
 }
 
 export function handleAsyncWithdrawalCancelled(event: AsyncWithdrawalCancelledEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   let withdrawal = AsyncWithdrawal.load(getAsyncDepositOrWithdrawalKey(
     event.params.token,
     event.params.key,
@@ -152,5 +222,21 @@ export function handleAsyncWithdrawalCancelled(event: AsyncWithdrawalCancelledEv
 const seasonNumber = ZERO_BI
 
 export function handleRewardClaimed(event: RewardClaimedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
   handleClaim(event.params.distributor, event.params.user, event.params.epoch, seasonNumber, event.params.amount)
+}
+
+export function handleDistributorRegistered(event: DistributorRegisteredEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
+  let vester = new LiquidityMiningVester(event.address.toHexString())
+  vester.oTokenAddress = event.params.oTokenAddress
+  vester.pairToken = event.params.pairToken.toHexString()
+  vester.paymentToken = event.params.paymentToken.toHexString()
+  vester.save()
 }

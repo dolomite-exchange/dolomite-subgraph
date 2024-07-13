@@ -71,6 +71,8 @@ export const DOLOMITE_MARGIN_ADDRESS = '{{dolomiteMarginAddress}}'.toLowerCase()
 
 export const EVENT_EMITTER_PROXY_ADDRESS = '{{eventEmitterRegistryAddress}}'.toLowerCase()
 
+export const EVENT_EMITTER_FROM_CORE_ADDRESS = '{{eventEmitterRegistryFromCoreAddress}}'.toLowerCase()
+
 export const EXPIRY_ADDRESS = '{{expiryAddress}}'.toLowerCase()
 
 export const FACTORY_ADDRESS = '{{dolomiteAmmFactoryAddress}}'.toLowerCase()

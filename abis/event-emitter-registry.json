@@ -358,12 +358,24 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "uint8",
-        "name": "version",
-        "type": "uint8"
+        "internalType": "address",
+        "name": "oTokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "pairToken",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "paymentToken",
+        "type": "address"
       }
     ],
-    "name": "Initialized",
+    "name": "DistributorRegistered",
     "type": "event"
   },
   {
@@ -777,19 +789,6 @@
     "type": "event"
   },
   {
-    "inputs": [],
-    "name": "DOLOMITE_MARGIN",
-    "outputs": [
-      {
-        "internalType": "contract IDolomiteMargin",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "bytes32",
@@ -1120,6 +1119,29 @@
       }
     ],
     "name": "emitBorrowPositionOpen",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_oTokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_pairToken",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_paymentToken",
+        "type": "address"
+      }
+    ],
+    "name": "emitDistributorRegistered",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1505,13 +1527,6 @@
       }
     ],
     "name": "emitZapExecuted",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "initialize",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

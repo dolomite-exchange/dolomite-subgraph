@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types,@typescript-eslint/camelcase */
 
-import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts'
+import {
+  Address,
+  BigInt,
+  ethereum,
+} from '@graphprotocol/graph-ts'
 import {
   LiquidityMiningClaim,
   LiquidityMiningSeason,
@@ -8,9 +12,12 @@ import {
   LiquidityMiningVestingPosition,
   Token,
 } from '../../types/schema'
-import { _18_BI, ZERO_BD } from '../generated/constants'
-import { getOrCreateEffectiveUserTokenValue } from './margin-helpers'
+import {
+  _18_BI,
+  ZERO_BD,
+} from '../generated/constants'
 import { getRewardClaimerKey } from './event-emitter-registry-helpers'
+import { getOrCreateEffectiveUserTokenValue } from './margin-helpers'
 import { convertTokenToDecimal } from './token-helpers'
 import { createUserIfNecessary } from './user-helpers'
 

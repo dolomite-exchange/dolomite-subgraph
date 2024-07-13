@@ -15,6 +15,7 @@
   "doubleExponentV1InterestSetter": "0xf74FDC3e515F05bd0c5f89FBF03F59A02CFdB37b",
   "eventEmitterRegistryAddress": "0x4BfF12773B0Dc3Cb35f174B5CD351F662018CC2F",
   "eventEmitterRegistryStartBlock": "147766245",
+  "eventEmitterRegistryFromCoreAddress": "0x0000000000000000000000000000000000000000",
   "expiryAddress": "0xDEc1ae3b570ac3c57871BBD7bFeacC807f973Bea",
   "genericTraderProxyV1Address": "0x3e647e1242a8ce0ce013cb967fbff742d7846242",
   "genericTraderProxyV2Address": "0xe50c3118349f09abafc1bb01ad5cb946b1de83f6",

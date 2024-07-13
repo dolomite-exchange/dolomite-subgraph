@@ -1,55 +1,60 @@
 import {
+  Address,
+  BigInt,
+  ethereum,
+  log
+} from '@graphprotocol/graph-ts'
+import { Claimed as OARBClaimedEvent } from '../types/LiquidityMiningClaimer/LiquidityMiningClaimer'
+import {
   EmergencyWithdraw as VestingPositionEmergencyWithdrawEvent,
   LevelRequestFinalized as LevelRequestFinalizedEvent,
   LevelRequestInitiated as LevelRequestInitiatedEvent,
+  LiquidityMiningVester as LiquidityMiningVesterProtocol,
   PositionClosed as VestingPositionClosedEvent,
   PositionDurationExtended as VestingPositionDurationExtendedEvent,
   PositionForceClosed as VestingPositionForceClosedEvent,
   Transfer as LiquidityMiningVestingPositionTransferEvent,
-  VestingPositionCreatedOld as VestingPositionCreatedEventOld,
   VestingPositionCreatedNew as VestingPositionCreatedEventNew,
-  LiquidityMiningVester as LiquidityMiningVesterProtocol
+  VestingPositionCreatedOld as VestingPositionCreatedEventOld
 } from '../types/LiquidityMiningVester/LiquidityMiningVester'
-import { Claimed as OARBClaimedEvent } from '../types/LiquidityMiningClaimer/LiquidityMiningClaimer'
 import {
   InterestIndex,
   LiquidityMiningLevelUpdateRequest,
   LiquidityMiningVester,
   LiquidityMiningVestingPosition,
   LiquidityMiningVestingPositionTransfer,
-  Token,
+  Token
 } from '../types/schema'
-import { convertTokenToDecimal } from './helpers/token-helpers'
+import { getOrCreateTransaction } from './amm-core'
 import {
   _18_BI,
   ADDRESS_ZERO,
-  ARB_ADDRESS, GOARB_VESTER_PROXY_ADDRESS,
+  ARB_ADDRESS,
+  GOARB_VESTER_PROXY_ADDRESS,
   OARB_VESTER_PROXY_ADDRESS,
   ONE_BI,
   WETH_ADDRESS,
   ZERO_BD,
-  ZERO_BI,
+  ZERO_BI
 } from './generated/constants'
+import { getOrCreateInterestIndexSnapshotAndReturnId } from './helpers/helpers'
+import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 import {
   getVestingPosition,
   getVestingPositionId,
   handleClaim,
   handleVestingPositionClose,
-  LiquidityMiningVestingPositionStatus,
+  LiquidityMiningVestingPositionStatus
 } from './helpers/liquidity-mining-helpers'
-import { createUserIfNecessary } from './helpers/user-helpers'
 import {
   getOrCreateDolomiteMarginForCall,
   getOrCreateEffectiveUserTokenValue,
-  weiToPar,
+  weiToPar
 } from './helpers/margin-helpers'
 import { ProtocolType } from './helpers/margin-types'
-import { getOrCreateTransaction } from './amm-core'
-import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
-import { getOrCreateInterestIndexSnapshotAndReturnId } from './helpers/helpers'
-import { Address, ethereum, BigInt, log } from '@graphprotocol/graph-ts'
+import { convertTokenToDecimal } from './helpers/token-helpers'
+import { createUserIfNecessary } from './helpers/user-helpers'
 
-let OARB_VESTER_ADDRESS = Address.fromHexString('0x36416f30f6e3b03d846b63e8fc6dc0722ed73a02')
 let OARB_TOKEN_ADDRESS = Address.fromHexString('0xCBED801b4162bf2A19B06968663438b5165A6A93')
 
 function getOrCreateLiquidityMiningVester(event: ethereum.Event): LiquidityMiningVester {
@@ -58,37 +63,22 @@ function getOrCreateLiquidityMiningVester(event: ethereum.Event): LiquidityMinin
     vester = new LiquidityMiningVester(event.address.toHexString())
     let protocol = LiquidityMiningVesterProtocol.bind(event.address)
 
-    let oTokenResult = protocol.try_oToken()
-    if (oTokenResult.reverted) {
-      if (event.address.equals(OARB_VESTER_ADDRESS)) {
-        vester.oTokenAddress = OARB_TOKEN_ADDRESS
-      } else {
-        vester.oTokenAddress = Address.fromHexString(ADDRESS_ZERO)
-      }
+    if (event.address.equals(Address.fromHexString(OARB_VESTER_PROXY_ADDRESS))) {
+      vester.oTokenAddress = OARB_TOKEN_ADDRESS
     } else {
-      vester.oTokenAddress = oTokenResult.value
+      vester.oTokenAddress = protocol.oToken()
     }
 
-    let pairTokenResult = protocol.try_PAIR_TOKEN()
-    if (pairTokenResult.reverted) {
-      if (event.address.equals(OARB_VESTER_ADDRESS)) {
-        vester.pairToken = ARB_ADDRESS
-      } else {
-        vester.pairToken = ADDRESS_ZERO
-      }
+    if (event.address.equals(Address.fromHexString(OARB_VESTER_PROXY_ADDRESS))) {
+      vester.pairToken = ARB_ADDRESS
     } else {
-      vester.pairToken = pairTokenResult.value.toHexString()
+      vester.pairToken = protocol.PAIR_TOKEN().toHexString()
     }
 
-    let paymentTokenResult = protocol.try_PAYMENT_TOKEN()
-    if (paymentTokenResult.reverted) {
-      if (event.address.equals(OARB_VESTER_ADDRESS)) {
-        vester.paymentToken = WETH_ADDRESS
-      } else {
-        vester.paymentToken = ADDRESS_ZERO
-      }
+    if (event.address.equals(Address.fromHexString(OARB_VESTER_PROXY_ADDRESS))) {
+      vester.paymentToken = WETH_ADDRESS
     } else {
-      vester.paymentToken = paymentTokenResult.value.toHexString()
+      vester.paymentToken = protocol.PAYMENT_TOKEN().toHexString()
     }
 
     vester.save()
@@ -116,7 +106,7 @@ function handleVestingPositionCreated(
   startTime: BigInt,
   duration: BigInt,
   oTokenAmount: BigInt,
-  pairAmount: BigInt,
+  pairAmount: BigInt
 ): void {
   if (!isValidVester(event)) {
     log.info('Invalid vester, found {}', [event.address.toHexString()])
@@ -163,7 +153,7 @@ export function handleVestingPositionCreatedOld(event: VestingPositionCreatedEve
     event.params.vestingPosition.startTime,
     event.params.vestingPosition.duration,
     event.params.vestingPosition.amount,
-    event.params.vestingPosition.amount,
+    event.params.vestingPosition.amount
   )
 }
 
@@ -175,7 +165,7 @@ export function handleVestingPositionCreatedNew(event: VestingPositionCreatedEve
     event.params.vestingPosition.startTime,
     event.params.vestingPosition.duration,
     event.params.vestingPosition.oTokenAmount,
-    event.params.vestingPosition.pairAmount,
+    event.params.vestingPosition.pairAmount
   )
 }
 
@@ -236,7 +226,7 @@ export function handleVestingPositionTransfer(event: LiquidityMiningVestingPosit
 
     let fromEffectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(
       transfer.fromEffectiveUser as string,
-      pairToken,
+      pairToken
     )
     fromEffectiveUserTokenValue.totalSupplyPar = fromEffectiveUserTokenValue.totalSupplyPar
       .minus(position.pairAmountPar)
@@ -345,7 +335,7 @@ export function handleLevelRequestFinalized(event: LevelRequestFinalizedEvent): 
   let transaction = getOrCreateTransaction(event)
 
   let request = LiquidityMiningLevelUpdateRequest.load(
-    event.params.requestId.toString(),
+    event.params.requestId.toString()
   ) as LiquidityMiningLevelUpdateRequest
   request.fulfilmentTransaction = transaction.id
   request.isFulfilled = true

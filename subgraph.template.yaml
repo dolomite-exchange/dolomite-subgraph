@@ -245,7 +245,6 @@ dataSources:
     name: EventEmitterRegistry
     network: {{network}}
     source:
-      address: '{{eventEmitterRegistryAddress}}'
       abi: EventEmitterRegistry
       startBlock: {{eventEmitterRegistryStartBlock}}
     mapping:
@@ -286,6 +285,8 @@ dataSources:
           handler: handleAsyncWithdrawalCancelled
         - event: RewardClaimed(indexed address,indexed address,uint256,uint256)
           handler: handleRewardClaimed
+        - event: DistributorRegistered(address,address,address)
+          handler: handleDistributorRegistered
   - kind: ethereum/contract
     name: LiquidityMiningVester
     network: {{network}}
