@@ -2,7 +2,7 @@ import { Address, BigDecimal, ethereum, log } from '@graphprotocol/graph-ts'
 import { ZapExecuted as ZapExecutedEvent } from '../types/Zap/GenericTraderProxy'
 import {
   DolomiteMargin,
-  MarginAccount, Trade,
+  MarginAccount,
   Transaction,
   Transfer,
   User,
@@ -15,14 +15,10 @@ import {
   EVENT_EMITTER_PROXY_ADDRESS,
   GENERIC_TRADER_PROXY_V1,
   ONE_BI,
-  ZERO_BD, ZERO_BI,
+  ZERO_BD,
 } from './generated/constants'
 import { absBD } from './helpers/helpers'
-import {
-  getTokenPathForZap,
-  getZapAccountNumber, removeTradeMetricsForTrader,
-  removeTradeMetricsIfNecessaryFromExternalLiquidityTrade,
-} from './helpers/zap-helpers'
+import { getTokenPathForZap, getZapAccountNumber } from './helpers/zap-helpers'
 
 function isContractUnknown(event: ethereum.Event): boolean {
   return event.address.notEqual(Address.fromString(GENERIC_TRADER_PROXY_V1))
@@ -92,7 +88,6 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
   zap.save()
 
   let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
-  let tradesForTransaction: Array<Trade> = transaction.trades.load()
   for (let i = 0; i < event.params.tradersPath.length; i++) {
     let traderParamEvent = event.params.tradersPath[i]
     let traderParam = new ZapTraderParam(`${zap.id}-${i}`)
@@ -100,27 +95,12 @@ export function handleZapExecuted(event: ZapExecutedEvent): void {
 
     if (traderParamEvent.traderType == 0) {
       traderParam.traderType = 'EXTERNAL_LIQUIDITY'
-      removeTradeMetricsIfNecessaryFromExternalLiquidityTrade(
-        traderParamEvent,
-        dolomiteMargin,
-        tradesForTransaction,
-      )
     } else if (traderParamEvent.traderType == 1) {
       traderParam.traderType = 'INTERNAL_LIQUIDITY'
     } else if (traderParamEvent.traderType == 2) {
       traderParam.traderType = 'ISOLATION_MODE_UNWRAPPER'
-      removeTradeMetricsForTrader(
-        traderParamEvent,
-        dolomiteMargin,
-        tradesForTransaction,
-      )
     } else if (traderParamEvent.traderType == 3) {
       traderParam.traderType = 'ISOLATION_MODE_WRAPPER'
-      removeTradeMetricsForTrader(
-        traderParamEvent,
-        dolomiteMargin,
-        tradesForTransaction,
-      )
     } else {
       throw new Error(`Invalid trader type, found: ${traderParamEvent.traderType.toString()}`)
     }

@@ -86,7 +86,7 @@ function getOrCreateLiquidityMiningVester(event: ethereum.Event): LiquidityMinin
   return vester
 }
 
-function isValidVester(event: ethereum.Event): boolean {
+function requireValidVester(event: ethereum.Event): boolean {
   let vester: LiquidityMiningVester | null
   if (event.address.equals(Address.fromHexString(GOARB_VESTER_PROXY_ADDRESS))) {
     vester = getOrCreateLiquidityMiningVester(event)
@@ -96,6 +96,9 @@ function isValidVester(event: ethereum.Event): boolean {
     vester = LiquidityMiningVester.load(event.address.toHexString())
   }
 
+  if (vester === null) {
+    log.info('Invalid vester, found {}', [event.address.toHexString()])
+  }
   return vester !== null
 }
 
@@ -108,15 +111,14 @@ function handleVestingPositionCreated(
   oTokenAmount: BigInt,
   pairAmount: BigInt
 ): void {
-  if (!isValidVester(event)) {
-    log.info('Invalid vester, found {}', [event.address.toHexString()])
+  if (!requireValidVester(event)) {
     return
   }
 
   let transaction = getOrCreateTransaction(event)
   createUserIfNecessary(creator)
 
-  let vester = getOrCreateLiquidityMiningVester(event)
+  let vester = LiquidityMiningVester.load(event.address.toHexString()) as LiquidityMiningVester
 
   let position = new LiquidityMiningVestingPosition(getVestingPositionId(event, positionId))
   position.status = LiquidityMiningVestingPositionStatus.ACTIVE
@@ -170,8 +172,7 @@ export function handleVestingPositionCreatedNew(event: VestingPositionCreatedEve
 }
 
 export function handleVestingPositionDurationExtended(event: VestingPositionDurationExtendedEvent): void {
-  if (!isValidVester(event)) {
-    log.info('Invalid vester, found {}', [event.address.toHexString()])
+  if (!requireValidVester(event)) {
     return
   }
 
@@ -182,8 +183,7 @@ export function handleVestingPositionDurationExtended(event: VestingPositionDura
 }
 
 export function handleVestingPositionTransfer(event: LiquidityMiningVestingPositionTransferEvent): void {
-  if (!isValidVester(event)) {
-    log.info('Invalid vester, found {}', [event.address.toHexString()])
+  if (!requireValidVester(event)) {
     return
   }
 
@@ -242,8 +242,7 @@ export function handleVestingPositionTransfer(event: LiquidityMiningVestingPosit
 }
 
 export function handleVestingPositionClosed(event: VestingPositionClosedEvent): void {
-  if (!isValidVester(event)) {
-    log.info('Invalid vester, found {}', [event.address.toHexString()])
+  if (!requireValidVester(event)) {
     return
   }
 
@@ -264,8 +263,7 @@ export function handleVestingPositionClosed(event: VestingPositionClosedEvent): 
 }
 
 export function handleVestingPositionForceClosed(event: VestingPositionForceClosedEvent): void {
-  if (!isValidVester(event)) {
-    log.info('Invalid vester, found {}', [event.address.toHexString()])
+  if (!requireValidVester(event)) {
     return
   }
 
@@ -286,8 +284,7 @@ export function handleVestingPositionForceClosed(event: VestingPositionForceClos
 }
 
 export function handleVestingPositionEmergencyWithdraw(event: VestingPositionEmergencyWithdrawEvent): void {
-  if (!isValidVester(event)) {
-    log.info('Invalid vester, found {}', [event.address.toHexString()])
+  if (!requireValidVester(event)) {
     return
   }
 
@@ -310,8 +307,7 @@ export function handleOArbClaimed(event: OARBClaimedEvent): void {
 }
 
 export function handleLevelRequestInitiated(event: LevelRequestInitiatedEvent): void {
-  if (!isValidVester(event)) {
-    log.info('Invalid vester, found {}', [event.address.toHexString()])
+  if (!requireValidVester(event)) {
     return
   }
 
@@ -327,8 +323,7 @@ export function handleLevelRequestInitiated(event: LevelRequestInitiatedEvent): 
 }
 
 export function handleLevelRequestFinalized(event: LevelRequestFinalizedEvent): void {
-  if (!isValidVester(event)) {
-    log.info('Invalid vester, found {}', [event.address.toHexString()])
+  if (!requireValidVester(event)) {
     return
   }
 

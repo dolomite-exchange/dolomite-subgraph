@@ -700,37 +700,3 @@ export function updateTimeDataForVaporization(
     dolomiteDayData.save()
   }
 }
-
-export function subtractDayAndHourlyVolumeForTrade(trade: Trade): void {
-  let dayData = DolomiteDayData.load(getDayId(trade.timestamp)) as DolomiteDayData
-  dayData.totalTradeCount = dayData.totalTradeCount.minus(ONE_BI)
-  dayData.dailyTradeVolumeUSD = dayData.dailyTradeVolumeUSD.minus(trade.takerAmountUSD)
-
-  let takerTokenDayData = TokenDayData.load(`${trade.takerToken}-${getDayId(trade.timestamp)}`) as TokenDayData
-  takerTokenDayData.dailyTradeVolumeToken = takerTokenDayData.dailyTradeVolumeToken.minus(trade.takerTokenDeltaWei)
-  takerTokenDayData.dailyTradeVolumeUSD = takerTokenDayData.dailyTradeVolumeUSD.minus(trade.takerAmountUSD)
-  takerTokenDayData.dailyTradeCount = takerTokenDayData.dailyTradeCount.minus(ONE_BI)
-  takerTokenDayData.save()
-
-  let makerTokenDayData = TokenDayData.load(`${trade.makerToken}-${getDayId(trade.timestamp)}`) as TokenDayData
-  makerTokenDayData.dailyTradeVolumeToken = makerTokenDayData.dailyTradeVolumeToken.minus(trade.makerTokenDeltaWei)
-  makerTokenDayData.dailyTradeVolumeUSD = makerTokenDayData.dailyTradeVolumeUSD.minus(trade.makerAmountUSD)
-  makerTokenDayData.dailyTradeCount = makerTokenDayData.dailyTradeCount.minus(ONE_BI)
-  makerTokenDayData.save()
-
-  let hourData = DolomiteHourData.load(getHourId(trade.timestamp)) as DolomiteHourData
-  hourData.totalTradeCount = hourData.totalTradeCount.minus(ONE_BI)
-  hourData.hourlyTradeVolumeUSD = hourData.hourlyTradeVolumeUSD.minus(trade.takerAmountUSD)
-
-  let takerTokenHourData = TokenHourData.load(`${trade.takerToken}-${getHourId(trade.timestamp)}`) as TokenHourData
-  takerTokenHourData.hourlyTradeVolumeToken = takerTokenHourData.hourlyTradeVolumeToken.minus(trade.takerTokenDeltaWei)
-  takerTokenHourData.hourlyTradeVolumeUSD = takerTokenHourData.hourlyTradeVolumeUSD.minus(trade.takerAmountUSD)
-  takerTokenHourData.hourlyTradeCount = takerTokenHourData.hourlyTradeCount.minus(ONE_BI)
-  takerTokenHourData.save()
-
-  let makerTokenHourData = TokenHourData.load(`${trade.makerToken}-${getHourId(trade.timestamp)}`) as TokenHourData
-  makerTokenHourData.hourlyTradeVolumeToken = makerTokenHourData.hourlyTradeVolumeToken.minus(trade.makerTokenDeltaWei)
-  makerTokenHourData.hourlyTradeVolumeUSD = makerTokenHourData.hourlyTradeVolumeUSD.minus(trade.makerAmountUSD)
-  makerTokenHourData.hourlyTradeCount = makerTokenHourData.hourlyTradeCount.minus(ONE_BI)
-  makerTokenHourData.save()
-}
