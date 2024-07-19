@@ -1,10 +1,6 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types,@typescript-eslint/camelcase */
 
-import {
-  Address,
-  BigInt,
-  ethereum,
-} from '@graphprotocol/graph-ts'
+import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts'
 import {
   LiquidityMiningClaim,
   LiquidityMiningSeason,
@@ -14,12 +10,21 @@ import {
 } from '../../types/schema'
 import {
   _18_BI,
+  ADDRESS_ZERO,
+  ARB_ADDRESS, GOARB_VESTER_PROXY_ADDRESS,
+  OARB_TOKEN_ADDRESS,
+  OARB_VESTER_PROXY_ADDRESS,
+  WETH_ADDRESS,
   ZERO_BD,
 } from '../generated/constants'
 import { getRewardClaimerKey } from './event-emitter-registry-helpers'
 import { getOrCreateEffectiveUserTokenValue } from './margin-helpers'
 import { convertTokenToDecimal } from './token-helpers'
 import { createUserIfNecessary } from './user-helpers'
+import { LiquidityMiningVester as LiquidityMiningVesterTemplate } from '../../types/templates'
+import {
+  LiquidityMiningVester as LiquidityMiningVesterProtocol,
+} from '../../types/templates/LiquidityMiningVester/LiquidityMiningVester'
 
 export class LiquidityMiningVestingPositionStatus {
   public static ACTIVE: string = 'ACTIVE'
@@ -76,4 +81,40 @@ export function handleClaim(
   }
   season.totalClaimAmount = season.totalClaimAmount.plus(claim.amount)
   season.save()
+}
+
+function createLiquidityMiningVester(vesterAddress: Address): void {
+  if (vesterAddress.equals(Address.fromString(ADDRESS_ZERO))) {
+    return
+  }
+
+  let vester = new LiquidityMiningVester(vesterAddress.toHexString())
+  let protocol = LiquidityMiningVesterProtocol.bind(vesterAddress)
+
+  if (vesterAddress.equals(Address.fromString(OARB_VESTER_PROXY_ADDRESS))) {
+    vester.oTokenAddress = OARB_TOKEN_ADDRESS
+  } else {
+    vester.oTokenAddress = protocol.oToken()
+  }
+
+  if (vesterAddress.equals(Address.fromString(OARB_VESTER_PROXY_ADDRESS))) {
+    vester.pairToken = ARB_ADDRESS
+  } else {
+    vester.pairToken = protocol.PAIR_TOKEN().toHexString()
+  }
+
+  if (vesterAddress.equals(Address.fromString(OARB_VESTER_PROXY_ADDRESS))) {
+    vester.paymentToken = WETH_ADDRESS
+  } else {
+    vester.paymentToken = protocol.PAYMENT_TOKEN().toHexString()
+  }
+
+  vester.save()
+
+  LiquidityMiningVesterTemplate.create(vesterAddress)
+}
+
+export function createLiquidityMiningVesters(): void {
+  createLiquidityMiningVester(Address.fromString(OARB_VESTER_PROXY_ADDRESS))
+  createLiquidityMiningVester(Address.fromString(GOARB_VESTER_PROXY_ADDRESS))
 }

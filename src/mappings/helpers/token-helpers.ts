@@ -9,7 +9,7 @@ import {
   ZERO_BD,
   ZERO_BI,
 } from '../generated/constants'
-import { IsolationModeVault } from '../../types/templates'
+import { IsolationModeVault as IsolationModeVaultTemplate } from '../../types/templates'
 
 export function convertTokenToDecimal(tokenAmount: BigInt, exchangeDecimals: BigInt): BigDecimal {
   if (exchangeDecimals.equals(ZERO_BI)) {
@@ -123,7 +123,7 @@ export function initializeToken(token: Token, marketId: BigInt): void {
   // dfsGLP doesn't have the "Dolomite Isolation:" prefix, so it's an edge-case
   let dGlpAddress = Address.fromString('0x34DF4E8062A8C8Ae97E3382B452bd7BF60542698')
   if (token.name.includes('Dolomite Isolation:') || Address.fromString(token.id).equals(dGlpAddress)) {
-    IsolationModeVault.create(Address.fromString(token.id))
+    IsolationModeVaultTemplate.create(Address.fromString(token.id))
     token.isIsolationMode = true
   } else {
     token.isIsolationMode = false

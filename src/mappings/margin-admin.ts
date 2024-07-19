@@ -4,34 +4,36 @@ import {
   DolomiteMargin as DolomiteMarginProtocol,
   LogAddMarket as AddMarketEvent,
   LogRemoveMarket as RemoveMarketEvent,
+  LogSetAccountMaxNumberOfMarketsWithBalances as MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent,
+  LogSetAccountRiskOverrideSetter as AccountRiskOverrideSetterUpdateEvent,
+  LogSetAutoTraderIsSpecial as AutoTraderIsSpecialUpdateEvent,
+  LogSetCallbackGasLimit as CallbackGasLimitUpdateEvent,
+  LogSetDefaultAccountRiskOverrideSetter as DefaultAccountRiskOverrideSetterUpdateEvent,
   LogSetEarningsRate as EarningsRateUpdateEvent,
+  LogSetEarningsRateOverride as EarningsRateOverrideUpdateEvent,
+  LogSetGlobalOperator as GlobalOperatorUpdateEvent,
   LogSetInterestSetter as InterestSetterUpdateEvent,
   LogSetIsClosing as IsClosingUpdateEvent,
   LogSetLiquidationSpread as LiquidationSpreadUpdateEvent,
-  LogSetMarginPremium as MarginPremiumUpdateEvent,
-  LogSetSpreadPremium as SpreadPremiumUpdateEvent,
   LogSetLiquidationSpreadPremium as LiquidationSpreadPremiumUpdateEvent,
-  LogSetMaxWei as MaxWeiUpdateEvent,
-  LogSetMaxSupplyWei as MaxSupplyWeiUpdateEvent,
-  LogSetMaxBorrowWei as MaxBorrowWeiUpdateEvent,
-  LogSetEarningsRateOverride as EarningsRateOverrideUpdateEvent,
+  LogSetMarginPremium as MarginPremiumUpdateEvent,
   LogSetMarginRatio as MarginRatioUpdateEvent,
-  LogSetAccountMaxNumberOfMarketsWithBalances as MaxNumberOfMarketsWithBalancesAndDebtUpdateEvent,
+  LogSetMaxBorrowWei as MaxBorrowWeiUpdateEvent,
+  LogSetMaxSupplyWei as MaxSupplyWeiUpdateEvent,
+  LogSetMaxWei as MaxWeiUpdateEvent,
   LogSetMinBorrowedValue as MinBorrowedValueUpdateEvent,
-  LogSetPriceOracle as PriceOracleUpdateEvent,
   LogSetOracleSentinel as OracleSentinelUpdateEvent,
-  LogSetCallbackGasLimit as CallbackGasLimitUpdateEvent,
-  LogSetDefaultAccountRiskOverrideSetter as DefaultAccountRiskOverrideSetterUpdateEvent,
-  LogSetAccountRiskOverrideSetter as AccountRiskOverrideSetterUpdateEvent,
-  LogSetGlobalOperator as GlobalOperatorUpdateEvent,
-  LogSetAutoTraderIsSpecial as AutoTraderIsSpecialUpdateEvent,
+  LogSetPriceOracle as PriceOracleUpdateEvent,
+  LogSetSpreadPremium as SpreadPremiumUpdateEvent,
 } from '../types/MarginAdmin/DolomiteMargin'
 import {
-  DolomiteMargin, GlobalOperator,
+  DolomiteMargin,
+  GlobalOperator,
   InterestIndex,
   InterestRate,
   MarketRiskInfo,
-  OraclePrice, SpecialAutoTrader,
+  OraclePrice,
+  SpecialAutoTrader,
   Token,
   TokenMarketIdReverseLookup,
   TotalPar,
@@ -39,7 +41,8 @@ import {
 import {
   _18_BI,
   ADDRESS_ZERO,
-  DOLOMITE_MARGIN_ADDRESS, EXPIRY_ADDRESS,
+  DOLOMITE_MARGIN_ADDRESS,
+  EXPIRY_ADDRESS,
   INTEREST_PRECISION,
   ONE_BD,
   ONE_ETH_BD,
@@ -58,6 +61,7 @@ import { convertTokenToDecimal, initializeToken } from './helpers/token-helpers'
 import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 import { createUserIfNecessary } from './helpers/user-helpers'
 import { DolomiteMarginExpiry } from '../types/MarginAdmin/DolomiteMarginExpiry'
+import { initializeDolomiteMargin } from './helpers/initialize-dolomite-margin'
 
 export function handleMarketAdded(event: AddMarketEvent): void {
   log.info(
@@ -69,6 +73,11 @@ export function handleMarketAdded(event: AddMarketEvent): void {
       event.logIndex.toString(),
     ],
   )
+
+  if (event.params.marketId.equals(ZERO_BI)) {
+    // Crappy workaround since these initializations were created before the event emitters
+    initializeDolomiteMargin()
+  }
 
   let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)

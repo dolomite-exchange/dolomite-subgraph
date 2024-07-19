@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types,@typescript-eslint/camelcase */
 import { Address, BigInt, Bytes } from '@graphprotocol/graph-ts'
+import { EventEmitterRegistry as EventEmitterRegistryTemplate } from '../../types/templates'
+import { EVENT_EMITTER_FROM_CORE_ADDRESS, EVENT_EMITTER_PROXY_ADDRESS } from '../generated/constants'
 
 export class AsyncDepositStatus {
   public static CREATED: string = 'CREATED'
@@ -22,4 +24,9 @@ export function getAsyncDepositOrWithdrawalKey(token: Address, key: Bytes): stri
 
 export function getRewardClaimerKey(distributor: Address, user: Address, epoch: BigInt): string {
   return `${distributor.toHexString()}-${user.toHexString()}-${epoch.toString()}`
+}
+
+export function createEventEmitterRegistries(): void {
+  EventEmitterRegistryTemplate.create(Address.fromString(EVENT_EMITTER_PROXY_ADDRESS))
+  EventEmitterRegistryTemplate.create(Address.fromString(EVENT_EMITTER_FROM_CORE_ADDRESS))
 }

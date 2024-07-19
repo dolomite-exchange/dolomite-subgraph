@@ -17,7 +17,7 @@ import {
   AsyncWithdrawalOutputAmountUpdated as AsyncWithdrawalOutputAmountUpdatedEvent,
   DistributorRegistered as DistributorRegisteredEvent,
   RewardClaimed as RewardClaimedEvent,
-} from '../types/EventEmitterRegistry/EventEmitterRegistry'
+} from '../types/templates/EventEmitterRegistry/EventEmitterRegistry'
 import {
   AsyncDeposit,
   AsyncWithdrawal,
@@ -38,6 +38,7 @@ import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 import { handleClaim } from './helpers/liquidity-mining-helpers'
 import { getOrCreateMarginAccount } from './helpers/margin-helpers'
 import { convertTokenToDecimal } from './helpers/token-helpers'
+import { LiquidityMiningVester as LiquidityMiningVesterTemplate } from '../types/templates'
 
 function requireIsValidEventEmitter(event: ethereum.Event): boolean {
   let isValid = event.address.equals(Address.fromHexString(EVENT_EMITTER_PROXY_ADDRESS)) ||
@@ -239,4 +240,6 @@ export function handleDistributorRegistered(event: DistributorRegisteredEvent): 
   vester.pairToken = event.params.pairToken.toHexString()
   vester.paymentToken = event.params.paymentToken.toHexString()
   vester.save()
+
+  LiquidityMiningVesterTemplate.create(event.address)
 }

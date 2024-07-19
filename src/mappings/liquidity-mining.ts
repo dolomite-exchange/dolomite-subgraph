@@ -1,42 +1,26 @@
-import {
-  Address,
-  BigInt,
-  ethereum,
-  log
-} from '@graphprotocol/graph-ts'
+import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts'
 import { Claimed as OARBClaimedEvent } from '../types/LiquidityMiningClaimer/LiquidityMiningClaimer'
 import {
   EmergencyWithdraw as VestingPositionEmergencyWithdrawEvent,
   LevelRequestFinalized as LevelRequestFinalizedEvent,
   LevelRequestInitiated as LevelRequestInitiatedEvent,
-  LiquidityMiningVester as LiquidityMiningVesterProtocol,
   PositionClosed as VestingPositionClosedEvent,
   PositionDurationExtended as VestingPositionDurationExtendedEvent,
   PositionForceClosed as VestingPositionForceClosedEvent,
   Transfer as LiquidityMiningVestingPositionTransferEvent,
   VestingPositionCreatedNew as VestingPositionCreatedEventNew,
-  VestingPositionCreatedOld as VestingPositionCreatedEventOld
-} from '../types/LiquidityMiningVester/LiquidityMiningVester'
+  VestingPositionCreatedOld as VestingPositionCreatedEventOld,
+} from '../types/templates/LiquidityMiningVester/LiquidityMiningVester'
 import {
   InterestIndex,
   LiquidityMiningLevelUpdateRequest,
   LiquidityMiningVester,
   LiquidityMiningVestingPosition,
   LiquidityMiningVestingPositionTransfer,
-  Token
+  Token,
 } from '../types/schema'
 import { getOrCreateTransaction } from './amm-core'
-import {
-  _18_BI,
-  ADDRESS_ZERO,
-  ARB_ADDRESS,
-  GOARB_VESTER_PROXY_ADDRESS,
-  OARB_VESTER_PROXY_ADDRESS,
-  ONE_BI,
-  WETH_ADDRESS,
-  ZERO_BD,
-  ZERO_BI
-} from './generated/constants'
+import { _18_BI, ADDRESS_ZERO, ONE_BI, ZERO_BD, ZERO_BI } from './generated/constants'
 import { getOrCreateInterestIndexSnapshotAndReturnId } from './helpers/helpers'
 import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 import {
@@ -44,63 +28,16 @@ import {
   getVestingPositionId,
   handleClaim,
   handleVestingPositionClose,
-  LiquidityMiningVestingPositionStatus
+  LiquidityMiningVestingPositionStatus,
 } from './helpers/liquidity-mining-helpers'
 import {
   getOrCreateDolomiteMarginForCall,
   getOrCreateEffectiveUserTokenValue,
-  weiToPar
+  weiToPar,
 } from './helpers/margin-helpers'
 import { ProtocolType } from './helpers/margin-types'
 import { convertTokenToDecimal } from './helpers/token-helpers'
 import { createUserIfNecessary } from './helpers/user-helpers'
-
-let OARB_TOKEN_ADDRESS = Address.fromHexString('0xCBED801b4162bf2A19B06968663438b5165A6A93')
-
-function getOrCreateLiquidityMiningVester(event: ethereum.Event): LiquidityMiningVester {
-  let vester = LiquidityMiningVester.load(event.address.toHexString())
-  if (vester === null) {
-    vester = new LiquidityMiningVester(event.address.toHexString())
-    let protocol = LiquidityMiningVesterProtocol.bind(event.address)
-
-    if (event.address.equals(Address.fromHexString(OARB_VESTER_PROXY_ADDRESS))) {
-      vester.oTokenAddress = OARB_TOKEN_ADDRESS
-    } else {
-      vester.oTokenAddress = protocol.oToken()
-    }
-
-    if (event.address.equals(Address.fromHexString(OARB_VESTER_PROXY_ADDRESS))) {
-      vester.pairToken = ARB_ADDRESS
-    } else {
-      vester.pairToken = protocol.PAIR_TOKEN().toHexString()
-    }
-
-    if (event.address.equals(Address.fromHexString(OARB_VESTER_PROXY_ADDRESS))) {
-      vester.paymentToken = WETH_ADDRESS
-    } else {
-      vester.paymentToken = protocol.PAYMENT_TOKEN().toHexString()
-    }
-
-    vester.save()
-  }
-  return vester
-}
-
-function requireValidVester(event: ethereum.Event): boolean {
-  let vester: LiquidityMiningVester | null
-  if (event.address.equals(Address.fromHexString(GOARB_VESTER_PROXY_ADDRESS))) {
-    vester = getOrCreateLiquidityMiningVester(event)
-  } else if (event.address.equals(Address.fromHexString(OARB_VESTER_PROXY_ADDRESS))) {
-    vester = getOrCreateLiquidityMiningVester(event)
-  } else {
-    vester = LiquidityMiningVester.load(event.address.toHexString())
-  }
-
-  if (vester === null) {
-    log.info('Invalid vester, found {}', [event.address.toHexString()])
-  }
-  return vester !== null
-}
 
 function handleVestingPositionCreated(
   event: ethereum.Event,
@@ -109,12 +46,8 @@ function handleVestingPositionCreated(
   startTime: BigInt,
   duration: BigInt,
   oTokenAmount: BigInt,
-  pairAmount: BigInt
+  pairAmount: BigInt,
 ): void {
-  if (!requireValidVester(event)) {
-    return
-  }
-
   let transaction = getOrCreateTransaction(event)
   createUserIfNecessary(creator)
 
@@ -155,7 +88,7 @@ export function handleVestingPositionCreatedOld(event: VestingPositionCreatedEve
     event.params.vestingPosition.startTime,
     event.params.vestingPosition.duration,
     event.params.vestingPosition.amount,
-    event.params.vestingPosition.amount
+    event.params.vestingPosition.amount,
   )
 }
 
@@ -167,15 +100,11 @@ export function handleVestingPositionCreatedNew(event: VestingPositionCreatedEve
     event.params.vestingPosition.startTime,
     event.params.vestingPosition.duration,
     event.params.vestingPosition.oTokenAmount,
-    event.params.vestingPosition.pairAmount
+    event.params.vestingPosition.pairAmount,
   )
 }
 
 export function handleVestingPositionDurationExtended(event: VestingPositionDurationExtendedEvent): void {
-  if (!requireValidVester(event)) {
-    return
-  }
-
   let position = getVestingPosition(event, event.params.vestingId)
   position.duration = event.params.newDuration
   position.endTimestamp = position.startTimestamp.plus(position.duration)
@@ -183,10 +112,6 @@ export function handleVestingPositionDurationExtended(event: VestingPositionDura
 }
 
 export function handleVestingPositionTransfer(event: LiquidityMiningVestingPositionTransferEvent): void {
-  if (!requireValidVester(event)) {
-    return
-  }
-
   if (event.params.to.toHexString() != ADDRESS_ZERO) {
     createUserIfNecessary(event.params.to)
   }
@@ -226,7 +151,7 @@ export function handleVestingPositionTransfer(event: LiquidityMiningVestingPosit
 
     let fromEffectiveUserTokenValue = getOrCreateEffectiveUserTokenValue(
       transfer.fromEffectiveUser as string,
-      pairToken
+      pairToken,
     )
     fromEffectiveUserTokenValue.totalSupplyPar = fromEffectiveUserTokenValue.totalSupplyPar
       .minus(position.pairAmountPar)
@@ -242,10 +167,6 @@ export function handleVestingPositionTransfer(event: LiquidityMiningVestingPosit
 }
 
 export function handleVestingPositionClosed(event: VestingPositionClosedEvent): void {
-  if (!requireValidVester(event)) {
-    return
-  }
-
   let transaction = getOrCreateTransaction(event)
 
   let position = getVestingPosition(event, event.params.vestingId)
@@ -263,10 +184,6 @@ export function handleVestingPositionClosed(event: VestingPositionClosedEvent): 
 }
 
 export function handleVestingPositionForceClosed(event: VestingPositionForceClosedEvent): void {
-  if (!requireValidVester(event)) {
-    return
-  }
-
   let transaction = getOrCreateTransaction(event)
 
   let position = getVestingPosition(event, event.params.vestingId)
@@ -284,10 +201,6 @@ export function handleVestingPositionForceClosed(event: VestingPositionForceClos
 }
 
 export function handleVestingPositionEmergencyWithdraw(event: VestingPositionEmergencyWithdrawEvent): void {
-  if (!requireValidVester(event)) {
-    return
-  }
-
   let transaction = getOrCreateTransaction(event)
 
   let position = getVestingPosition(event, event.params.vestingId)
@@ -307,10 +220,6 @@ export function handleOArbClaimed(event: OARBClaimedEvent): void {
 }
 
 export function handleLevelRequestInitiated(event: LevelRequestInitiatedEvent): void {
-  if (!requireValidVester(event)) {
-    return
-  }
-
   let transaction = getOrCreateTransaction(event)
   createUserIfNecessary(event.params.user)
 
@@ -323,14 +232,10 @@ export function handleLevelRequestInitiated(event: LevelRequestInitiatedEvent): 
 }
 
 export function handleLevelRequestFinalized(event: LevelRequestFinalizedEvent): void {
-  if (!requireValidVester(event)) {
-    return
-  }
-
   let transaction = getOrCreateTransaction(event)
 
   let request = LiquidityMiningLevelUpdateRequest.load(
-    event.params.requestId.toString()
+    event.params.requestId.toString(),
   ) as LiquidityMiningLevelUpdateRequest
   request.fulfilmentTransaction = transaction.id
   request.isFulfilled = true

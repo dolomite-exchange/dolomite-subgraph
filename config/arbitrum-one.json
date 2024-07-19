@@ -1,5 +1,6 @@
 {
   "network": "arbitrum-one",
+  "network": "arbitrum",
   "startBlock": "28220369",
   "aaveAltCoinCopyCatV1InterestSetter": "0xc2cBd99bb35b22C43010a8c8266Cdff057f70BB1",
   "aaveStableCoinCopyCatV1InterestSetter": "0xEA4E670fD64aE82af5a3d77b3Db6b5E28A5522de",
