@@ -80,7 +80,7 @@ export function handleClaim(
   season.save()
 }
 
-function createLiquidityMiningVester(vesterAddress: Address): void {
+export function createLiquidityMiningVester(vesterAddress: Address): void {
   if (vesterAddress.equals(Address.fromString(ADDRESS_ZERO))) {
     return
   }
@@ -108,9 +108,4 @@ function createLiquidityMiningVester(vesterAddress: Address): void {
   vester.save()
 
   LiquidityMiningVesterTemplate.create(vesterAddress)
-}
-
-export function createLiquidityMiningVesters(): void {
-  createLiquidityMiningVester(Address.fromString(OARB_VESTER_PROXY_ADDRESS))
-  createLiquidityMiningVester(Address.fromString(GOARB_VESTER_PROXY_ADDRESS))
 }

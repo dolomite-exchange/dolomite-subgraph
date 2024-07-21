@@ -41,9 +41,14 @@ import {
 import {
   _18_BI,
   ADDRESS_ZERO,
+  ARB_ADDRESS,
   DOLOMITE_MARGIN_ADDRESS,
   EXPIRY_ADDRESS,
+  GOARB_VESTER_PROXY_ADDRESS,
+  GRAI_ADDRESS,
   INTEREST_PRECISION,
+  isArbitrumOne,
+  OARB_VESTER_PROXY_ADDRESS,
   ONE_BD,
   ONE_ETH_BD,
   ZERO_BD,
@@ -62,6 +67,7 @@ import { getEffectiveUserForAddress } from './helpers/isolation-mode-helpers'
 import { createUserIfNecessary } from './helpers/user-helpers'
 import { DolomiteMarginExpiry } from '../types/MarginAdmin/DolomiteMarginExpiry'
 import { initializeDolomiteMargin } from './helpers/initialize-dolomite-margin'
+import { createLiquidityMiningVester } from './helpers/liquidity-mining-helpers'
 
 export function handleMarketAdded(event: AddMarketEvent): void {
   log.info(
@@ -74,11 +80,6 @@ export function handleMarketAdded(event: AddMarketEvent): void {
     ],
   )
 
-  if (event.params.marketId.equals(ZERO_BI)) {
-    // Crappy workaround since these initializations were created before the event emitters
-    initializeDolomiteMargin()
-  }
-
   let marginProtocol = DolomiteMarginProtocol.bind(Address.fromString(DOLOMITE_MARGIN_ADDRESS))
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, false, ProtocolType.Admin)
   dolomiteMargin.numberOfMarkets = marginProtocol.getNumMarkets().toI32()
@@ -90,6 +91,18 @@ export function handleMarketAdded(event: AddMarketEvent): void {
     log.info('Adding new token to store {}', [tokenAddress])
     token = new Token(tokenAddress)
     initializeToken(token, event.params.marketId)
+  }
+
+  if (event.params.marketId.equals(ZERO_BI)) {
+    // Crappy workaround since these initializations were created before the event emitters
+    initializeDolomiteMargin()
+  }
+  if (isArbitrumOne()) {
+    if (event.params.token.equals(Address.fromString(ARB_ADDRESS))) {
+      createLiquidityMiningVester(Address.fromString(OARB_VESTER_PROXY_ADDRESS))
+    } else if (event.params.token.equals(Address.fromString(GRAI_ADDRESS))) {
+      createLiquidityMiningVester(Address.fromString(GOARB_VESTER_PROXY_ADDRESS))
+    }
   }
 
   let index = new InterestIndex(token.id)
