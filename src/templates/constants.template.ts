@@ -89,6 +89,8 @@ export const GOARB_VESTER_PROXY_ADDRESS = '{{goArbLiquidityMiningVesterAddress}}
 
 export const OARB_VESTER_PROXY_ADDRESS = '{{oArbLiquidityMiningVesterAddress}}'.toLowerCase()
 
+export const GOARB_TOKEN_ADDRESS = Address.fromHexString('0xC5e16f5009776aB645d6719B72962892428b2ac2')
+
 export const OARB_TOKEN_ADDRESS = Address.fromHexString('0xCBED801b4162bf2A19B06968663438b5165A6A93')
 
 // ========================= Token Addresses =========================
@@ -96,6 +98,8 @@ export const OARB_TOKEN_ADDRESS = Address.fromHexString('0xCBED801b4162bf2A19B06
 export const ARB_ADDRESS = '{{arbAddress}}'.toLowerCase()
 
 export const DAI_ADDRESS = '{{daiAddress}}'.toLowerCase()
+
+export const GRAI_ADDRESS = '{{graiAddress}}'.toLowerCase()
 
 export const LINK_ADDRESS = '{{linkAddress}}'.toLowerCase()
 

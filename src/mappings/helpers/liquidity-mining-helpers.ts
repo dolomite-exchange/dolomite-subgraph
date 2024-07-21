@@ -11,7 +11,7 @@ import {
 import {
   _18_BI,
   ADDRESS_ZERO,
-  ARB_ADDRESS, GOARB_VESTER_PROXY_ADDRESS,
+  ARB_ADDRESS, GOARB_TOKEN_ADDRESS, GOARB_VESTER_PROXY_ADDRESS, GRAI_ADDRESS,
   OARB_TOKEN_ADDRESS,
   OARB_VESTER_PROXY_ADDRESS,
   WETH_ADDRESS,
@@ -22,9 +22,6 @@ import { getOrCreateEffectiveUserTokenValue } from './margin-helpers'
 import { convertTokenToDecimal } from './token-helpers'
 import { createUserIfNecessary } from './user-helpers'
 import { LiquidityMiningVester as LiquidityMiningVesterTemplate } from '../../types/templates'
-import {
-  LiquidityMiningVester as LiquidityMiningVesterProtocol,
-} from '../../types/templates/LiquidityMiningVester/LiquidityMiningVester'
 
 export class LiquidityMiningVestingPositionStatus {
   public static ACTIVE: string = 'ACTIVE'
@@ -89,24 +86,23 @@ function createLiquidityMiningVester(vesterAddress: Address): void {
   }
 
   let vester = new LiquidityMiningVester(vesterAddress.toHexString())
-  let protocol = LiquidityMiningVesterProtocol.bind(vesterAddress)
 
   if (vesterAddress.equals(Address.fromString(OARB_VESTER_PROXY_ADDRESS))) {
     vester.oTokenAddress = OARB_TOKEN_ADDRESS
-  } else {
-    vester.oTokenAddress = protocol.oToken()
+  } else if (vesterAddress.equals(Address.fromString(GOARB_VESTER_PROXY_ADDRESS))) {
+    vester.oTokenAddress = GOARB_TOKEN_ADDRESS
   }
 
   if (vesterAddress.equals(Address.fromString(OARB_VESTER_PROXY_ADDRESS))) {
     vester.pairToken = ARB_ADDRESS
-  } else {
-    vester.pairToken = protocol.PAIR_TOKEN().toHexString()
+  } else if (vesterAddress.equals(Address.fromString(GOARB_VESTER_PROXY_ADDRESS))) {
+    vester.pairToken = GRAI_ADDRESS
   }
 
   if (vesterAddress.equals(Address.fromString(OARB_VESTER_PROXY_ADDRESS))) {
     vester.paymentToken = WETH_ADDRESS
-  } else {
-    vester.paymentToken = protocol.PAYMENT_TOKEN().toHexString()
+  } else if (vesterAddress.equals(Address.fromString(GOARB_VESTER_PROXY_ADDRESS))) {
+    vester.paymentToken = GRAI_ADDRESS
   }
 
   vester.save()
