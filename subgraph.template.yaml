@@ -375,9 +375,9 @@ templates:
         - name: DolomiteMargin
           file: ./abis/dolomite-margin.json
       eventHandlers:
-        - event: VestingPositionCreatedOld((address,uint256,uint256,uint256,uint256))
+        - event: VestingPositionCreated((address,uint256,uint256,uint256,uint256))
           handler: handleVestingPositionCreatedOld
-        - event: VestingPositionCreatedNew((address,uint256,uint256,uint256,uint256,uint256))
+        - event: VestingPositionCreated((address,uint256,uint256,uint256,uint256,uint256))
           handler: handleVestingPositionCreatedNew
         - event: PositionDurationExtended(indexed uint256,uint256)
           handler: handleVestingPositionDurationExtended

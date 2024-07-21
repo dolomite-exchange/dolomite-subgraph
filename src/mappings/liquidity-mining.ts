@@ -8,8 +8,8 @@ import {
   PositionDurationExtended as VestingPositionDurationExtendedEvent,
   PositionForceClosed as VestingPositionForceClosedEvent,
   Transfer as LiquidityMiningVestingPositionTransferEvent,
-  VestingPositionCreatedNew as VestingPositionCreatedEventNew,
-  VestingPositionCreatedOld as VestingPositionCreatedEventOld,
+  VestingPositionCreated as VestingPositionCreatedEventOld,
+  VestingPositionCreated1 as VestingPositionCreatedEventNew,
 } from '../types/templates/LiquidityMiningVester/LiquidityMiningVester'
 import {
   InterestIndex,
@@ -62,6 +62,7 @@ function handleVestingPositionCreated(
   position.duration = duration
   position.endTimestamp = position.startTimestamp.plus(position.duration)
   position.oTokenAmount = convertTokenToDecimal(oTokenAmount, _18_BI)
+  position.vester = vester.id
 
   let pairToken = Token.load(vester.pairToken) as Token
   let index = InterestIndex.load(vester.pairToken)

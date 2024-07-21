@@ -411,7 +411,7 @@
         "type": "tuple"
       }
     ],
-    "name": "VestingPositionCreatedOld",
+    "name": "VestingPositionCreated",
     "type": "event"
   },
   {
@@ -456,7 +456,7 @@
         "type": "tuple"
       }
     ],
-    "name": "VestingPositionCreatedNew",
+    "name": "VestingPositionCreated",
     "type": "event"
   },
   {
