@@ -966,6 +966,7 @@ type LiquidityMiningVester @entity {
 type LiquidityMiningVestingPosition @entity {
   id: ID! # Defined as "contract-NFT_ID"
   vester: LiquidityMiningVester!
+  positionId: BigInt!
   status: String! # one of ACTIVE, CLOSED, FORCE_CLOSED, EMERGENCY_CLOSED
   creator: User!
   owner: User!

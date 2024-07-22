@@ -10,6 +10,8 @@ import {
   Transfer as LiquidityMiningVestingPositionTransferEvent,
   VestingPositionCreated as VestingPositionCreatedEventOld,
   VestingPositionCreated1 as VestingPositionCreatedEventNew,
+  VestingStarted as VestingPositionStartedEventOld,
+  VestingStarted1 as VestingPositionStartedEventNew,
 } from '../types/templates/LiquidityMiningVester/LiquidityMiningVester'
 import {
   InterestIndex,
@@ -53,7 +55,16 @@ function handleVestingPositionCreated(
 
   let vester = LiquidityMiningVester.load(event.address.toHexString()) as LiquidityMiningVester
 
-  let position = new LiquidityMiningVestingPosition(getVestingPositionId(event, positionId))
+  let position = LiquidityMiningVestingPosition.load(getVestingPositionId(event, positionId))
+  if (position !== null) {
+    // Position was already created (which can happen between the duplicate calls to VestingStarted and
+    // VestingPositionCreated
+    return
+  }
+
+  position = new LiquidityMiningVestingPosition(getVestingPositionId(event, positionId))
+  position.vester = vester.id
+  position.positionId = positionId
   position.status = LiquidityMiningVestingPositionStatus.ACTIVE
   position.creator = creator.toHexString()
   position.owner = creator.toHexString()
@@ -62,7 +73,6 @@ function handleVestingPositionCreated(
   position.duration = duration
   position.endTimestamp = position.startTimestamp.plus(position.duration)
   position.oTokenAmount = convertTokenToDecimal(oTokenAmount, _18_BI)
-  position.vester = vester.id
 
   let pairToken = Token.load(vester.pairToken) as Token
   let index = InterestIndex.load(vester.pairToken)
@@ -102,6 +112,30 @@ export function handleVestingPositionCreatedNew(event: VestingPositionCreatedEve
     event.params.vestingPosition.duration,
     event.params.vestingPosition.oTokenAmount,
     event.params.vestingPosition.pairAmount,
+  )
+}
+
+export function handleVestingPositionStartedOld(event: VestingPositionStartedEventOld): void {
+  handleVestingPositionCreated(
+    event,
+    event.params.vestingId,
+    event.params.owner,
+    event.block.timestamp,
+    event.params.duration,
+    event.params.amount,
+    event.params.amount,
+  )
+}
+
+export function handleVestingPositionStartedNew(event: VestingPositionStartedEventNew): void {
+  handleVestingPositionCreated(
+    event,
+    event.params.vestingId,
+    event.params.owner,
+    event.block.timestamp,
+    event.params.duration,
+    event.params.oTokenAmount,
+    event.params.pairAmount,
   )
 }
 
