@@ -40,10 +40,13 @@
     "deploy:arbitrum-one": "VERSION=$(cat version.txt) && yarn codegen:arbitrum-one && graph deploy --version-label=$VERSION --studio dolomite-arbitrum",
     "deploy:arbitrum-one:ormi": "VERSION=$(cat version.txt) && yarn codegen:arbitrum-one && graph deploy dolomite-arbitrum --version-label=$VERSION --node https://dolomiteapi.0xgraph.xyz/deploy --ipfs https://dolomiteapi.0xgraph.xyz/ipfs",
     "deploy:base": "VERSION=$(cat version.txt) && yarn codegen:base && graph deploy --studio --version-label=$VERSION dolomite-base",
+    "deploy:base:ormi": "VERSION=$(cat version.txt) && yarn codegen:base && graph deploy dolomite-base --version-label=$VERSION --node https://dolomiteapi.0xgraph.xyz/deploy --ipfs https://dolomiteapi.0xgraph.xyz/ipfs",
     "deploy:berachain:goldsky": "VERSION=$(cat version.txt) && yarn codegen:berachain && goldsky subgraph deploy dolomite-berachain/$VERSION --path .",
     "deploy:mantle": "VERSION=$(cat version.txt) && yarn codegen:mantle && graph deploy dolomite-mantle --version-label=$VERSION --node https://subgraph-api.mantle.xyz/deploy --ipfs https://subgraph-api.mantle.xyz/ipfs",
+    "deploy:mantle:ormi": "VERSION=$(cat version.txt) && yarn codegen:mantle && graph deploy dolomite-mantle --version-label=$VERSION --node https://dolomiteapi.0xgraph.xyz/deploy --ipfs https://dolomiteapi.0xgraph.xyz/ipfs",
     "deploy:polygon-zkevm": "VERSION=$(cat version.txt) && yarn codegen:polygon-zkevm && graph deploy --version-label=$VERSION --studio dolomite-polygon-zkevm",
     "deploy:x-layer": "VERSION=$(cat version.txt) && yarn codegen:x-layer && graph deploy --version-label=$VERSION --studio dolomite-x-layer",
+    "deploy:x-layer:ormi": "VERSION=$(cat version.txt) && yarn codegen:x-layer && graph deploy dolomite-x-layer --version-label=$VERSION --node https://dolomiteapi.0xgraph.xyz/deploy --ipfs https://dolomiteapi.0xgraph.xyz/ipfs",
     "graph:version": "graph --version",
     "test:specific": "graph test --version=0.6.0-beta3 --docker zap",
     "watch-local": "graph deploy dolomite-exchange/dolomite-v2 --watch --debug --node http://127.0.0.1:8020/ --ipfs http://localhost:5001"
