@@ -57,7 +57,9 @@ dataSources:
           file: ./abis/dolomite-margin-expiry.json
       eventHandlers:
         - event: LogIndexUpdate(indexed uint256,(uint96,uint96,uint32))
-          handler: handleIndexUpdate
+          handler: handleIndexUpdateOld
+        - event: LogIndexUpdate(indexed uint256,(uint112,uint112,uint32))
+          handler: handleIndexUpdateNew
         - event: LogOraclePrice(indexed uint256,(uint256))
           handler: handleOraclePriceUpdate
         - event: LogDeposit(indexed address,uint256,uint256,((bool,uint256),(bool,uint128)),address)

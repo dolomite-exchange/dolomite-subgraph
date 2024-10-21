@@ -4,7 +4,8 @@ import {
   LogBuy as BuyEvent,
   LogCall as CallEvent,
   LogDeposit as DepositEvent,
-  LogIndexUpdate as IndexUpdateEvent,
+  LogIndexUpdate as IndexUpdateEventOld,
+  LogIndexUpdate1 as IndexUpdateEventNew,
   LogLiquidate as LiquidationEvent,
   LogOperation as OperationEvent,
   LogOraclePrice as OraclePriceEvent,
@@ -67,21 +68,48 @@ export function handleOperation(event: OperationEvent): void {
 }
 
 // noinspection JSUnusedGlobalSymbols
-export function handleIndexUpdate(event: IndexUpdateEvent): void {
+export function handleIndexUpdateOld(event: IndexUpdateEventOld): void {
+  handleIndexUpdate(
+    event,
+    event.params.market,
+    event.params.index.borrow,
+    event.params.index.supply,
+    event.params.index.lastUpdate,
+  )
+}
+
+// noinspection JSUnusedGlobalSymbols
+export function handleIndexUpdateNew(event: IndexUpdateEventNew): void {
+  handleIndexUpdate(
+    event,
+    event.params.market,
+    event.params.index.borrow,
+    event.params.index.supply,
+    event.params.index.lastUpdate,
+  )
+}
+
+function handleIndexUpdate(
+  event: ethereum.Event,
+  marketId: BigInt,
+  borrowIndex: BigInt,
+  supplyIndex: BigInt,
+  lastUpdate: BigInt,
+): void {
   log.info(
     'Handling index update for hash and index: {}-{}',
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let tokenAddress = TokenMarketIdReverseLookup.load(event.params.market.toString())!.token
+  let tokenAddress = TokenMarketIdReverseLookup.load(marketId.toString())!.token
   let index = InterestIndex.load(tokenAddress)
   if (index === null) {
     index = new InterestIndex(tokenAddress)
   }
 
-  index.borrowIndex = convertTokenToDecimal(event.params.index.borrow, _18_BI)
-  index.supplyIndex = convertTokenToDecimal(event.params.index.supply, _18_BI)
-  index.lastUpdate = event.params.index.lastUpdate
+  index.borrowIndex = convertTokenToDecimal(borrowIndex, _18_BI)
+  index.supplyIndex = convertTokenToDecimal(supplyIndex, _18_BI)
+  index.lastUpdate = lastUpdate
   index.save()
 }
 
@@ -326,7 +354,7 @@ export function handleTransfer(event: TransferEvent): void {
   transfer.token = token.id
 
   let marketIndex = InterestIndex.load(token.id) as InterestIndex
-  transfer.interestIndex = getOrCreateInterestIndexSnapshotAndReturnId(marketIndex);
+  transfer.interestIndex = getOrCreateInterestIndexSnapshotAndReturnId(marketIndex)
 
   let amountDeltaWei = new ValueStruct(event.params.updateOne.deltaWei)
   let priceUSD = getTokenOraclePriceUSD(token, event, ProtocolType.Core)
@@ -600,8 +628,8 @@ export function handleSell(event: SellEvent): void {
   let makerIndex = InterestIndex.load(makerToken.id) as InterestIndex
   let takerIndex = InterestIndex.load(takerToken.id) as InterestIndex
 
-  trade.takerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(takerIndex);
-  trade.makerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(makerIndex);
+  trade.takerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(takerIndex)
+  trade.makerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(makerIndex)
 
   let takerDeltaWeiStruct = new ValueStruct(event.params.takerUpdate.deltaWei)
   trade.takerTokenDeltaWei = convertStructToDecimalAppliedValue(takerDeltaWeiStruct.abs(), takerToken.decimals)

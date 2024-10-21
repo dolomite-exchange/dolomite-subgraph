@@ -2514,6 +2514,42 @@
     "inputs": [
       {
         "indexed": true,
+        "internalType": "uint256",
+        "name": "market",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint112",
+            "name": "borrow",
+            "type": "uint112"
+          },
+          {
+            "internalType": "uint112",
+            "name": "supply",
+            "type": "uint112"
+          },
+          {
+            "internalType": "uint32",
+            "name": "lastUpdate",
+            "type": "uint32"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct Interest.Index",
+        "name": "index",
+        "type": "tuple"
+      }
+    ],
+    "name": "LogIndexUpdate",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
         "internalType": "address",
         "name": "solidAccountOwner",
         "type": "address"

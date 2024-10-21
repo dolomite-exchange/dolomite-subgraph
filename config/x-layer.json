@@ -1,5 +1,5 @@
 {
-  "network": "xlayer-mainnet",
+  "network": "xlayer",
   "startBlock": "832938",
   "aaveAltCoinCopyCatV1InterestSetter": "0xc90e5Df165c26441F6F4e558ca6128A42eb95787",
   "aaveStableCoinCopyCatV1InterestSetter": "0xfC280671D79B02086Dd59C89f69632040D366EA8",
