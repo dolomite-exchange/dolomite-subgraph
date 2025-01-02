@@ -34,9 +34,9 @@ export function getOrCreateTransaction(event: ethereum.Event): Transaction {
     transaction = new Transaction(transactionID)
     transaction.blockNumber = event.block.number
     transaction.timestamp = event.block.timestamp
-    transaction.intermitentAmmMints = []
-    transaction.intermitentAmmBurns = []
-    transaction.intermitentAmmTrades = []
+    transaction.intermittentAmmMints = []
+    transaction.intermittentAmmBurns = []
+    transaction.intermittentAmmTrades = []
     transaction.save()
   }
 
@@ -73,7 +73,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
   let transaction = getOrCreateTransaction(event)
 
   // mints
-  let mints = transaction.intermitentAmmMints
+  let mints = transaction.intermittentAmmMints
   if (from.toHexString() == ADDRESS_ZERO) {
     // update total supply
     pair.totalSupply = pair.totalSupply.plus(value)
@@ -95,7 +95,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
       mint.save()
 
       // update mints in transaction
-      transaction.intermitentAmmMints = mints.concat([mint.id])
+      transaction.intermittentAmmMints = mints.concat([mint.id])
 
       // save entities
       transaction.save()
@@ -108,7 +108,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
     ammFactory.ammBurnCount = ammFactory.ammBurnCount.plus(ONE_BI)
     ammFactory.save()
 
-    let burns = transaction.intermitentAmmBurns
+    let burns = transaction.intermittentAmmBurns
     let burn = new AmmBurn(getAmmEventID(event, burns))
     burn.transaction = transaction.id
     burn.pair = pair.id
@@ -121,7 +121,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
     burn.serialId = ammFactory.ammBurnCount
     burn.save()
 
-    transaction.intermitentAmmBurns = burns.concat([burn.id])
+    transaction.intermittentAmmBurns = burns.concat([burn.id])
     transaction.save()
   }
 
@@ -131,7 +131,7 @@ export function handleERC20Transfer(event: TransferEvent): void {
     pair.save()
 
     // this is a new instance of a logical burn
-    let burns = transaction.intermitentAmmBurns
+    let burns = transaction.intermittentAmmBurns
     let burn: AmmBurn
     if (burns.length > 0) {
       let currentBurn = AmmBurn.load(burns[burns.length - 1]) as AmmBurn
@@ -175,18 +175,18 @@ export function handleERC20Transfer(event: TransferEvent): void {
       store.remove('Mint', mints[mints.length - 1])
 
       // update the transaction
-      transaction.intermitentAmmMints = mints.slice(0, mints.length - 1)
+      transaction.intermittentAmmMints = mints.slice(0, mints.length - 1)
       transaction.save()
     }
     burn.save()
 
     if (burn.needsComplete) {
       // if accessing last one, replace it
-      transaction.intermitentAmmBurns = burns.slice(0, burns.length - 1)
+      transaction.intermittentAmmBurns = burns.slice(0, burns.length - 1)
         .concat([burn.id])
     } else {
       // else add new one
-      transaction.intermitentAmmBurns = burns.concat([burn.id])
+      transaction.intermittentAmmBurns = burns.concat([burn.id])
     }
     transaction.save()
   }
@@ -280,7 +280,7 @@ export function handleSync(event: SyncEvent): void {
 // noinspection JSUnusedGlobalSymbols
 export function handleMint(event: AmmMintEvent): void {
   let transaction = Transaction.load(event.transaction.hash.toHexString()) as Transaction
-  let mints = transaction.intermitentAmmMints
+  let mints = transaction.intermittentAmmMints
   let mint = AmmMint.load(mints[mints.length - 1]) as AmmMint
 
   let pair = AmmPair.load(event.address.toHex()) as AmmPair
@@ -344,7 +344,7 @@ export function handleBurn(event: AmmBurnEvent): void {
     return
   }
 
-  let burns = transaction.intermitentAmmBurns
+  let burns = transaction.intermittentAmmBurns
   let burn = AmmBurn.load(burns[burns.length - 1]) as AmmBurn
 
   let ammPair = AmmPair.load(event.address.toHex()) as AmmPair
@@ -443,7 +443,7 @@ export function handleSwap(event: AmmTradeEvent): void {
   ammFactory.save()
 
   let transaction = getOrCreateTransaction(event)
-  let ammTrade = new AmmTrade(getAmmEventID(event, transaction.intermitentAmmTrades))
+  let ammTrade = new AmmTrade(getAmmEventID(event, transaction.intermittentAmmTrades))
 
   ammTrade.transaction = transaction.id
   ammTrade.pair = pair.id
@@ -463,7 +463,7 @@ export function handleSwap(event: AmmTradeEvent): void {
   ammTrade.save()
 
   // update the transaction
-  transaction.intermitentAmmTrades = transaction.intermitentAmmTrades.concat([ammTrade.id])
+  transaction.intermittentAmmTrades = transaction.intermittentAmmTrades.concat([ammTrade.id])
   transaction.save()
 
   // update day entities

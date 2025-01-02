@@ -42,7 +42,7 @@ import {
 import { _18_BI, EXPIRY_ADDRESS, ONE_BI, USD_PRECISION, ZERO_BD, ZERO_BI } from './generated/constants'
 import { convertStructToDecimalAppliedValue } from './helpers/amm-helpers'
 import { updateBorrowPositionForLiquidation } from './helpers/borrow-position-helpers'
-import { absBD, getOrCreateInterestIndexSnapshotAndReturnId } from './helpers/helpers'
+import { absBD, getOrCreateInterestIndexSnapshotAndReturnId, TradeLiquidationType } from './helpers/helpers'
 import { getEffectiveUserForAddress, getEffectiveUserForAddressString } from './helpers/isolation-mode-helpers'
 import {
   canBeMarginPosition,
@@ -847,6 +847,10 @@ export function handleTrade(event: TradeEvent): void {
   trade.makerAmountUSD = trade.takerTokenDeltaWei
     .times(getTokenOraclePriceUSD(makerToken, event, ProtocolType.Core))
     .truncate(USD_PRECISION)
+
+  if (trade.traderAddress.equals(Address.fromString(EXPIRY_ADDRESS))) {
+    trade.liquidationType = TradeLiquidationType.EXPIRATION
+  }
 
   trade.makerInputTokenDeltaPar = makerInputAccountUpdate.deltaPar.lt(ZERO_BD) ? makerInputAccountUpdate.deltaPar : makerOutputAccountUpdate.deltaPar
   trade.makerOutputTokenDeltaPar = makerOutputAccountUpdate.deltaPar.gt(ZERO_BD) ? makerOutputAccountUpdate.deltaPar : makerInputAccountUpdate.deltaPar

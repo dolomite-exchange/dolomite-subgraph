@@ -39,6 +39,8 @@ import { handleClaim } from './helpers/liquidity-mining-helpers'
 import { getOrCreateMarginAccount } from './helpers/margin-helpers'
 import { convertTokenToDecimal } from './helpers/token-helpers'
 import { LiquidityMiningVester as LiquidityMiningVesterTemplate } from '../types/templates'
+import { getOrCreateTransaction } from './amm-core'
+import { TradeLiquidationType } from './helpers/helpers'
 
 function requireIsValidEventEmitter(event: ethereum.Event): boolean {
   let isValid = event.address.equals(Address.fromHexString(EVENT_EMITTER_PROXY_ADDRESS)) ||
@@ -67,6 +69,7 @@ export function handleAsyncDepositCreated(event: AsyncDepositCreatedEvent): void
   )
   let effectiveUser = getEffectiveUserForAddress(event.params.deposit.vault)
 
+  deposit.creationTransaction = getOrCreateTransaction(event).id
   deposit.key = event.params.key
   deposit.marginAccount = marginAccount.id
   deposit.effectiveUser = effectiveUser.id
@@ -97,6 +100,7 @@ export function handleAsyncDepositExecuted(event: AsyncDepositExecutedEvent): vo
   }
 
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
+  deposit.executionTransaction = getOrCreateTransaction(event).id
   deposit.status = AsyncDepositStatus.DEPOSIT_EXECUTED
   deposit.save()
 }
@@ -107,6 +111,7 @@ export function handleAsyncDepositFailed(event: AsyncDepositFailedEvent): void {
   }
 
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
+  deposit.executionTransaction = getOrCreateTransaction(event).id
   deposit.status = AsyncDepositStatus.DEPOSIT_FAILED
   deposit.save()
 }
@@ -117,6 +122,7 @@ export function handleAsyncDepositCancelled(event: AsyncDepositCancelledEvent): 
   }
 
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
+  deposit.executionTransaction = getOrCreateTransaction(event).id
   deposit.status = AsyncDepositStatus.DEPOSIT_CANCELLED
   deposit.isRetryable = false
   deposit.save()
@@ -128,6 +134,7 @@ export function handleAsyncDepositCancelledFailed(event: AsyncDepositCancelledFa
   }
 
   let deposit = AsyncDeposit.load(getAsyncDepositOrWithdrawalKey(event.params.token, event.params.key)) as AsyncDeposit
+  deposit.executionTransaction = getOrCreateTransaction(event).id
   deposit.status = AsyncDepositStatus.DEPOSIT_CANCELLED_FAILED
   deposit.isRetryable = true
   deposit.save()
@@ -150,6 +157,7 @@ export function handleAsyncWithdrawalCreated(event: AsyncWithdrawalCreatedEvent)
   let effectiveUser = getEffectiveUserForAddress(event.params.withdrawal.vault)
 
   withdrawal.key = event.params.key
+  withdrawal.creationTransaction = getOrCreateTransaction(event).id
   withdrawal.marginAccount = marginAccount.id
   withdrawal.effectiveUser = effectiveUser.id
   withdrawal.status = AsyncWithdrawalStatus.CREATED
@@ -187,9 +195,26 @@ export function handleAsyncWithdrawalExecuted(event: AsyncWithdrawalExecutedEven
     event.params.token,
     event.params.key,
   )) as AsyncWithdrawal
+  let transaction = getOrCreateTransaction(event)
+
+  withdrawal.executionTransaction = transaction.id
   withdrawal.status = AsyncWithdrawalStatus.WITHDRAWAL_EXECUTED
   withdrawal.isRetryable = false
   withdrawal.save()
+
+  if (withdrawal.isLiquidation) {
+    let trades = transaction.trades.load()
+    for (let i = 0; i < trades.length; i++) {
+      let trade = trades[i]
+      if (
+        (trade.takerToken == withdrawal.inputToken && trade.makerToken == withdrawal.outputToken) ||
+        (trade.makerToken == withdrawal.inputToken && trade.takerToken == withdrawal.outputToken)
+      ) {
+        trade.liquidationType = TradeLiquidationType.LIQUIDATION
+        trade.save()
+      }
+    }
+  }
 }
 
 export function handleAsyncWithdrawalFailed(event: AsyncWithdrawalFailedEvent): void {
@@ -201,6 +226,7 @@ export function handleAsyncWithdrawalFailed(event: AsyncWithdrawalFailedEvent): 
     event.params.token,
     event.params.key,
   )) as AsyncWithdrawal
+  withdrawal.executionTransaction = getOrCreateTransaction(event).id
   withdrawal.status = AsyncWithdrawalStatus.WITHDRAWAL_EXECUTION_FAILED
   withdrawal.isRetryable = true
   withdrawal.save()
@@ -215,6 +241,7 @@ export function handleAsyncWithdrawalCancelled(event: AsyncWithdrawalCancelledEv
     event.params.token,
     event.params.key,
   )) as AsyncWithdrawal
+  withdrawal.executionTransaction = getOrCreateTransaction(event).id
   withdrawal.status = AsyncWithdrawalStatus.WITHDRAWAL_CANCELLED
   withdrawal.isRetryable = false
   withdrawal.save()

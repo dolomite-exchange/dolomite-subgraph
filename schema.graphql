@@ -253,13 +253,17 @@ type Transaction @entity {
   timestamp: BigInt!
   # This is not the reverse of AmmMint.transaction.
   # This is only used to track incomplete mints (similar for burns and trades)
-  intermitentAmmMints: [AmmMint!]!
-  intermitentAmmBurns: [AmmBurn!]!
-  intermitentAmmTrades: [AmmTrade!]!
+  intermittentAmmMints: [AmmMint!]!
+  intermittentAmmBurns: [AmmBurn!]!
+  intermittentAmmTrades: [AmmTrade!]!
 
   ammMints: [AmmMint!]! @derivedFrom(field: "transaction")
   ammBurns: [AmmBurn!]! @derivedFrom(field: "transaction")
   ammTrades: [AmmTrade!]! @derivedFrom(field: "transaction")
+  asyncDepositCreations: [AsyncDeposit!]! @derivedFrom(field: "creationTransaction")
+  asyncWithdrawalCreations: [AsyncWithdrawal!]! @derivedFrom(field: "creationTransaction")
+  asyncDepositExecutions: [AsyncDeposit!]! @derivedFrom(field: "executionTransaction")
+  asyncWithdrawalExecutions: [AsyncWithdrawal!]! @derivedFrom(field: "executionTransaction")
   deposits: [Deposit!]! @derivedFrom(field: "transaction")
   withdrawals: [Withdrawal!]! @derivedFrom(field: "transaction")
   transfers: [Transfer!]! @derivedFrom(field: "transaction")
@@ -811,6 +815,7 @@ type Trade @entity {
   amountUSD: BigDecimal! # based on the value of the takerInputDeltaWei
   takerAmountUSD: BigDecimal! # based on the value of the takerInputDeltaWei
   makerAmountUSD: BigDecimal! # based on the value of the makerInputDeltaWei
+  liquidationType: String # one of `null`, `LIQUIDATION` or `EXPIRATION`
 }
 
 type MostRecentTrade @entity {
@@ -929,6 +934,8 @@ type Zap @entity {
 type AsyncDeposit @entity {
   id: ID! # Defined as "outputToken.id-key"
   key: Bytes!
+  creationTransaction: Transaction!
+  executionTransaction: Transaction
   marginAccount: MarginAccount!
   effectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   status: String! # one of CREATED, DEPOSIT_EXECUTED, DEPOSIT_FAILED, DEPOSIT_CANCELLED, DEPOSIT_CANCELLED_FAILED
@@ -943,6 +950,8 @@ type AsyncDeposit @entity {
 type AsyncWithdrawal @entity {
   id: ID! # Defined as "inputToken.id-key"
   key: Bytes!
+  creationTransaction: Transaction!
+  executionTransaction: Transaction
   marginAccount: MarginAccount!
   effectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   status: String! # one of CREATED, WITHDRAWAL_EXECUTED, WITHDRAWAL_EXECUTION_FAILED, WITHDRAWAL_CANCELLED

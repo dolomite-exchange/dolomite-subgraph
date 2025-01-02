@@ -2,6 +2,11 @@ import { BigDecimal } from '@graphprotocol/graph-ts'
 import { ZERO_BD } from '../generated/constants'
 import { InterestIndex, InterestIndexSnapshot } from '../../types/schema'
 
+export class TradeLiquidationType {
+  public static LIQUIDATION: string = 'LIQUIDATION'
+  public static EXPIRATION: string = 'EXPIRATION'
+}
+
 export function absBD(bd: BigDecimal): BigDecimal {
   if (bd.lt(ZERO_BD)) {
     return bd.neg()
