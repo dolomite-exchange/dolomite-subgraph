@@ -20,7 +20,6 @@ import {
   FACTORY_ADDRESS,
   ONE_BI,
   USD_PRECISION,
-  WETH_ADDRESS,
   ZERO_BD,
   ZERO_BI,
 } from './generated/constants'

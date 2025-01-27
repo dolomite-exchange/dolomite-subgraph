@@ -3,7 +3,8 @@ import { DolomiteMarginERC20 } from '../../types/MarginAdmin/DolomiteMarginERC20
 import { Token, TokenMarketIdReverseLookup } from '../../types/schema'
 import {
   CHAIN_ID,
-  isArbitrumOne, isPolygonZkEvm,
+  isArbitrumOne,
+  isPolygonZkEvm,
   TEN_BI,
   USDC_ADDRESS,
   ZERO_BD,
