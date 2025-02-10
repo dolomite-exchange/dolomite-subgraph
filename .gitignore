@@ -10,3 +10,5 @@ src/mappings/generated
 tests/.bin
 tests/.docker
 tests/.latest.json
+
+ormi-deploy-key.txt
