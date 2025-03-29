@@ -43,6 +43,7 @@
     "deploy:base": "VERSION=$(cat version.txt) && yarn codegen:base && graph deploy --studio --version-label=$VERSION dolomite-base",
     "deploy:base:goldsky": "VERSION=$(cat version.txt) && yarn build:base && goldsky subgraph deploy dolomite-base/$VERSION",
     "deploy:base:ormi": "VERSION=$(cat version.txt) ORMI_DEPLOY_KEY=$(cat ormi-deploy-key.txt) && yarn codegen:base && graph deploy dolomite-base --version-label=$VERSION --node https://subgraph.api.dolomite.io/deploy --ipfs https://subgraph.api.dolomite.io/ipfs --deploy-key=$ORMI_DEPLOY_KEY",
+    "deploy:berachain-mainnet": "VERSION=$(cat version.txt) && yarn codegen:berachain-mainnet && graph deploy --studio --version-label=$VERSION dolomite-berachain",
     "deploy:berachain-mainnet:goldsky": "VERSION=$(cat version.txt) && yarn build:berachain-mainnet && goldsky subgraph deploy dolomite-berachain-mainnet/$VERSION",
     "deploy:berachain-mainnet:ormi": "VERSION=$(cat version.txt) ORMI_DEPLOY_KEY=$(cat ormi-deploy-key.txt) && yarn codegen:berachain-mainnet && graph deploy dolomite-berachain-mainnet --version-label=$VERSION  --node https://subgraph.api.dolomite.io/deploy --ipfs https://subgraph.api.dolomite.io/ipfs --deploy-key=$ORMI_DEPLOY_KEY",
     "deploy:mantle": "VERSION=$(cat version.txt) && yarn codegen:mantle && graph deploy dolomite-mantle --version-label=$VERSION --node https://subgraph-api.mantle.xyz/deploy --ipfs https://subgraph-api.mantle.xyz/ipfs",
