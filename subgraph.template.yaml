@@ -4,8 +4,8 @@ repository: https://github.com/dolomite-exchange/dolomite-subgraph
 #features:
 #  - grafting
 #graft:
-#  base: QmUXmCVceKwsgU6xeuV7c2DNn4nLKvGwqZTmMyC9qN7KsC # Subgraph ID of base subgraph
-#  block: {{genericTraderProxyStartBlock}}
+#  base: QmYfGPxEvGCLvmjBdRN8K9aKL8SFS3xoDS5t9sRkjkiDnw
+#  block: 5406535
 schema:
   file: ./schema.graphql
 dataSources:

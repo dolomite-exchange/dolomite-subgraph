@@ -30,15 +30,6 @@ import {
   Withdrawal,
 } from '../types/schema'
 import { getOrCreateTransaction } from './amm-core'
-import {
-  updateAndReturnTokenDayDataForMarginEvent,
-  updateAndReturnTokenHourDataForMarginEvent,
-  updateDolomiteDayData,
-  updateDolomiteHourData,
-  updateTimeDataForLiquidation,
-  updateTimeDataForTrade,
-  updateTimeDataForVaporization,
-} from './day-updates'
 import { _18_BI, EXPIRY_ADDRESS, ONE_BI, USD_PRECISION, ZERO_BD, ZERO_BI } from './generated/constants'
 import { convertStructToDecimalAppliedValue } from './helpers/amm-helpers'
 import { updateBorrowPositionForLiquidation } from './helpers/borrow-position-helpers'
@@ -144,11 +135,6 @@ export function handleOraclePriceUpdate(event: OraclePriceEvent): void {
     ProtocolType.Core,
     dolomiteMargin,
   )
-
-  updateAndReturnTokenHourDataForMarginEvent(token, event)
-  updateAndReturnTokenDayDataForMarginEvent(token, event)
-  updateDolomiteDayData(event)
-  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -214,11 +200,6 @@ export function handleDeposit(event: DepositEvent): void {
 
   accountUpdateOne.marginAccount.save()
   deposit.save()
-
-  updateAndReturnTokenHourDataForMarginEvent(token, event)
-  updateAndReturnTokenDayDataForMarginEvent(token, event)
-  updateDolomiteDayData(event)
-  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -284,11 +265,6 @@ export function handleWithdraw(event: WithdrawEvent): void {
     ProtocolType.Core,
     dolomiteMargin,
   )
-
-  updateAndReturnTokenHourDataForMarginEvent(token, event)
-  updateAndReturnTokenDayDataForMarginEvent(token, event)
-  updateDolomiteDayData(event)
-  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -400,11 +376,6 @@ export function handleTransfer(event: TransferEvent): void {
     token,
     priceUSD,
   )
-
-  updateAndReturnTokenHourDataForMarginEvent(token, event)
-  updateAndReturnTokenDayDataForMarginEvent(token, event)
-  updateDolomiteDayData(event)
-  updateDolomiteHourData(event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -523,35 +494,6 @@ export function handleBuy(event: BuyEvent): void {
     ProtocolType.Core,
     dolomiteMargin,
   )
-
-  let makerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(makerToken, event)
-  let takerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
-  let makerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
-  let takerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
-  let dolomiteDayData = updateDolomiteDayData(event)
-  let dolomiteHourData = updateDolomiteHourData(event)
-
-  updateTimeDataForTrade(
-    dolomiteDayData,
-    dolomiteHourData,
-    makerTokenDayData,
-    makerTokenHourData,
-    makerToken,
-    takerToken,
-    event,
-    trade as Trade,
-  )
-  updateTimeDataForTrade(
-    dolomiteDayData,
-    dolomiteHourData,
-    takerTokenDayData,
-    takerTokenHourData,
-    takerToken,
-    makerToken,
-    event,
-    trade as Trade,
-  )
-
   invalidateMarginPosition(takerAccountUpdate.marginAccount)
 
   let user = User.load(takerAccountUpdate.marginAccount.user) as User
@@ -681,34 +623,6 @@ export function handleSell(event: SellEvent): void {
     isVirtualTransfer,
     ProtocolType.Core,
     dolomiteMargin,
-  )
-
-  let makerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(makerToken, event)
-  let takerTokenHourData = updateAndReturnTokenHourDataForMarginEvent(takerToken, event)
-  let makerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(makerToken, event)
-  let takerTokenDayData = updateAndReturnTokenDayDataForMarginEvent(takerToken, event)
-  let dolomiteDayData = updateDolomiteDayData(event)
-  let dolomiteHourData = updateDolomiteHourData(event)
-
-  updateTimeDataForTrade(
-    dolomiteDayData,
-    dolomiteHourData,
-    makerTokenDayData,
-    makerTokenHourData,
-    makerToken,
-    takerToken,
-    event,
-    trade as Trade,
-  )
-  updateTimeDataForTrade(
-    dolomiteDayData,
-    dolomiteHourData,
-    takerTokenDayData,
-    takerTokenHourData,
-    takerToken,
-    makerToken,
-    event,
-    trade as Trade,
   )
 
   invalidateMarginPosition(takerAccountUpdate.marginAccount)
@@ -917,34 +831,6 @@ export function handleTrade(event: TradeEvent): void {
     isVirtualTransfer,
     ProtocolType.Core,
     dolomiteMargin,
-  )
-
-  let inputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(inputToken, event)
-  let outputTokenHourData = updateAndReturnTokenHourDataForMarginEvent(outputToken, event)
-  let inputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(inputToken, event)
-  let outputTokenDayData = updateAndReturnTokenDayDataForMarginEvent(outputToken, event)
-  let dolomiteDayData = updateDolomiteDayData(event)
-  let dolomiteHourData = updateDolomiteHourData(event)
-
-  updateTimeDataForTrade(
-    dolomiteDayData,
-    dolomiteHourData,
-    outputTokenDayData,
-    outputTokenHourData,
-    outputToken,
-    inputToken,
-    event,
-    trade as Trade,
-  )
-  updateTimeDataForTrade(
-    dolomiteDayData,
-    dolomiteHourData,
-    inputTokenDayData,
-    inputTokenHourData,
-    inputToken,
-    outputToken,
-    event,
-    trade as Trade,
   )
 
   // if the trade is against the expiry contract, we need to change the margin position
@@ -1216,21 +1102,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
     dolomiteMargin,
   )
 
-  let owedTokenHourData = updateAndReturnTokenHourDataForMarginEvent(owedToken, event)
-  let owedTokenDayData = updateAndReturnTokenDayDataForMarginEvent(owedToken, event)
-  let dolomiteDayData = updateDolomiteDayData(event)
-  let dolomiteHourData = updateDolomiteHourData(event)
-
-  updateTimeDataForLiquidation(
-    dolomiteDayData,
-    dolomiteHourData,
-    owedTokenDayData,
-    owedTokenHourData,
-    owedToken,
-    event,
-    liquidation as Liquidation,
-  )
-
   liquidOwedAccountUpdate.marginAccount.save()
   solidOwedAccountUpdate.marginAccount.save()
   liquidation.save()
@@ -1416,21 +1287,6 @@ export function handleVaporize(event: VaporizationEvent): void {
     isVirtualTransfer,
     ProtocolType.Core,
     dolomiteMargin,
-  )
-
-  let owedTokenHourData = updateAndReturnTokenHourDataForMarginEvent(owedToken, event)
-  let owedTokenDayData = updateAndReturnTokenDayDataForMarginEvent(owedToken, event)
-  let dolomiteDayData = updateDolomiteDayData(event)
-  let dolomiteHourData = updateDolomiteHourData(event)
-
-  updateTimeDataForVaporization(
-    dolomiteDayData,
-    dolomiteHourData,
-    owedTokenDayData,
-    owedTokenHourData,
-    owedToken,
-    event,
-    vaporization as Vaporization,
   )
 
   if (canBeMarginPosition(vaporOwedAccountUpdate.marginAccount)) {

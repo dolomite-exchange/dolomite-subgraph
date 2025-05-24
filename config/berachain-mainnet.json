@@ -1,5 +1,6 @@
 {
   "network": "berachain-mainnet",
+  "networkTheGraph": "berachain",
   "startBlock": "160822",
   "aaveAltCoinCopyCatV1InterestSetter": "0xf8AACA0676F327A2eF7F0175E3fdc3681773622c",
   "aaveStableCoinCopyCatV1InterestSetter": "0x38c26CF448ec324E9a8aFc71f41945cA509d33Cc",

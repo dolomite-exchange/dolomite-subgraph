@@ -16,7 +16,6 @@ import {
   User,
   UserParValue,
 } from '../../types/schema'
-import { updateTimeDataForBorrow } from '../day-updates'
 import {
   _100_BI,
   DOLOMITE_MARGIN_ADDRESS,
@@ -480,9 +479,13 @@ export function changeProtocolBalance(
 
   let deltaWei = convertStructToDecimalAppliedValue(deltaWeiStruct, token.decimals)
 
-  // temporarily get rid of the old USD liquidity
-  dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
-  dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
+  if (!token.symbol.startsWith("pol-")) {
+    // Ignore POL tokens since they recycle liquidity
+
+    // temporarily get rid of the old USD liquidity
+    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.minus(token.borrowLiquidityUSD)
+    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.minus(token.supplyLiquidityUSD)
+  }
 
   let tokenBorrowLiquidity = absBD(parToWei(totalPar.borrowPar.neg(), index, token.decimals))
   let tokenBorrowLiquidityUSD = token.borrowLiquidity.times(tokenPriceUSD)
@@ -493,8 +496,6 @@ export function changeProtocolBalance(
     let borrowVolumeUsd = borrowVolumeToken.times(tokenPriceUSD)
       .truncate(USD_PRECISION)
     dolomiteMargin.totalBorrowVolumeUSD = dolomiteMargin.totalBorrowVolumeUSD.plus(borrowVolumeUsd)
-
-    updateTimeDataForBorrow(token, event, borrowVolumeToken, borrowVolumeUsd)
   }
 
   token.borrowLiquidity = tokenBorrowLiquidity
@@ -503,9 +504,13 @@ export function changeProtocolBalance(
   token.supplyLiquidityUSD = token.supplyLiquidity.times(tokenPriceUSD)
     .truncate(USD_PRECISION)
 
-  // add the new liquidity back in
-  dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
-  dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
+  if (!token.symbol.startsWith("pol-")) {
+    // Ignore POL tokens since they recycle liquidity
+
+    // add the new liquidity back in
+    dolomiteMargin.borrowLiquidityUSD = dolomiteMargin.borrowLiquidityUSD.plus(token.borrowLiquidityUSD)
+    dolomiteMargin.supplyLiquidityUSD = dolomiteMargin.supplyLiquidityUSD.plus(token.supplyLiquidityUSD)
+  }
 
   if (!isVirtualTransfer) {
     // the balance change affected the ERC20.balanceOf(protocol)

@@ -10,14 +10,6 @@ import {
 } from '../types/templates/AmmPair/AmmPair'
 import { createLiquidityPosition, createLiquiditySnapshot } from './helpers/amm-helpers'
 import { findEthPerToken, getEthPriceInUSD, getTokenOraclePriceUSD, getTrackedLiquidityUSD } from './helpers/pricing'
-import {
-  updateDolomiteDayData,
-  updateDolomiteHourData,
-  updatePairDayData,
-  updatePairHourData,
-  updateTokenDayDataForAmmEvent,
-  updateTokenHourDataForAmmEvent,
-} from './day-updates'
 import { _18_BI, ADDRESS_ZERO, FACTORY_ADDRESS, ONE_BI, ZERO_BD } from './generated/constants'
 import { ProtocolType } from './helpers/margin-types'
 import { convertTokenToDecimal } from './helpers/token-helpers'
@@ -323,16 +315,6 @@ export function handleMint(event: AmmMintEvent): void {
   // update the LP position
   let liquidityPosition = createLiquidityPosition(event.address, Address.fromString(mint.to.toHexString()))
   createLiquiditySnapshot(liquidityPosition, event)
-
-  // update day entities
-  updatePairDayData(event)
-  updatePairHourData(event)
-  updateDolomiteDayData(event)
-  updateDolomiteHourData(event)
-  updateTokenHourDataForAmmEvent(token0, event)
-  updateTokenHourDataForAmmEvent(token1, event)
-  updateTokenDayDataForAmmEvent(token0, event)
-  updateTokenDayDataForAmmEvent(token1, event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -391,14 +373,6 @@ export function handleBurn(event: AmmBurnEvent): void {
     Address.fromString((burn.sender as Bytes).toHexString()),
   )
   createLiquiditySnapshot(liquidityPosition, event)
-
-  // update day entities
-  updatePairDayData(event)
-  updatePairHourData(event)
-  updateDolomiteDayData(event)
-  updateDolomiteHourData(event)
-  updateTokenDayDataForAmmEvent(token0, event)
-  updateTokenDayDataForAmmEvent(token1, event)
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -465,62 +439,4 @@ export function handleSwap(event: AmmTradeEvent): void {
   // update the transaction
   transaction.intermittentAmmTrades = transaction.intermittentAmmTrades.concat([ammTrade.id])
   transaction.save()
-
-  // update day entities
-  let ammPairDayData = updatePairDayData(event)
-  let ammPairHourData = updatePairHourData(event)
-  let dolomiteDayData = updateDolomiteDayData(event)
-  let dolomiteHourData = updateDolomiteHourData(event)
-  let token0HourData = updateTokenHourDataForAmmEvent(token0, event)
-  let token1HourData = updateTokenHourDataForAmmEvent(token1, event)
-  let token0DayData = updateTokenDayDataForAmmEvent(token0, event)
-  let token1DayData = updateTokenDayDataForAmmEvent(token1, event)
-
-  // swap specific updating
-  dolomiteDayData.dailyAmmTradeVolumeUSD = dolomiteDayData.dailyAmmTradeVolumeUSD.plus(volumeUSD)
-  dolomiteDayData.dailyAmmTradeCount = dolomiteDayData.dailyAmmTradeCount.plus(ONE_BI)
-  dolomiteDayData.save()
-
-  // swap specific updating
-  dolomiteHourData.hourlyAmmTradeVolumeUSD = dolomiteHourData.hourlyAmmTradeVolumeUSD.plus(volumeUSD)
-  dolomiteHourData.hourlyAmmTradeCount = dolomiteHourData.hourlyAmmTradeCount.plus(ONE_BI)
-  dolomiteHourData.save()
-
-  // swap specific updating for pair
-  ammPairDayData.dailyVolumeToken0 = ammPairDayData.dailyVolumeToken0.plus(amount0Total)
-  ammPairDayData.dailyVolumeToken1 = ammPairDayData.dailyVolumeToken1.plus(amount1Total)
-  ammPairDayData.dailyVolumeUSD = ammPairDayData.dailyVolumeUSD.plus(volumeUSD)
-  ammPairDayData.save()
-
-  // update hourly pair data
-  ammPairHourData.hourlyVolumeToken0 = ammPairHourData.hourlyVolumeToken0.plus(amount0Total)
-  ammPairHourData.hourlyVolumeToken1 = ammPairHourData.hourlyVolumeToken1.plus(amount1Total)
-  ammPairHourData.hourlyVolumeUSD = ammPairHourData.hourlyVolumeUSD.plus(volumeUSD)
-  ammPairHourData.save()
-
-  // swap specific updating for token0
-  token0DayData.dailyAmmTradeVolumeToken = token0DayData.dailyAmmTradeVolumeToken.plus(amount0Total)
-  token0DayData.dailyAmmTradeVolumeUSD = token0DayData.dailyAmmTradeVolumeUSD.plus(amount0Total.times(token0PriceUSD))
-  token0DayData.dailyAmmTradeCount = token0DayData.dailyAmmTradeCount.plus(ONE_BI)
-  token0DayData.save()
-
-  token0HourData.hourlyAmmTradeVolumeToken = token0HourData.hourlyAmmTradeVolumeToken.plus(amount0Total)
-  token0HourData.hourlyAmmTradeVolumeUSD = token0HourData.hourlyAmmTradeVolumeUSD.plus(
-    amount0Total.times(token0PriceUSD)
-  )
-  token0HourData.hourlyAmmTradeCount = token0HourData.hourlyAmmTradeCount.plus(ONE_BI)
-  token0HourData.save()
-
-  // swap specific updating
-  token1DayData.dailyAmmTradeVolumeToken = token1DayData.dailyAmmTradeVolumeToken.plus(amount1Total)
-  token1DayData.dailyAmmTradeVolumeUSD = token1DayData.dailyAmmTradeVolumeUSD.plus(amount1Total.times(token1PriceUSD))
-  token1DayData.dailyAmmTradeCount = token1DayData.dailyAmmTradeCount.plus(ONE_BI)
-  token1DayData.save()
-
-  token1HourData.hourlyAmmTradeVolumeToken = token1HourData.hourlyAmmTradeVolumeToken.plus(amount1Total)
-  token1HourData.hourlyAmmTradeVolumeUSD = token1HourData.hourlyAmmTradeVolumeUSD.plus(
-    amount1Total.times(token1PriceUSD)
-  )
-  token1HourData.hourlyAmmTradeCount = token1HourData.hourlyAmmTradeCount.plus(ONE_BI)
-  token1HourData.save()
 }

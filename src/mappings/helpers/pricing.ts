@@ -176,18 +176,6 @@ export function findEthPerToken(token: Token): BigDecimal {
   return ZERO_BD // nothing was found return 0
 }
 
-export function findETHPerTokenForTrade(trade: Trade, token: Token): BigDecimal {
-  if (token.id == trade.makerToken) {
-    let takerToken = Token.load(trade.takerToken) as Token
-    let takerTokenPrice = trade.takerTokenDeltaWei.div(trade.makerTokenDeltaWei)
-    return takerTokenPrice.times(takerToken.derivedETH as BigDecimal) // return token1 per our token * ETH per token1
-  } else {
-    let makerToken = Token.load(trade.makerToken) as Token
-    let makerTokenPrice = trade.makerTokenDeltaWei.div(trade.takerTokenDeltaWei)
-    return makerTokenPrice.times(makerToken.derivedETH as BigDecimal) // return token0 per our token * ETH per token0
-  }
-}
-
 /**
  * Accepts tokens and amounts, return tracked amount based on token whitelist
  * If one token on whitelist, return amount in that token converted to USD.
