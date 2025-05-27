@@ -61,17 +61,6 @@ export function fetchTokenName(tokenAddress: Address): string {
   return nameValue
 }
 
-export function fetchTokenTotalSupply(tokenAddress: Address): BigInt {
-  let contract = DolomiteMarginERC20.bind(tokenAddress)
-
-  let totalSupplyResult = contract.try_totalSupply()
-  if (!totalSupplyResult.reverted) {
-    return totalSupplyResult.value
-  } else {
-    return BigInt.fromI32(0)
-  }
-}
-
 export function fetchTokenDecimals(tokenAddress: Address): BigInt {
   // hardcode overrides
   const aaveToken = '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9'

@@ -10,7 +10,6 @@ import { DolomiteMargin as DolomiteMarginCoreProtocol } from '../../types/Margin
 import { DolomiteMargin as DolomiteMarginExpiryProtocol } from '../../types/MarginExpiry/DolomiteMargin'
 import {
   DolomiteMargin as DolomiteMarginPositionProtocol,
-  DolomiteMargin__getMarketPriceResultValue0Struct,
 } from '../../types/DolomiteAmmRouter/DolomiteMargin'
 import { DolomiteMargin as DolomiteMarginZapProtocol } from '../../types/Zap/DolomiteMargin'
 import {
@@ -19,7 +18,6 @@ import {
   Bundle,
   OraclePrice,
   Token,
-  Trade
 } from '../../types/schema'
 import { DolomiteMargin as DolomiteMarginAmmProtocol } from '../../types/templates/AmmPair/DolomiteMargin'
 import {
@@ -90,9 +88,6 @@ export function getEthPriceInUSD(): BigDecimal {
     return ZERO_BD
   }
 }
-
-// minimum liquidity required to count towards tracked volume for pairs with small # of Lps
-let MINIMUM_USD_THRESHOLD_NEW_PAIRS = BigDecimal.fromString('10000')
 
 // minimum liquidity for price to get tracked
 let MINIMUM_LIQUIDITY_THRESHOLD_ETH = BigDecimal.fromString('2')
@@ -174,89 +169,6 @@ export function findEthPerToken(token: Token): BigDecimal {
     }
   }
   return ZERO_BD // nothing was found return 0
-}
-
-/**
- * Accepts tokens and amounts, return tracked amount based on token whitelist
- * If one token on whitelist, return amount in that token converted to USD.
- * If both are, return average of two amounts
- * If neither is, return 0
- */
-export function getTrackedVolumeUSD(
-  tokenAmount0: BigDecimal,
-  token0: Token,
-  tokenAmount1: BigDecimal,
-  token1: Token,
-  pair: AmmPair
-): BigDecimal {
-  let bundle = Bundle.load('1') as Bundle
-  let price0 = ZERO_BD
-  if (token0.derivedETH) {
-    price0 =  token0.derivedETH.times(bundle.ethPrice)
-  }
-  let price1 = ZERO_BD
-  if (token1.derivedETH) {
-    token1.derivedETH.times(bundle.ethPrice)
-  }
-
-  // if less than 5 LPs, require high minimum reserve amount or return 0
-  if (pair.liquidityProviderCount.lt(BigInt.fromI32(5))) {
-    if (!price0 || !price1) {
-      return ZERO_BD
-    }
-
-    let reserve0USD = pair.reserve0.times(price0)
-    let reserve1USD = pair.reserve1.times(price1)
-    if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
-      if (reserve0USD.plus(reserve1USD)
-        .lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
-        return ZERO_BD
-      }
-    }
-    if (WHITELIST.includes(token0.id) && !WHITELIST.includes(token1.id)) {
-      if (reserve0USD.times(BigDecimal.fromString('2'))
-        .lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
-        return ZERO_BD
-      }
-    }
-    if (!WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
-      if (reserve1USD.times(BigDecimal.fromString('2'))
-        .lt(MINIMUM_USD_THRESHOLD_NEW_PAIRS)) {
-        return ZERO_BD
-      }
-    }
-  }
-
-  // both are whitelist tokens, take average of both amounts
-  if (WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
-    if (!price0 || !price1) {
-      return ZERO_BD
-    }
-
-    return tokenAmount0
-      .times(price0)
-      .plus(tokenAmount1.times(price1))
-      .div(BigDecimal.fromString('2'))
-  }
-
-  // take full value of the whitelisted token amount
-  if (WHITELIST.includes(token0.id) && !WHITELIST.includes(token1.id)) {
-    if (!price0) {
-      return ZERO_BD
-    }
-    return tokenAmount0.times(price0)
-  }
-
-  // take full value of the whitelisted token amount
-  if (!WHITELIST.includes(token0.id) && WHITELIST.includes(token1.id)) {
-    if (!price1) {
-      return ZERO_BD
-    }
-    return tokenAmount1.times(price1)
-  }
-
-  // neither token is on white list, tracked volume is 0
-  return ZERO_BD
 }
 
 /**

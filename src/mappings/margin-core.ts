@@ -52,6 +52,7 @@ import {
 import { BalanceUpdate, MarginPositionStatus, ProtocolType, ValueStruct } from './helpers/margin-types'
 import { getTokenOraclePriceUSD } from './helpers/pricing'
 import { convertTokenToDecimal } from './helpers/token-helpers'
+import { updateAndSaveVolumeForTrade } from './helpers/volume-helpers'
 
 // noinspection JSUnusedGlobalSymbols,JSUnusedLocalSymbols
 export function handleOperation(event: OperationEvent): void {
@@ -460,8 +461,7 @@ export function handleBuy(event: BuyEvent): void {
   trade.takerInputTokenDeltaPar = takerAccountUpdate.deltaPar
   trade.takerOutputTokenDeltaPar = makerAccountUpdate.deltaPar
 
-  dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
-  dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.plus(ONE_BI)
+  updateAndSaveVolumeForTrade(trade, dolomiteMargin, makerToken, takerToken)
 
   takerAccountUpdate.marginAccount.save()
   trade.save()
@@ -590,8 +590,7 @@ export function handleSell(event: SellEvent): void {
   trade.takerInputTokenDeltaPar = takerAccountUpdate.deltaPar
   trade.takerOutputTokenDeltaPar = makerAccountUpdate.deltaPar
 
-  dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
-  dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.plus(ONE_BI)
+  updateAndSaveVolumeForTrade(trade, dolomiteMargin, makerToken, takerToken)
 
   takerAccountUpdate.marginAccount.save()
   trade.save()
@@ -771,8 +770,7 @@ export function handleTrade(event: TradeEvent): void {
   trade.takerInputTokenDeltaPar = takerInputAccountUpdate.deltaPar.lt(ZERO_BD) ? takerInputAccountUpdate.deltaPar : takerOutputAccountUpdate.deltaPar
   trade.takerOutputTokenDeltaPar = takerOutputAccountUpdate.deltaPar.gt(ZERO_BD) ? takerOutputAccountUpdate.deltaPar : takerInputAccountUpdate.deltaPar
 
-  dolomiteMargin.totalTradeVolumeUSD = dolomiteMargin.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
-  dolomiteMargin.tradeCount = dolomiteMargin.tradeCount.plus(ONE_BI)
+  updateAndSaveVolumeForTrade(trade, dolomiteMargin, makerToken, takerToken)
 
   takerOutputAccountUpdate.marginAccount.save()
   makerOutputAccountUpdate.marginAccount.save()
