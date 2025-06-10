@@ -61,6 +61,8 @@ type DolomiteMargin @entity {
   vaporizationCount: BigInt!
   zapCount: BigInt!
   vestingPositionTransferCount: BigInt!
+
+  settings: [DolomiteSetting!] @derivedFrom(field: "dolomite")
 }
 
 type GlobalOperator @entity {
@@ -107,13 +109,15 @@ type Token @entity {
   derivedETH: BigDecimal
 
   # derived fields
-  pairBase: [AmmPair!]! @derivedFrom(field: "token0")
-  pairQuote: [AmmPair!]! @derivedFrom(field: "token1")
+  pairBase: [AmmPair!] @derivedFrom(field: "token0")
+  pairQuote: [AmmPair!] @derivedFrom(field: "token1")
 
   interestRate: InterestRate! @derivedFrom(field: "token")
   interestIndex: InterestIndex! @derivedFrom(field: "token")
   riskInfo: MarketRiskInfo! @derivedFrom(field: "token")
   totalPar: TotalPar! @derivedFrom(field: "token")
+
+  settings: [TokenSetting!] @derivedFrom(field: "token")
 }
 
 type TokenMarketIdReverseLookup @entity {
@@ -192,6 +196,7 @@ type User @entity {
   liquidityMiningSeasonData: [LiquidityMiningSeason!] @derivedFrom(field: "user")
   liquidityMiningVestingPositions: [LiquidityMiningVestingPosition!] @derivedFrom(field: "owner")
   userParValues: [UserParValue!] @derivedFrom(field: "user")
+  settings: [UserSetting!] @derivedFrom(field: "effectiveUser")
 
   totalBorrowVolumeOriginatedUSD: BigDecimal!
   totalCollateralLiquidatedUSD: BigDecimal!
@@ -588,7 +593,7 @@ type Trade @entity {
 
   takerEffectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
   takerMarginAccount: MarginAccount!
-  makerEffectiveUser: User # NULLABE; set to the marginAccount.user or owner of an isolation mode address
+  makerEffectiveUser: User # NULLABLE; set to the marginAccount.user or owner of an isolation mode address
   makerMarginAccount: MarginAccount # NULLABLE
   walletsConcatenated: String! # concatenated wallets for querying on being a maker/taker 0x...F-0x...F
   effectiveWalletsConcatenated: String! # concatenated wallets for querying on being a maker/taker 0x...F-0x...F
@@ -614,6 +619,31 @@ type Trade @entity {
   takerAmountUSD: BigDecimal! # based on the value of the takerInputDeltaWei
   makerAmountUSD: BigDecimal! # based on the value of the makerInputDeltaWei
   liquidationType: String # one of `null`, `LIQUIDATION` or `EXPIRATION`
+}
+
+type IntermediateTrade @entity {
+  # transaction hash + "-" + serialId
+  id: ID!
+  serialId: BigInt!
+  traderAddress: Bytes!
+
+  takerEffectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
+  takerMarginAccount: MarginAccount!
+  makerEffectiveUser: User # NULLABLE; set to the marginAccount.user or owner of an isolation mode address
+  makerMarginAccount: MarginAccount # NULLABLE
+  walletsConcatenated: String! # concatenated wallets for querying on being a maker/taker 0x...F-0x...F
+  effectiveWalletsConcatenated: String! # concatenated wallets for querying on being a maker/taker 0x...F-0x...F
+  effectiveUsers: [User!]! # set to the marginAccount.user or owner of an isolation mode address
+
+  takerInputDeltaPar: BigDecimal!
+  takerInputDeltaWei: BigDecimal!
+  takerOutputDeltaPar: BigDecimal!
+  takerOutputDeltaWei: BigDecimal!
+
+  makerInputDeltaPar: BigDecimal
+  makerInputDeltaWei: BigDecimal
+  makerOutputDeltaPar: BigDecimal
+  makerOutputDeltaWei: BigDecimal
 }
 
 type MostRecentTrade @entity {
@@ -829,4 +859,25 @@ type LiquidityMiningLevelUpdateRequest @entity {
   isFulfilled: Boolean!
   initiateTransaction: Transaction!
   fulfilmentTransaction: Transaction
+}
+
+type DolomiteSetting @entity {
+  id: ID! # Defined as `dolomiteAddress-settingsHash`
+  dolomite: DolomiteMargin!
+  key: Bytes!
+  value: String!
+}
+
+type UserSetting @entity {
+  id: ID! # Defined as `userAddress-settingsHash`
+  effectiveUser: User!
+  key: Bytes!
+  value: String!
+}
+
+type TokenSetting @entity {
+  id: ID! # Defined as `tokenAddress-settingsHash`
+  token: Token!
+  key: Bytes!
+  value: String!
 }
