@@ -4,8 +4,8 @@ repository: https://github.com/dolomite-exchange/dolomite-subgraph
 #features:
 #  - grafting
 #graft:
-#  base: QmYfGPxEvGCLvmjBdRN8K9aKL8SFS3xoDS5t9sRkjkiDnw
-#  block: 5406535
+#  base: Qmf6WPB851X4gAPy3ymd79RsfvN5FjM1s2gD62KYGmeMGt
+#  block: 6571050
 schema:
   file: ./schema.graphql
 dataSources:
@@ -357,7 +357,7 @@ templates:
           handler: handleAsyncWithdrawalCancelled
         - event: RewardClaimed(indexed address,indexed address,uint256,uint256)
           handler: handleRewardClaimed
-        - event: DistributorRegistered(address,address,address)
+        - event: DistributorRegistered(address,address,address,address)
           handler: handleDistributorRegistered
   - kind: ethereum/contract
     name: LiquidityMiningVester

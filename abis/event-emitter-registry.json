@@ -359,6 +359,12 @@
       {
         "indexed": false,
         "internalType": "address",
+        "name": "vesterContract",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
         "name": "oTokenAddress",
         "type": "address"
       },
@@ -1125,6 +1131,11 @@
   },
   {
     "inputs": [
+      {
+        "internalType": "address",
+        "name": "_vesterContract",
+        "type": "address"
+      },
       {
         "internalType": "address",
         "name": "_oTokenAddress",

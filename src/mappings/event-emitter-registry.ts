@@ -262,11 +262,11 @@ export function handleDistributorRegistered(event: DistributorRegisteredEvent): 
     return
   }
 
-  let vester = new LiquidityMiningVester(event.address.toHexString())
+  let vester = new LiquidityMiningVester(event.params.vesterContract.toHexString())
   vester.oTokenAddress = event.params.oTokenAddress
   vester.pairToken = event.params.pairToken.toHexString()
   vester.paymentToken = event.params.paymentToken.toHexString()
   vester.save()
 
-  LiquidityMiningVesterTemplate.create(event.address)
+  LiquidityMiningVesterTemplate.create(event.params.vesterContract)
 }

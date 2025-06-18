@@ -210,7 +210,7 @@ export function handleVestingPositionClosed(event: VestingPositionClosedEvent): 
 
   let vester = LiquidityMiningVester.load(position.vester) as LiquidityMiningVester
   let paymentToken = Token.load(vester.paymentToken) as Token
-  position.paymentAmountWei = convertTokenToDecimal(event.params.ethCostPaid, paymentToken.decimals)
+  position.paymentAmountWei = convertTokenToDecimal(event.params.amountPaidWei, paymentToken.decimals)
 
   position.status = LiquidityMiningVestingPositionStatus.CLOSED
   position.save()
