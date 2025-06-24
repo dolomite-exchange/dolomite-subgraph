@@ -1,4 +1,4 @@
-import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts'
+import { Address, BigInt, ethereum, log } from '@graphprotocol/graph-ts'
 import { Claimed as OARBClaimedEvent } from '../types/LiquidityMiningClaimer/LiquidityMiningClaimer'
 import {
   EmergencyWithdraw as VestingPositionEmergencyWithdrawEvent,
@@ -141,12 +141,23 @@ export function handleVestingPositionStartedNew(event: VestingPositionStartedEve
 
 export function handleVestingPositionDurationExtended(event: VestingPositionDurationExtendedEvent): void {
   let position = getVestingPosition(event, event.params.vestingId)
+  if (position === null) {
+    log.warning('Vesting position is unexpectedly null: {}', [getVestingPositionId(event, event.params.vestingId)])
+    return
+  }
+
   position.duration = event.params.newDuration
   position.endTimestamp = position.startTimestamp.plus(position.duration)
   position.save()
 }
 
 export function handleVestingPositionTransfer(event: LiquidityMiningVestingPositionTransferEvent): void {
+  let position = getVestingPosition(event, event.params.tokenId)
+  if (position === null) {
+    log.warning('Vesting position is unexpectedly null: {}', [getVestingPositionId(event, event.params.tokenId)])
+    return
+  }
+
   if (event.params.to.toHexString() != ADDRESS_ZERO) {
     createUserIfNecessary(event.params.to)
   }
@@ -170,17 +181,15 @@ export function handleVestingPositionTransfer(event: LiquidityMiningVestingPosit
   let vester = LiquidityMiningVester.load(event.address.toHexString()) as LiquidityMiningVester
   let pairToken = Token.load(vester.pairToken) as Token
 
-  let vestingPosition = getVestingPosition(event, event.params.tokenId)
   let marketInterestIndex = InterestIndex.load(vester.pairToken)
   if (marketInterestIndex !== null) {
     transfer.pairInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(marketInterestIndex)
   }
 
-  transfer.vestingPosition = vestingPosition.id
+  transfer.vestingPosition = position.id
   transfer.save()
 
   if (transfer.fromEffectiveUser !== null && transfer.toEffectiveUser !== null) {
-    let position = getVestingPosition(event, event.params.tokenId)
     position.owner = event.params.to.toHexString()
     position.save()
 
@@ -202,9 +211,14 @@ export function handleVestingPositionTransfer(event: LiquidityMiningVestingPosit
 }
 
 export function handleVestingPositionClosed(event: VestingPositionClosedEvent): void {
+  let position = getVestingPosition(event, event.params.vestingId)
+  if (position === null) {
+    log.warning('Vesting position is unexpectedly null: {}', [getVestingPositionId(event, event.params.vestingId)])
+    return
+  }
+
   let transaction = getOrCreateTransaction(event)
 
-  let position = getVestingPosition(event, event.params.vestingId)
   position.closeTransaction = transaction.id
   position.closeTimestamp = event.block.timestamp
 
@@ -219,9 +233,14 @@ export function handleVestingPositionClosed(event: VestingPositionClosedEvent): 
 }
 
 export function handleVestingPositionForceClosed(event: VestingPositionForceClosedEvent): void {
+  let position = getVestingPosition(event, event.params.vestingId)
+  if (position === null) {
+    log.warning('Vesting position is unexpectedly null: {}', [getVestingPositionId(event, event.params.vestingId)])
+    return
+  }
+
   let transaction = getOrCreateTransaction(event)
 
-  let position = getVestingPosition(event, event.params.vestingId)
   position.closeTransaction = transaction.id
   position.closeTimestamp = event.block.timestamp
 
@@ -236,9 +255,14 @@ export function handleVestingPositionForceClosed(event: VestingPositionForceClos
 }
 
 export function handleVestingPositionEmergencyWithdraw(event: VestingPositionEmergencyWithdrawEvent): void {
+  let position = getVestingPosition(event, event.params.vestingId)
+  if (position === null) {
+    log.warning('Vesting position is unexpectedly null: {}', [getVestingPositionId(event, event.params.vestingId)])
+    return
+  }
+
   let transaction = getOrCreateTransaction(event)
 
-  let position = getVestingPosition(event, event.params.vestingId)
   position.closeTimestamp = event.block.timestamp
   position.closeTransaction = transaction.id
   position.pairTaxesPaid = convertTokenToDecimal(event.params.pairTax, _18_BI)

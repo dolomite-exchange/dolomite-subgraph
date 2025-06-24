@@ -209,9 +209,9 @@ export function handleSetInterestSetter(event: InterestSetterUpdateEvent): void 
   let interestRate = InterestRate.load(token.id) as InterestRate
   interestRate.interestSetter = event.params.interestSetter
 
-  interestRate.optimalUtilizationRate = getOptimalUtilizationRate(event.params.interestSetter)
-  interestRate.lowerOptimalRate = getLowerOptimalRate(event.params.interestSetter)
-  interestRate.upperOptimalRate = getUpperOptimalRate(event.params.interestSetter)
+  interestRate.optimalUtilizationRate = getOptimalUtilizationRate(event.params.marketId, event.params.interestSetter)
+  interestRate.lowerOptimalRate = getLowerOptimalRate(event.params.marketId, event.params.interestSetter)
+  interestRate.upperOptimalRate = getUpperOptimalRate(event.params.marketId, event.params.interestSetter)
   interestRate.save()
 
   let totalPar = TotalPar.load(token.id) as TotalPar

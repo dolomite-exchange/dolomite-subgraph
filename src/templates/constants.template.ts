@@ -9,12 +9,13 @@ import {
   TypedMap,
 } from '@graphprotocol/graph-ts'
 
-export const MAINNET_NETWORK = 'mainnet'
 export const ARBITRUM_NETWORK = 'arbitrum'
 export const ARBITRUM_ONE_NETWORK = 'arbitrum-one'
 export const BASE_NETWORK = 'base'
 export const BERACHAIN_NETWORK = 'berachain'
 export const BERACHAIN_MAINNET_NETWORK = 'berachain-mainnet'
+export const BOTANIX_NETWORK = 'botanix'
+export const ETHEREUM_NETWORK = 'mainnet'
 export const MANTLE_NETWORK = 'mantle'
 export const POLYGON_ZKEVM_NETWORK = 'polygon-zkevm'
 export const X_LAYER_NETWORK = 'xlayer'
@@ -54,10 +55,11 @@ export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'.toLower
 
 // ========================= Interest Setter Contract Addresses =========================
 
-export const DOUBLE_EXPONENT_V1_INTEREST_SETTER_ADDRESS = '{{doubleExponentV1InterestSetter}}'.toLowerCase()
 export const AAVE_ALT_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS = '{{aaveAltCoinCopyCatV1InterestSetter}}'.toLowerCase()
 export const AAVE_STABLE_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS = '{{aaveStableCoinCopyCatV1InterestSetter}}'.toLowerCase()
 export const ALWAYS_ZERO_INTEREST_SETTER_ADDRESS = '{{alwaysZeroInterestSetter}}'.toLowerCase()
+export const DOUBLE_EXPONENT_V1_INTEREST_SETTER_ADDRESS = '{{doubleExponentV1InterestSetter}}'.toLowerCase()
+export const MODULAR_LINEAR_STEP_INTEREST_SETTER_ADDRESS = '{{modularLinearStepFunctionInterestSetter}}'.toLowerCase()
 
 // ========================= Protocol Contract Addresses =========================
 
@@ -121,13 +123,14 @@ export const DAI_WETH_PAIR = '{{wethDaiAddress}}'.toLowerCase()
 
 export const USDT_WETH_PAIR = '{{wethUsdtAddress}}'.toLowerCase()
 
-export const CHAIN_IDS: TypedMap<string, BigInt> = new TypedMap<string, BigInt>()
-CHAIN_IDS.set(MAINNET_NETWORK, BigInt.fromI32(1))
+const CHAIN_IDS: TypedMap<string, BigInt> = new TypedMap<string, BigInt>()
 CHAIN_IDS.set(ARBITRUM_NETWORK, BigInt.fromI32(42161))
 CHAIN_IDS.set(ARBITRUM_ONE_NETWORK, BigInt.fromI32(42161))
 CHAIN_IDS.set(BASE_NETWORK, BigInt.fromI32(8453))
 CHAIN_IDS.set(BERACHAIN_NETWORK, BigInt.fromI32(80094))
 CHAIN_IDS.set(BERACHAIN_MAINNET_NETWORK, BigInt.fromI32(80094))
+CHAIN_IDS.set(BOTANIX_NETWORK, BigInt.fromI32(3637))
+CHAIN_IDS.set(ETHEREUM_NETWORK, BigInt.fromI32(1))
 CHAIN_IDS.set(MANTLE_NETWORK, BigInt.fromI32(5000))
 CHAIN_IDS.set(POLYGON_ZKEVM_NETWORK, BigInt.fromI32(1101))
 CHAIN_IDS.set(X_LAYER_NETWORK, BigInt.fromI32(196))
@@ -135,22 +138,16 @@ CHAIN_IDS.set(X_LAYER_MAINNET_NETWORK, BigInt.fromI32(196))
 
 const WHITELISTS: TypedMap<string, string[]> = new TypedMap<string, string[]>()
 WHITELISTS.set(ARBITRUM_NETWORK, [
-  WETH_ADDRESS,
-  USDC_ADDRESS,
-  USDT_ADDRESS,
-  DAI_ADDRESS,
-  WBTC_ADDRESS,
-  LINK_ADDRESS,
-])
+    WETH_ADDRESS,
+    USDC_ADDRESS,
+    USDT_ADDRESS,
+    DAI_ADDRESS,
+    WBTC_ADDRESS,
+    LINK_ADDRESS,
+  ]
+)
 WHITELISTS.set(ARBITRUM_ONE_NETWORK, WHITELISTS.get(ARBITRUM_NETWORK) as string[])
-WHITELISTS.set(BASE_NETWORK, [])
-WHITELISTS.set(BERACHAIN_NETWORK, [])
-WHITELISTS.set(BERACHAIN_MAINNET_NETWORK, [])
-WHITELISTS.set(MANTLE_NETWORK, [])
-WHITELISTS.set(POLYGON_ZKEVM_NETWORK, [])
-WHITELISTS.set(X_LAYER_NETWORK, [])
-WHITELISTS.set(X_LAYER_MAINNET_NETWORK, WHITELISTS.get(X_LAYER_NETWORK) as string[])
-export const WHITELIST: string[] = WHITELISTS.get(NETWORK) as string[]
+export const WHITELIST: string[] = WHITELISTS.get(NETWORK) !== null ? WHITELISTS.mustGet(NETWORK) : []
 
 export const CHAIN_ID: i32 = (CHAIN_IDS.get(NETWORK) as BigInt).toI32()
 
