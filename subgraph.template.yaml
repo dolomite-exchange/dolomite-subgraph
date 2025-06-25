@@ -105,6 +105,8 @@ dataSources:
           file: ./abis/erc20.json
         - name: LinearStepFunctionInterestSetter
           file: ./abis/linear-step-function-interest-setter.json
+        - name: ModularLinearStepFunctionInterestSetter
+          file: ./abis/modular-linear-step-function-interest-setter.json
       eventHandlers:
         - event: LogAddMarket(uint256,address)
           handler: handleMarketAdded

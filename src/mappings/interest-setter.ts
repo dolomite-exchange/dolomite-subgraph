@@ -25,9 +25,7 @@ import {
 import { absBD } from './helpers/helpers'
 import { parToWei } from './helpers/margin-helpers'
 import { LinearStepFunctionInterestSetter } from '../types/MarginAdmin/LinearStepFunctionInterestSetter'
-import {
-  ModularLinearStepFunctionInterestSetter,
-} from '../types/ModularLinearStepInterestSetter/ModularLinearStepFunctionInterestSetter'
+import { ModularLinearStepFunctionInterestSetter } from '../types/MarginAdmin/ModularLinearStepFunctionInterestSetter'
 
 const SECONDS_IN_YEAR_BI = BigInt.fromString('31536000')
 const PERCENT = BigInt.fromString('100')
