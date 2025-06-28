@@ -1,11 +1,21 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Address, BigDecimal, BigInt } from '@graphprotocol/graph-ts'
-import { DolomiteMargin, InterestIndex, InterestRate, MarketRiskInfo, Token, TotalPar } from '../types/schema'
+import {
+  DolomiteMargin,
+  InterestIndex,
+  InterestRate,
+  MarketRiskInfo,
+  Token,
+  TokenMarketIdReverseLookup,
+  TotalPar,
+} from '../types/schema'
 import {
   AAVE_ALT_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS,
   AAVE_STABLE_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS,
   ALWAYS_ZERO_INTEREST_SETTER_ADDRESS,
   DOUBLE_EXPONENT_V1_INTEREST_SETTER_ADDRESS,
   INTEREST_PRECISION,
+  MODULAR_LINEAR_STEP_INTEREST_SETTER_ADDRESS,
   ONE_ETH_BD,
   ONE_ETH_BI,
   SECONDS_IN_YEAR,
@@ -15,24 +25,41 @@ import {
 import { absBD } from './helpers/helpers'
 import { parToWei } from './helpers/margin-helpers'
 import { LinearStepFunctionInterestSetter } from '../types/MarginAdmin/LinearStepFunctionInterestSetter'
+import { ModularLinearStepFunctionInterestSetter } from '../types/MarginAdmin/ModularLinearStepFunctionInterestSetter'
 
 const SECONDS_IN_YEAR_BI = BigInt.fromString('31536000')
 const PERCENT = BigInt.fromString('100')
 
-export function getOptimalUtilizationRate(interestSetter: Address): BigInt {
+export function getOptimalUtilizationRate(
+  marketId: BigInt,
+  interestSetter: Address,
+): BigInt {
+  if (interestSetter.equals(Address.fromString(MODULAR_LINEAR_STEP_INTEREST_SETTER_ADDRESS))) {
+    let linearInterestSetterProtocol = ModularLinearStepFunctionInterestSetter.bind(interestSetter)
+    let token = TokenMarketIdReverseLookup.load(marketId.toString())!.token
+    return linearInterestSetterProtocol.getOptimalUtilizationByToken(Address.fromString(token))
+  }
+
   let linearInterestSetterProtocol = LinearStepFunctionInterestSetter.bind(interestSetter)
   let result = linearInterestSetterProtocol.try_OPTIMAL_UTILIZATION()
   let NINETY_PERCENT = BigInt.fromString('900000000000000000') // 0.9e18
   return result.reverted ? NINETY_PERCENT : result.value
 }
 
-export function getLowerOptimalRate(interestSetter: Address): BigInt {
+export function getLowerOptimalRate(
+  marketId: BigInt,
+  interestSetter: Address,
+): BigInt {
   if (interestSetter.equals(Address.fromString(DOUBLE_EXPONENT_V1_INTEREST_SETTER_ADDRESS))) {
     return ZERO_BI
   } else if (interestSetter.equals(Address.fromString(AAVE_ALT_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS))) {
     return BigInt.fromString('70000000000000000') // 0.07e18
   } else if (interestSetter.equals(Address.fromString(AAVE_STABLE_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS))) {
     return BigInt.fromString('40000000000000000') // 0.04e18
+  } else if (interestSetter.equals(Address.fromString(MODULAR_LINEAR_STEP_INTEREST_SETTER_ADDRESS))) {
+    let linearInterestSetterProtocol = ModularLinearStepFunctionInterestSetter.bind(interestSetter)
+    let token = TokenMarketIdReverseLookup.load(marketId.toString())!.token
+    return linearInterestSetterProtocol.getLowerOptimalPercentByToken(Address.fromString(token))
   } else if (interestSetter.equals(Address.fromString(ALWAYS_ZERO_INTEREST_SETTER_ADDRESS))) {
     return ZERO_BI
   } else {
@@ -44,7 +71,10 @@ export function getLowerOptimalRate(interestSetter: Address): BigInt {
   }
 }
 
-export function getUpperOptimalRate(interestSetter: Address): BigInt {
+export function getUpperOptimalRate(
+  marketId: BigInt,
+  interestSetter: Address,
+): BigInt {
   if (interestSetter.equals(Address.fromString(DOUBLE_EXPONENT_V1_INTEREST_SETTER_ADDRESS))) {
     return ZERO_BI
   } else if (interestSetter.equals(Address.fromString(AAVE_ALT_COIN_COPY_CAT_V1_INTEREST_SETTER_ADDRESS))) {
@@ -53,6 +83,10 @@ export function getUpperOptimalRate(interestSetter: Address): BigInt {
     return BigInt.fromString('960000000000000000') // 0.96e18
   } else if (interestSetter.equals(Address.fromString(ALWAYS_ZERO_INTEREST_SETTER_ADDRESS))) {
     return ZERO_BI
+  } else if (interestSetter.equals(Address.fromString(MODULAR_LINEAR_STEP_INTEREST_SETTER_ADDRESS))) {
+    let linearInterestSetterProtocol = ModularLinearStepFunctionInterestSetter.bind(interestSetter)
+    let token = TokenMarketIdReverseLookup.load(marketId.toString())!.token
+    return linearInterestSetterProtocol.getUpperOptimalPercentByToken(Address.fromString(token))
   } else {
     // Get it dynamically now
     let linearInterestSetterProtocol = LinearStepFunctionInterestSetter.bind(interestSetter)

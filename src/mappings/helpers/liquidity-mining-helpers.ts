@@ -34,8 +34,8 @@ export function getVestingPositionId(event: ethereum.Event, tokenId: BigInt): st
   return `${event.address.toHexString()}-${tokenId.toString()}`
 }
 
-export function getVestingPosition(event: ethereum.Event, tokenId: BigInt): LiquidityMiningVestingPosition {
-  return LiquidityMiningVestingPosition.load(getVestingPositionId(event, tokenId)) as LiquidityMiningVestingPosition
+export function getVestingPosition(event: ethereum.Event, tokenId: BigInt): LiquidityMiningVestingPosition | null {
+  return LiquidityMiningVestingPosition.load(getVestingPositionId(event, tokenId))
 }
 
 export function getLiquidityMiningSeasonId(distributor: Address, user: Address, season: BigInt): string {

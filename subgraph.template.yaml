@@ -1,11 +1,11 @@
 specVersion: 1.0.0
 description: Dolomite is a next-gen lending platform for L2s
 repository: https://github.com/dolomite-exchange/dolomite-subgraph
-#features:
-#  - grafting
+features:
+  - grafting
 #graft:
-#  base: QmYfGPxEvGCLvmjBdRN8K9aKL8SFS3xoDS5t9sRkjkiDnw
-#  block: 5406535
+#  base: QmXU7Q4HYwCTe9yG4heP6DAUaYS5VJS467UJxZzHZvZzJB
+#  block: 6572440
 schema:
   file: ./schema.graphql
 dataSources:
@@ -105,6 +105,8 @@ dataSources:
           file: ./abis/erc20.json
         - name: LinearStepFunctionInterestSetter
           file: ./abis/linear-step-function-interest-setter.json
+        - name: ModularLinearStepFunctionInterestSetter
+          file: ./abis/modular-linear-step-function-interest-setter.json
       eventHandlers:
         - event: LogAddMarket(uint256,address)
           handler: handleMarketAdded
@@ -176,6 +178,26 @@ dataSources:
           handler: handleMarginPositionOpen
         - event: MarginPositionClose(indexed address,indexed uint256,address,address,address,((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)),((bool,uint256),(bool,uint128)))
           handler: handleMarginPositionClose
+  - kind: ethereum/contract
+    name: ModularLinearStepInterestSetter
+    network: {{network}}
+    source:
+      abi: ModularLinearStepFunctionInterestSetter
+      startBlock: {{startBlock}}
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/mappings/modular-interest-setter.ts
+      entities:
+        - MarginPosition
+        - Transaction
+      abis:
+        - name: ModularLinearStepFunctionInterestSetter
+          file: ./abis/modular-linear-step-function-interest-setter.json
+      eventHandlers:
+        - event: SettingsChanged(indexed address,uint256,uint256,uint256)
+          handler: handleModularInterestSettingsChanged
   - kind: ethereum/contract
     name: MarginExpiry
     network: {{network}}
@@ -357,7 +379,7 @@ templates:
           handler: handleAsyncWithdrawalCancelled
         - event: RewardClaimed(indexed address,indexed address,uint256,uint256)
           handler: handleRewardClaimed
-        - event: DistributorRegistered(address,address,address)
+        - event: DistributorRegistered(address,address,address,address)
           handler: handleDistributorRegistered
         - event: DolomiteSettingChanged(indexed bytes32,bytes)
           handler: handleDolomiteSettingChanged

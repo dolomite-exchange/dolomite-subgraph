@@ -259,7 +259,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "ethCostPaid",
+        "name": "amountPaidWei",
         "type": "uint256"
       }
     ],
