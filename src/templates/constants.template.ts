@@ -161,6 +161,10 @@ export function isArbitrumOne(): boolean {
   return NETWORK == ARBITRUM_NETWORK || NETWORK == ARBITRUM_ONE_NETWORK
 }
 
+export function isEthereum(): boolean {
+  return NETWORK == ETHEREUM_NETWORK || NETWORK == ETHEREUM_MAINNET_NETWORK
+}
+
 export function isMantle(): boolean {
   return NETWORK == MANTLE_NETWORK
 }
