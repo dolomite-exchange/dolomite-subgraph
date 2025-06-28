@@ -1,5 +1,5 @@
 {
-  "network": "mainnet",
+  "network": "ethereum",
   "networkTheGraph": "mainnet",
   "startBlock": "22753940",
   "aaveAltCoinCopyCatV1InterestSetter": "0xf8AACA0676F327A2eF7F0175E3fdc3681773622c",
