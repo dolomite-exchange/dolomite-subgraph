@@ -564,6 +564,7 @@ function _handleTraderInternal(
     let transactionHash = event.transaction.hash.toHexString()
     intermediateTrade = IntermediateTrade.load(`${transactionHash}-${serialId.minus(ONE_BI).toString()}`)
     if (intermediateTrade === null) {
+      // GUARD STATEMENT
       // Save and return; the intermediate trade was not created yet.
       intermediateTrade = new IntermediateTrade(`${transactionHash}-${serialId.toString()}`)
 
@@ -585,20 +586,21 @@ function _handleTraderInternal(
       intermediateTrade.makerOutputDeltaPar = makerOutputAccountUpdate !== null ? makerOutputAccountUpdate.deltaPar : null
 
       intermediateTrade.save()
-    } else {
-      takerInputDeltaWei = intermediateTrade.takerInputDeltaWei.gt(ZERO_BD)
-        ? intermediateTrade.takerInputDeltaWei : takerInputBalanceUpdate.deltaWei
-      takerOutputDeltaWei = intermediateTrade.takerOutputDeltaWei.gt(ZERO_BD)
-        ? intermediateTrade.takerOutputDeltaWei : takerOutputBalanceUpdate.deltaWei
-      makerInputDeltaWei = intermediateTrade.makerInputDeltaWei !== null && intermediateTrade.makerInputDeltaWei.gt(ZERO_BD)
-        ? intermediateTrade.makerInputDeltaWei
-        : makerInputBalanceUpdate && makerInputBalanceUpdate.deltaWei.gt(ZERO_BD)
-          ? makerInputBalanceUpdate.deltaWei : null
-      makerOutputDeltaWei = intermediateTrade.makerOutputDeltaWei !== null && intermediateTrade.makerOutputDeltaWei.gt(ZERO_BD)
-        ? intermediateTrade.makerOutputDeltaWei
-        : makerOutputBalanceUpdate && makerOutputBalanceUpdate.deltaWei.gt(ZERO_BD)
-          ? makerOutputBalanceUpdate.deltaWei : null
+      return
     }
+
+    takerInputDeltaWei = intermediateTrade.takerInputDeltaWei.gt(ZERO_BD)
+      ? intermediateTrade.takerInputDeltaWei : takerInputBalanceUpdate.deltaWei
+    takerOutputDeltaWei = intermediateTrade.takerOutputDeltaWei.gt(ZERO_BD)
+      ? intermediateTrade.takerOutputDeltaWei : takerOutputBalanceUpdate.deltaWei
+    makerInputDeltaWei = intermediateTrade.makerInputDeltaWei !== null && intermediateTrade.makerInputDeltaWei.gt(ZERO_BD)
+      ? intermediateTrade.makerInputDeltaWei
+      : makerInputBalanceUpdate && makerInputBalanceUpdate.deltaWei.gt(ZERO_BD)
+        ? makerInputBalanceUpdate.deltaWei : null
+    makerOutputDeltaWei = intermediateTrade.makerOutputDeltaWei !== null && intermediateTrade.makerOutputDeltaWei.gt(ZERO_BD)
+      ? intermediateTrade.makerOutputDeltaWei
+      : makerOutputBalanceUpdate && makerOutputBalanceUpdate.deltaWei.gt(ZERO_BD)
+        ? makerOutputBalanceUpdate.deltaWei : null
   }
 
   let tradeID = getIDForEvent(event)

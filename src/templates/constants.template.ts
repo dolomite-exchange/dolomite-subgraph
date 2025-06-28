@@ -15,7 +15,8 @@ export const BASE_NETWORK = 'base'
 export const BERACHAIN_NETWORK = 'berachain'
 export const BERACHAIN_MAINNET_NETWORK = 'berachain-mainnet'
 export const BOTANIX_NETWORK = 'botanix'
-export const ETHEREUM_NETWORK = 'mainnet'
+export const ETHEREUM_NETWORK = 'ethereum'
+export const ETHEREUM_MAINNET_NETWORK = 'mainnet'
 export const MANTLE_NETWORK = 'mantle'
 export const POLYGON_ZKEVM_NETWORK = 'polygon-zkevm'
 export const X_LAYER_NETWORK = 'xlayer'
@@ -131,6 +132,7 @@ CHAIN_IDS.set(BERACHAIN_NETWORK, BigInt.fromI32(80094))
 CHAIN_IDS.set(BERACHAIN_MAINNET_NETWORK, BigInt.fromI32(80094))
 CHAIN_IDS.set(BOTANIX_NETWORK, BigInt.fromI32(3637))
 CHAIN_IDS.set(ETHEREUM_NETWORK, BigInt.fromI32(1))
+CHAIN_IDS.set(ETHEREUM_MAINNET_NETWORK, BigInt.fromI32(1))
 CHAIN_IDS.set(MANTLE_NETWORK, BigInt.fromI32(5000))
 CHAIN_IDS.set(POLYGON_ZKEVM_NETWORK, BigInt.fromI32(1101))
 CHAIN_IDS.set(X_LAYER_NETWORK, BigInt.fromI32(196))
