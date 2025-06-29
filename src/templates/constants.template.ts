@@ -124,6 +124,11 @@ export const DAI_WETH_PAIR = '{{wethDaiAddress}}'.toLowerCase()
 
 export const USDT_WETH_PAIR = '{{wethUsdtAddress}}'.toLowerCase()
 
+export const STRATEGY_LOWER_ACCOUNT_ID = BigInt.fromI32(1_000_000_000)
+export const STRATEGY_UPPER_ACCOUNT_ID = BigInt.fromI64(10_000_000_000)
+export const STRATEGY_POSITION_ID_THRESHOLD = BigInt.fromI32(1_000_000)
+export const STRATEGY_ID_THRESHOLD = BigInt.fromI32(1_000)
+
 const CHAIN_IDS: TypedMap<string, BigInt> = new TypedMap<string, BigInt>()
 CHAIN_IDS.set(ARBITRUM_NETWORK, BigInt.fromI32(42161))
 CHAIN_IDS.set(ARBITRUM_ONE_NETWORK, BigInt.fromI32(42161))

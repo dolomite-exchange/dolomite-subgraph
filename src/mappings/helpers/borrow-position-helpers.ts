@@ -1,9 +1,24 @@
-import { Address, BigInt, ethereum } from '@graphprotocol/graph-ts'
-import { BorrowPosition, BorrowPositionAmount, MarginAccount, Token } from '../../types/schema'
-import { BalanceUpdate } from './margin-types'
-import { ZERO_BD } from '../generated/constants'
-import { getOrCreateTokenValue } from './margin-helpers'
+import {
+  Address,
+  BigInt,
+  ethereum,
+} from '@graphprotocol/graph-ts'
+import {
+  BorrowPosition,
+  BorrowPositionAmount,
+  MarginAccount,
+  Token,
+} from '../../types/schema'
 import { getOrCreateTransaction } from '../amm-core'
+import {
+  STRATEGY_ID_THRESHOLD,
+  STRATEGY_LOWER_ACCOUNT_ID,
+  STRATEGY_POSITION_ID_THRESHOLD,
+  STRATEGY_UPPER_ACCOUNT_ID,
+  ZERO_BD,
+} from '../generated/constants'
+import { getOrCreateTokenValue } from './margin-helpers'
+import { BalanceUpdate } from './margin-types'
 
 export class BorrowPositionStatus {
   // eslint-disable-next-line
@@ -154,4 +169,22 @@ export function updateBorrowPositionForLiquidation(
     // The borrow and supply tokens are updated in the updateBorrowPositionForBalanceUpdate function
     // Do nothing for now.
   }
+}
+
+export function isStrategy(marginAccount: MarginAccount): boolean {
+  return marginAccount.accountNumber.ge(STRATEGY_LOWER_ACCOUNT_ID) &&
+    marginAccount.accountNumber.le(STRATEGY_UPPER_ACCOUNT_ID)
+}
+
+export class ParsedStrategy {
+  constructor(public readonly strategyId: BigInt, public readonly positionId: BigInt) {}
+}
+
+export function parseStrategy(marginAccount: MarginAccount): ParsedStrategy {
+  let fullPositionId = marginAccount.accountNumber
+  const positionId = fullPositionId.mod(STRATEGY_POSITION_ID_THRESHOLD)
+  const remainingValue = fullPositionId.minus(positionId)
+    .div(STRATEGY_POSITION_ID_THRESHOLD)
+  const strategyId = remainingValue.minus(STRATEGY_ID_THRESHOLD)
+  return new ParsedStrategy(strategyId, positionId)
 }

@@ -1,6 +1,16 @@
 import { BorrowPositionOpen as BorrowPositionOpenEvent } from '../types/BorrowPositionProxy/BorrowPositionProxy'
-import { BorrowPositionStatus, getBorrowPositionId } from './helpers/borrow-position-helpers'
-import { BorrowPosition, DolomiteMargin, User } from '../types/schema'
+import {
+  BorrowPositionStatus,
+  getBorrowPositionId,
+  isStrategy,
+  parseStrategy,
+} from './helpers/borrow-position-helpers'
+import {
+  BorrowPosition,
+  DolomiteMargin,
+  StrategyPosition,
+  User,
+} from '../types/schema'
 import { getOrCreateMarginAccount } from './helpers/margin-helpers'
 import { getOrCreateTransaction } from './amm-core'
 import {
@@ -63,6 +73,20 @@ export function handleOpenBorrowPosition(event: BorrowPositionOpenEvent): void {
     borrowPosition.supplyTokens = []
     borrowPosition.effectiveBorrowTokens = []
     borrowPosition.effectiveSupplyTokens = []
+
+    if (isStrategy(marginAccount)) {
+      let strategyObject = parseStrategy(marginAccount)
+
+      let strategy = new StrategyPosition(borrowPosition.id)
+      strategy.effectiveUser = borrowPosition.effectiveUser
+      strategy.marginAccount = marginAccount.id
+      strategy.strategyId = strategyObject.strategyId
+      strategy.positionId = strategyObject.positionId
+      strategy.save()
+
+      borrowPosition.strategy = strategy.id
+    }
+    // Save once we set the strategy
     borrowPosition.save()
 
     let dolomiteMargin = DolomiteMargin.load(DOLOMITE_MARGIN_ADDRESS) as DolomiteMargin
