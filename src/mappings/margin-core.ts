@@ -5,6 +5,7 @@ import {
   BigInt,
   ethereum,
   log,
+  store,
 } from '@graphprotocol/graph-ts'
 import {
   LogBuy as BuyEvent,
@@ -428,7 +429,7 @@ export function handleBuy(event: BuyEvent): void {
     outputToken,
   )
 
-  _handleTraderInternal(
+  _handleTradeInternal(
     event,
     event.params.exchangeWrapper,
     inputToken,
@@ -469,7 +470,7 @@ export function handleSell(event: SellEvent): void {
     outputToken,
   )
 
-  _handleTraderInternal(
+  _handleTradeInternal(
     event,
     event.params.exchangeWrapper,
     inputToken,
@@ -524,7 +525,7 @@ export function handleTrade(event: TradeEvent): void {
     outputToken,
   )
 
-  _handleTraderInternal(
+  _handleTradeInternal(
     event,
     event.params.autoTrader,
     inputToken,
@@ -536,7 +537,7 @@ export function handleTrade(event: TradeEvent): void {
   )
 }
 
-function _handleTraderInternal(
+function _handleTradeInternal(
   event: ethereum.Event,
   traderAddress: Address,
   inputToken: Token,
@@ -587,7 +588,7 @@ function _handleTraderInternal(
   if (inputToken.symbol.startsWith('pol-') || outputToken.symbol.startsWith('pol-')) {
     isVirtualTransfer = true // POL tokens are always virtual
     let transactionHash = event.transaction.hash.toHexString()
-    intermediateTrade = IntermediateTrade.load(`${transactionHash}-${serialId.minus(ONE_BI)
+    intermediateTrade = IntermediateTrade.loadInBlock(`${transactionHash}-${serialId.minus(ONE_BI)
       .toString()}`)
     if (intermediateTrade === null) {
       // GUARD STATEMENT
@@ -599,12 +600,26 @@ function _handleTraderInternal(
 
       intermediateTrade.takerEffectiveUser = getEffectiveUserForAddressString(takerOutputAccountUpdate.marginAccount.user).id
       intermediateTrade.takerMarginAccount = takerOutputAccountUpdate.marginAccount.id
-      intermediateTrade.makerEffectiveUser = makerOutputAccountUpdate ? getEffectiveUserForAddressString(
-        makerOutputAccountUpdate.marginAccount.user).id : null
-      intermediateTrade.makerMarginAccount = makerOutputAccountUpdate ? makerOutputAccountUpdate.marginAccount.id : null
-      intermediateTrade.walletsConcatenated = makerOutputAccountUpdate ? `${takerOutputAccountUpdate.marginAccount.user}_${makerOutputAccountUpdate.marginAccount.user}` : takerOutputAccountUpdate.marginAccount.user
-      intermediateTrade.effectiveWalletsConcatenated = makerOutputAccountUpdate ? `${intermediateTrade.takerEffectiveUser}_${intermediateTrade.makerEffectiveUser!}` : intermediateTrade.takerEffectiveUser
-      intermediateTrade.effectiveUsers = [intermediateTrade.takerEffectiveUser, intermediateTrade.makerEffectiveUser!]
+      intermediateTrade.makerEffectiveUser = makerOutputAccountUpdate !== null
+        ? getEffectiveUserForAddressString(makerOutputAccountUpdate.marginAccount.user).id
+        : null
+      intermediateTrade.makerMarginAccount = makerOutputAccountUpdate !== null
+        ? makerOutputAccountUpdate.marginAccount.id
+        : null
+      intermediateTrade.walletsConcatenated = makerOutputAccountUpdate !== null
+        ? `${takerOutputAccountUpdate.marginAccount.user}_${makerOutputAccountUpdate.marginAccount.user}`
+        : takerOutputAccountUpdate.marginAccount.user
+      intermediateTrade.effectiveWalletsConcatenated = makerOutputAccountUpdate !== null
+        ? `${intermediateTrade.takerEffectiveUser}_${intermediateTrade.makerEffectiveUser!}`
+        : intermediateTrade.takerEffectiveUser
+      intermediateTrade.effectiveUsers = makerOutputAccountUpdate !== null
+        ? [intermediateTrade.takerEffectiveUser, intermediateTrade.makerEffectiveUser!]
+        : [intermediateTrade.takerEffectiveUser]
+
+      intermediateTrade.takerInputDeltaWei = takerInputDeltaWei
+      intermediateTrade.takerOutputDeltaWei = takerOutputDeltaWei
+      intermediateTrade.makerInputDeltaWei = makerInputDeltaWei !== null ? makerInputDeltaWei : null
+      intermediateTrade.makerOutputDeltaWei = makerOutputDeltaWei !== null ? makerOutputDeltaWei : null
 
       intermediateTrade.takerInputDeltaPar = takerInputAccountUpdate.deltaPar
       intermediateTrade.takerOutputDeltaPar = takerOutputAccountUpdate.deltaPar
@@ -674,9 +689,26 @@ function _handleTraderInternal(
   trade.makerMarginAccount = intermediateTrade !== null && intermediateTrade.makerMarginAccount !== null
     ? intermediateTrade.makerMarginAccount
     : makerOutputAccountUpdate ? makerOutputAccountUpdate.marginAccount.id : null
-  trade.walletsConcatenated = makerOutputAccountUpdate ? `${takerOutputAccountUpdate.marginAccount.user}_${makerOutputAccountUpdate.marginAccount.user}` : takerOutputAccountUpdate.marginAccount.user
-  trade.effectiveWalletsConcatenated = makerOutputAccountUpdate ? `${trade.takerEffectiveUser}_${trade.makerEffectiveUser!}` : trade.takerEffectiveUser
-  trade.effectiveUsers = makerOutputAccountUpdate ? [trade.takerEffectiveUser, trade.makerEffectiveUser!] : [trade.takerEffectiveUser]
+
+  if (intermediateTrade === null || intermediateTrade.makerMarginAccount === null) {
+    trade.walletsConcatenated = makerOutputAccountUpdate
+      ? `${takerOutputAccountUpdate.marginAccount.user}_${makerOutputAccountUpdate.marginAccount.user}`
+      : takerOutputAccountUpdate.marginAccount.user
+
+    trade.effectiveWalletsConcatenated = makerOutputAccountUpdate
+      ? `${trade.takerEffectiveUser}_${trade.makerEffectiveUser!}`
+      : trade.takerEffectiveUser
+
+    trade.effectiveUsers = makerOutputAccountUpdate
+      ? [trade.takerEffectiveUser, trade.makerEffectiveUser!]
+      : [trade.takerEffectiveUser]
+  } else {
+    trade.walletsConcatenated = intermediateTrade.walletsConcatenated
+    trade.effectiveWalletsConcatenated = intermediateTrade.effectiveWalletsConcatenated
+    trade.effectiveUsers = intermediateTrade.effectiveUsers
+  }
+
+
 
   trade.takerToken = inputToken.id
   trade.makerToken = outputToken.id
@@ -852,6 +884,11 @@ function _handleTraderInternal(
     effectiveTakerUser.totalTradeVolumeUSD = effectiveTakerUser.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
     effectiveTakerUser.totalTradeCount = effectiveTakerUser.totalTradeCount.plus(ONE_BI)
     effectiveTakerUser.save()
+  }
+
+  if (intermediateTrade !== null) {
+    // Delete the intermediateTrade if it was used
+    store.remove('IntermediateTrade', intermediateTrade.id)
   }
 }
 
