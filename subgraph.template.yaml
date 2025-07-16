@@ -381,6 +381,12 @@ templates:
           handler: handleRewardClaimed
         - event: DistributorRegistered(address,address,address,address)
           handler: handleDistributorRegistered
+        - event: DolomiteSettingChanged(indexed bytes32,bytes)
+          handler: handleDolomiteSettingChanged
+        - event: UserSettingChanged(indexed address,indexed bytes32,bytes)
+          handler: handleUserSettingChanged
+        - event: TokenSettingChanged(indexed address,indexed bytes32,bytes)
+          handler: handleTokenSettingChanged
   - kind: ethereum/contract
     name: LiquidityMiningVester
     network: {{network}}

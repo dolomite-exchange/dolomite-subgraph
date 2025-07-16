@@ -309,7 +309,7 @@ function handleTotalParChange(
   totalPar.save()
 }
 
-class MarginAccountWithValueParChange {
+export class MarginAccountWithValueParChange {
   public readonly marginAccount: MarginAccount
   public readonly deltaPar: BigDecimal
 
@@ -455,11 +455,10 @@ export function saveMostRecentTrade(trade: Trade): void {
   mostRecentTrade.save()
 }
 
-export function changeProtocolBalance(
+export function changeProtocolBalanceApplied(
   event: ethereum.Event,
   token: Token,
-  newParStruct: ValueStruct,
-  deltaWeiStruct: ValueStruct,
+  deltaWei: BigDecimal,
   index: InterestIndex,
   isVirtualTransfer: boolean,
   protocolType: string,
@@ -476,8 +475,6 @@ export function changeProtocolBalance(
   updateInterestRate(token, totalPar, index, dolomiteMargin)
 
   let tokenPriceUSD = getTokenOraclePriceUSD(token, event, protocolType)
-
-  let deltaWei = convertStructToDecimalAppliedValue(deltaWeiStruct, token.decimals)
 
   if (!token.symbol.startsWith("pol-")) {
     // Ignore POL tokens since they recycle liquidity
@@ -523,6 +520,26 @@ export function changeProtocolBalance(
 
   dolomiteMargin.save()
   token.save()
+}
+
+export function changeProtocolBalance(
+  event: ethereum.Event,
+  token: Token,
+  deltaWeiStruct: ValueStruct,
+  index: InterestIndex,
+  isVirtualTransfer: boolean,
+  protocolType: string,
+  dolomiteMargin: DolomiteMargin,
+): void {
+  changeProtocolBalanceApplied(
+    event,
+    token,
+    convertStructToDecimalAppliedValue(deltaWeiStruct, token.decimals),
+    index,
+    isVirtualTransfer,
+    protocolType,
+    dolomiteMargin,
+  )
 }
 
 export function invalidateMarginPosition(marginAccount: MarginAccount): void {

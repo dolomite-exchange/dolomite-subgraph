@@ -1,8 +1,4 @@
-import {
-  Address,
-  ethereum,
-  log,
-} from '@graphprotocol/graph-ts'
+import { Address, ethereum, log } from '@graphprotocol/graph-ts'
 import {
   AsyncDepositCancelled as AsyncDepositCancelledEvent,
   AsyncDepositCancelledFailed as AsyncDepositCancelledFailedEvent,
@@ -16,19 +12,20 @@ import {
   AsyncWithdrawalFailed as AsyncWithdrawalFailedEvent,
   AsyncWithdrawalOutputAmountUpdated as AsyncWithdrawalOutputAmountUpdatedEvent,
   DistributorRegistered as DistributorRegisteredEvent,
+  DolomiteSettingChanged as DolomiteSettingChangedEvent,
   RewardClaimed as RewardClaimedEvent,
+  TokenSettingChanged as TokenSettingChangedEvent,
+  UserSettingChanged as UserSettingChangedEvent,
 } from '../types/templates/EventEmitterRegistry/EventEmitterRegistry'
 import {
   AsyncDeposit,
   AsyncWithdrawal,
+  DolomiteSetting,
   LiquidityMiningVester,
   Token,
+  TokenSetting, UserSetting,
 } from '../types/schema'
-import {
-  EVENT_EMITTER_FROM_CORE_ADDRESS,
-  EVENT_EMITTER_PROXY_ADDRESS,
-  ZERO_BI,
-} from './generated/constants'
+import { EVENT_EMITTER_FROM_CORE_ADDRESS, EVENT_EMITTER_PROXY_ADDRESS, ZERO_BI } from './generated/constants'
 import {
   AsyncDepositStatus,
   AsyncWithdrawalStatus,
@@ -41,6 +38,7 @@ import { convertTokenToDecimal } from './helpers/token-helpers'
 import { LiquidityMiningVester as LiquidityMiningVesterTemplate } from '../types/templates'
 import { getOrCreateTransaction } from './amm-core'
 import { TradeLiquidationType } from './helpers/helpers'
+import { createUserIfNecessary } from './helpers/user-helpers'
 
 function requireIsValidEventEmitter(event: ethereum.Event): boolean {
   let isValid = event.address.equals(Address.fromHexString(EVENT_EMITTER_PROXY_ADDRESS)) ||
@@ -269,4 +267,59 @@ export function handleDistributorRegistered(event: DistributorRegisteredEvent): 
   vester.save()
 
   LiquidityMiningVesterTemplate.create(event.params.vesterContract)
+}
+
+export function handleDolomiteSettingChanged(event: DolomiteSettingChangedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
+  let dolomiteAddressString = event.address.toHexString()
+  let settingIdString = event.params.settingId.toHexString()
+  let settings = DolomiteSetting.load(`${dolomiteAddressString}-${settingIdString}`)
+  if (settings === null) {
+    settings = new DolomiteSetting(`${dolomiteAddressString}-${settingIdString}`)
+    settings.dolomite = event.address.toHexString()
+    settings.key = event.params.settingId
+  }
+  settings.value = event.params.value.toHexString()
+  settings.save()
+}
+
+
+export function handleUserSettingChanged(event: UserSettingChangedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
+  createUserIfNecessary(event.params.user)
+
+  let userAddress = event.params.user.toHexString()
+  let settingIdString = event.params.settingId.toHexString()
+  let settings = UserSetting.load(`${userAddress}-${settingIdString}`)
+  if (settings === null) {
+    settings = new UserSetting(`${userAddress}-${settingIdString}`)
+    settings.effectiveUser = userAddress
+    settings.key = event.params.settingId
+  }
+  settings.value = event.params.value.toHexString()
+  settings.save()
+}
+
+
+export function handleTokenSettingChanged(event: TokenSettingChangedEvent): void {
+  if (!requireIsValidEventEmitter(event)) {
+    return
+  }
+
+  let tokenAddress = event.params.token.toHexString()
+  let settingIdString = event.params.settingId.toHexString()
+  let settings = TokenSetting.load(`${tokenAddress}-${settingIdString}`)
+  if (settings === null) {
+    settings = new TokenSetting(`${tokenAddress}-${settingIdString}`)
+    settings.token = tokenAddress
+    settings.key = event.params.settingId
+  }
+  settings.value = event.params.value.toHexString()
+  settings.save()
 }

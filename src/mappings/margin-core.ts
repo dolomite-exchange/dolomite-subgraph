@@ -18,6 +18,7 @@ import {
 import {
   Deposit,
   InterestIndex,
+  IntermediateTrade,
   Liquidation,
   MarginPosition,
   OraclePrice,
@@ -38,12 +39,13 @@ import { getEffectiveUserForAddress, getEffectiveUserForAddressString } from './
 import {
   canBeMarginPosition,
   changeProtocolBalance,
+  changeProtocolBalanceApplied,
   getIDForEvent,
   getLiquidationSpreadForPair,
   getOrCreateDolomiteMarginForCall,
   getOrCreateMarginPosition,
   handleDolomiteMarginBalanceUpdateForAccount,
-  invalidateMarginPosition,
+  MarginAccountWithValueParChange,
   parToWei,
   roundHalfUp,
   saveMostRecentTrade,
@@ -130,7 +132,6 @@ export function handleOraclePriceUpdate(event: OraclePriceEvent): void {
     event,
     token,
     ValueStruct.fromFields(false, ZERO_BI),
-    ValueStruct.fromFields(false, ZERO_BI),
     InterestIndex.load(token.id) as InterestIndex,
     true,
     ProtocolType.Core,
@@ -170,7 +171,6 @@ export function handleDeposit(event: DepositEvent): void {
   }
 
   let deltaWeiStruct = new ValueStruct(event.params.update.deltaWei)
-  let newParStruct = new ValueStruct(event.params.update.newPar)
   let marketIndex = InterestIndex.load(token.id) as InterestIndex
 
   deposit.transaction = transaction.id
@@ -191,7 +191,6 @@ export function handleDeposit(event: DepositEvent): void {
   changeProtocolBalance(
     event,
     token,
-    newParStruct,
     deltaWeiStruct,
     marketIndex,
     isVirtualTransfer,
@@ -236,7 +235,6 @@ export function handleWithdraw(event: WithdrawEvent): void {
 
   let deltaWeiStruct = new ValueStruct(event.params.update.deltaWei)
   let deltaWeiStructAbs = deltaWeiStruct.abs()
-  let newParStruct = new ValueStruct(event.params.update.newPar)
   let marketIndex = InterestIndex.load(token.id) as InterestIndex
 
   withdrawal.transaction = transaction.id
@@ -259,7 +257,6 @@ export function handleWithdraw(event: WithdrawEvent): void {
   changeProtocolBalance(
     event,
     token,
-    newParStruct,
     deltaWeiStruct,
     marketIndex,
     isVirtualTransfer,
@@ -349,7 +346,6 @@ export function handleTransfer(event: TransferEvent): void {
   changeProtocolBalance(
     event,
     token,
-    new ValueStruct(event.params.updateOne.newPar),
     new ValueStruct(event.params.updateOne.deltaWei),
     marketIndex,
     isVirtualTransfer,
@@ -359,7 +355,6 @@ export function handleTransfer(event: TransferEvent): void {
   changeProtocolBalance(
     event,
     token,
-    new ValueStruct(event.params.updateTwo.newPar),
     new ValueStruct(event.params.updateTwo.deltaWei),
     marketIndex,
     isVirtualTransfer,
@@ -386,126 +381,38 @@ export function handleBuy(event: BuyEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let makerToken = Token.load(TokenMarketIdReverseLookup.load(event.params.makerMarket.toString())!.token) as Token
-  let takerToken = Token.load(TokenMarketIdReverseLookup.load(event.params.takerMarket.toString())!.token) as Token
+  let inputToken = Token.load(TokenMarketIdReverseLookup.load(event.params.takerMarket.toString())!.token) as Token
+  let outputToken = Token.load(TokenMarketIdReverseLookup.load(event.params.makerMarket.toString())!.token) as Token
 
-  let balanceUpdateOne = new BalanceUpdate(
-    event.params.accountOwner,
-    event.params.accountNumber,
-    event.params.makerUpdate.newPar.value,
-    event.params.makerUpdate.newPar.sign,
-    event.params.makerUpdate.deltaWei.value,
-    event.params.makerUpdate.deltaWei.sign,
-    makerToken,
-  )
-  // Don't do a variable assignment here since it's overwritten below
-  let makerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
-
-  let balanceUpdateTwo = new BalanceUpdate(
+  let takerInputUpdate = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
     event.params.takerUpdate.newPar.value,
     event.params.takerUpdate.newPar.sign,
     event.params.takerUpdate.deltaWei.value,
     event.params.takerUpdate.deltaWei.sign,
-    takerToken,
+    inputToken,
   )
-  let takerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
+  let takerOutputUpdate = new BalanceUpdate(
+    event.params.accountOwner,
+    event.params.accountNumber,
+    event.params.makerUpdate.newPar.value,
+    event.params.makerUpdate.newPar.sign,
+    event.params.makerUpdate.deltaWei.value,
+    event.params.makerUpdate.deltaWei.sign,
+    outputToken,
+  )
 
-  let transaction = getOrCreateTransaction(event)
-
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
-
-  let tradeID = getIDForEvent(event)
-  let trade = Trade.load(tradeID)
-  if (trade === null) {
-    trade = new Trade(tradeID)
-    trade.serialId = dolomiteMargin.actionCount
-    trade.traderAddress = event.params.exchangeWrapper
-  }
-
-  trade.transaction = transaction.id
-  trade.timestamp = transaction.timestamp
-  trade.logIndex = event.logIndex
-
-  trade.takerEffectiveUser = getEffectiveUserForAddressString(takerAccountUpdate.marginAccount.user).id
-  trade.takerMarginAccount = takerAccountUpdate.marginAccount.id
-  trade.makerMarginAccount = null
-  trade.walletsConcatenated = takerAccountUpdate.marginAccount.user
-  trade.effectiveWalletsConcatenated = trade.takerEffectiveUser
-  trade.effectiveUsers = [trade.takerEffectiveUser]
-
-  trade.takerToken = takerToken.id
-  trade.makerToken = makerToken.id
-
-  let makerIndex = InterestIndex.load(makerToken.id) as InterestIndex
-  let takerIndex = InterestIndex.load(takerToken.id) as InterestIndex
-
-  trade.takerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(takerIndex)
-  trade.makerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(makerIndex)
-
-  let takerDeltaWeiStruct = new ValueStruct(event.params.takerUpdate.deltaWei)
-  trade.takerTokenDeltaWei = convertStructToDecimalAppliedValue(takerDeltaWeiStruct.abs(), takerToken.decimals)
-
-  let makerDeltaWeiStruct = new ValueStruct(event.params.makerUpdate.deltaWei)
-  trade.makerTokenDeltaWei = convertStructToDecimalAppliedValue(makerDeltaWeiStruct.abs(), makerToken.decimals)
-
-  trade.amountUSD = trade.takerTokenDeltaWei
-    .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
-    .truncate(USD_PRECISION)
-  trade.takerAmountUSD = trade.amountUSD
-  trade.makerAmountUSD = trade.makerTokenDeltaWei
-    .times(getTokenOraclePriceUSD(makerToken, event, ProtocolType.Core))
-    .truncate(USD_PRECISION)
-
-  trade.takerInputTokenDeltaPar = takerAccountUpdate.deltaPar
-  trade.takerOutputTokenDeltaPar = makerAccountUpdate.deltaPar
-
-  updateAndSaveVolumeForTrade(trade, dolomiteMargin, makerToken, takerToken)
-
-  takerAccountUpdate.marginAccount.save()
-  trade.save()
-  dolomiteMargin.save()
-
-  saveMostRecentTrade(trade)
-
-  let isVirtualTransfer = false
-
-  let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
-  changeProtocolBalance(
+  _handleTraderInternal(
     event,
-    makerToken,
-    takerNewParStruct,
-    takerDeltaWeiStruct,
-    makerIndex,
-    isVirtualTransfer,
-    ProtocolType.Core,
-    dolomiteMargin,
+    event.params.exchangeWrapper,
+    inputToken,
+    outputToken,
+    takerInputUpdate,
+    takerOutputUpdate,
+    null,
+    null,
   )
-
-  let makerNewParStruct = new ValueStruct(event.params.makerUpdate.newPar)
-  changeProtocolBalance(
-    event,
-    takerToken,
-    makerNewParStruct,
-    makerDeltaWeiStruct,
-    takerIndex,
-    isVirtualTransfer,
-    ProtocolType.Core,
-    dolomiteMargin,
-  )
-  invalidateMarginPosition(takerAccountUpdate.marginAccount)
-
-  let user = User.load(takerAccountUpdate.marginAccount.user) as User
-  user.totalTradeVolumeUSD = user.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
-  user.totalTradeCount = user.totalTradeCount.plus(ONE_BI)
-  user.save()
-  if (user.effectiveUser != user.id) {
-    let effectiveUser = User.load(user.effectiveUser) as User
-    effectiveUser.totalTradeVolumeUSD = effectiveUser.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
-    effectiveUser.totalTradeCount = effectiveUser.totalTradeCount.plus(ONE_BI)
-    effectiveUser.save()
-  }
 }
 
 // noinspection JSUnusedGlobalSymbols
@@ -515,168 +422,46 @@ export function handleSell(event: SellEvent): void {
     [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
-  let makerToken = Token.load(TokenMarketIdReverseLookup.load(event.params.makerMarket.toString())!.token) as Token
-  let takerToken = Token.load(TokenMarketIdReverseLookup.load(event.params.takerMarket.toString())!.token) as Token
+  let inputToken = Token.load(TokenMarketIdReverseLookup.load(event.params.takerMarket.toString())!.token) as Token
+  let outputToken = Token.load(TokenMarketIdReverseLookup.load(event.params.makerMarket.toString())!.token) as Token
 
-  let balanceUpdateOne = new BalanceUpdate(
-    event.params.accountOwner,
-    event.params.accountNumber,
-    event.params.makerUpdate.newPar.value,
-    event.params.makerUpdate.newPar.sign,
-    event.params.makerUpdate.deltaWei.value,
-    event.params.makerUpdate.deltaWei.sign,
-    makerToken,
-  )
-  // Don't do a variable assignment here since it's overwritten below
-  let makerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateOne, event)
-
-  let balanceUpdateTwo = new BalanceUpdate(
+  let takerInputUpdate = new BalanceUpdate(
     event.params.accountOwner,
     event.params.accountNumber,
     event.params.takerUpdate.newPar.value,
     event.params.takerUpdate.newPar.sign,
     event.params.takerUpdate.deltaWei.value,
     event.params.takerUpdate.deltaWei.sign,
-    takerToken,
+    inputToken,
   )
-  let takerAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(balanceUpdateTwo, event)
+  let takerOutputUpdate = new BalanceUpdate(
+    event.params.accountOwner,
+    event.params.accountNumber,
+    event.params.makerUpdate.newPar.value,
+    event.params.makerUpdate.newPar.sign,
+    event.params.makerUpdate.deltaWei.value,
+    event.params.makerUpdate.deltaWei.sign,
+    outputToken,
+  )
 
-  let transaction = getOrCreateTransaction(event)
-
-  let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
-
-  let tradeID = getIDForEvent(event)
-  let trade = Trade.load(tradeID)
-  if (trade === null) {
-    trade = new Trade(tradeID)
-    trade.serialId = dolomiteMargin.actionCount
-    trade.traderAddress = event.params.exchangeWrapper
-  }
-
-  trade.transaction = transaction.id
-  trade.timestamp = transaction.timestamp
-  trade.logIndex = event.logIndex
-
-  trade.takerEffectiveUser = getEffectiveUserForAddressString(takerAccountUpdate.marginAccount.user).id
-  trade.takerMarginAccount = takerAccountUpdate.marginAccount.id
-  trade.makerMarginAccount = null
-  trade.walletsConcatenated = takerAccountUpdate.marginAccount.user
-  trade.effectiveWalletsConcatenated = trade.takerEffectiveUser
-  trade.effectiveUsers = [trade.takerEffectiveUser]
-
-  trade.takerToken = takerToken.id
-  trade.makerToken = makerToken.id
-
-  let makerIndex = InterestIndex.load(makerToken.id) as InterestIndex
-  let takerIndex = InterestIndex.load(takerToken.id) as InterestIndex
-
-  trade.takerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(takerIndex)
-  trade.makerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(makerIndex)
-
-  let takerDeltaWeiStruct = new ValueStruct(event.params.takerUpdate.deltaWei)
-  trade.takerTokenDeltaWei = convertStructToDecimalAppliedValue(takerDeltaWeiStruct.abs(), takerToken.decimals)
-
-  let makerDeltaWeiStruct = new ValueStruct(event.params.makerUpdate.deltaWei)
-  trade.makerTokenDeltaWei = convertStructToDecimalAppliedValue(makerDeltaWeiStruct.abs(), makerToken.decimals)
-
-  trade.amountUSD = trade.takerTokenDeltaWei
-    .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
-    .truncate(USD_PRECISION)
-  trade.takerAmountUSD = trade.amountUSD
-  trade.makerAmountUSD = trade.makerTokenDeltaWei
-    .times(getTokenOraclePriceUSD(makerToken, event, ProtocolType.Core))
-    .truncate(USD_PRECISION)
-
-  trade.takerInputTokenDeltaPar = takerAccountUpdate.deltaPar
-  trade.takerOutputTokenDeltaPar = makerAccountUpdate.deltaPar
-
-  updateAndSaveVolumeForTrade(trade, dolomiteMargin, makerToken, takerToken)
-
-  takerAccountUpdate.marginAccount.save()
-  trade.save()
-  dolomiteMargin.save()
-
-  saveMostRecentTrade(trade)
-
-  let isVirtualTransfer = false
-
-  let takerNewParStruct = new ValueStruct(event.params.takerUpdate.newPar)
-  changeProtocolBalance(
+  _handleTraderInternal(
     event,
-    makerToken,
-    takerNewParStruct,
-    takerDeltaWeiStruct,
-    makerIndex,
-    isVirtualTransfer,
-    ProtocolType.Core,
-    dolomiteMargin,
+    event.params.exchangeWrapper,
+    inputToken,
+    outputToken,
+    takerInputUpdate,
+    takerOutputUpdate,
+    null,
+    null,
   )
-
-  let makerNewParStruct = new ValueStruct(event.params.makerUpdate.newPar)
-  changeProtocolBalance(
-    event,
-    takerToken,
-    makerNewParStruct,
-    makerDeltaWeiStruct,
-    takerIndex,
-    isVirtualTransfer,
-    ProtocolType.Core,
-    dolomiteMargin,
-  )
-
-  invalidateMarginPosition(takerAccountUpdate.marginAccount)
-
-  let user = User.load(takerAccountUpdate.marginAccount.user) as User
-  user.totalTradeVolumeUSD = user.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
-  user.totalTradeCount = user.totalTradeCount.plus(ONE_BI)
-  user.save()
-  if (user.effectiveUser != user.id) {
-    let effectiveUser = User.load(user.effectiveUser) as User
-    effectiveUser.totalTradeVolumeUSD = effectiveUser.totalTradeVolumeUSD.plus(trade.takerAmountUSD)
-    effectiveUser.totalTradeCount = effectiveUser.totalTradeCount.plus(ONE_BI)
-    effectiveUser.save()
-  }
 }
 
 // noinspection JSUnusedGlobalSymbols
 export function handleTrade(event: TradeEvent): void {
-  log.info(
-    'Handling trade for hash and index: {}-{}',
-    [event.transaction.hash.toHexString(), event.logIndex.toString()],
-  )
-
   let inputToken = Token.load(TokenMarketIdReverseLookup.load(event.params.inputMarket.toString())!.token) as Token
   let outputToken = Token.load(TokenMarketIdReverseLookup.load(event.params.outputMarket.toString())!.token) as Token
 
-  let balanceUpdateOne = new BalanceUpdate(
-    event.params.makerAccountOwner,
-    event.params.makerAccountNumber,
-    event.params.makerInputUpdate.newPar.value,
-    event.params.makerInputUpdate.newPar.sign,
-    event.params.makerInputUpdate.deltaWei.value,
-    event.params.makerInputUpdate.deltaWei.sign,
-    inputToken,
-  )
-  let makerInputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
-    balanceUpdateOne,
-    event,
-  )
-
-  let balanceUpdateTwo = new BalanceUpdate(
-    event.params.makerAccountOwner,
-    event.params.makerAccountNumber,
-    event.params.makerOutputUpdate.newPar.value,
-    event.params.makerOutputUpdate.newPar.sign,
-    event.params.makerOutputUpdate.deltaWei.value,
-    event.params.makerOutputUpdate.deltaWei.sign,
-    outputToken,
-  )
-  let makerOutputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
-    balanceUpdateTwo,
-    event,
-  )
-
-  let balanceUpdateThree = new BalanceUpdate(
+  let takerInputUpdate = new BalanceUpdate(
     event.params.takerAccountOwner,
     event.params.takerAccountNumber,
     event.params.takerInputUpdate.newPar.value,
@@ -685,12 +470,7 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerInputUpdate.deltaWei.sign,
     inputToken,
   )
-  let takerInputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
-    balanceUpdateThree,
-    event,
-  )
-
-  let balanceUpdateFour = new BalanceUpdate(
+  let takerOutputTUpdate = new BalanceUpdate(
     event.params.takerAccountOwner,
     event.params.takerAccountNumber,
     event.params.takerOutputUpdate.newPar.value,
@@ -699,21 +479,134 @@ export function handleTrade(event: TradeEvent): void {
     event.params.takerOutputUpdate.deltaWei.sign,
     outputToken,
   )
-  let takerOutputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
-    balanceUpdateFour,
+
+  let makerInputUpdate = new BalanceUpdate(
+    event.params.makerAccountOwner,
+    event.params.makerAccountNumber,
+    event.params.makerInputUpdate.newPar.value,
+    event.params.makerInputUpdate.newPar.sign,
+    event.params.makerInputUpdate.deltaWei.value,
+    event.params.makerInputUpdate.deltaWei.sign,
+    inputToken,
+  )
+  let makerOutputUpdate = new BalanceUpdate(
+    event.params.makerAccountOwner,
+    event.params.makerAccountNumber,
+    event.params.makerOutputUpdate.newPar.value,
+    event.params.makerOutputUpdate.newPar.sign,
+    event.params.makerOutputUpdate.deltaWei.value,
+    event.params.makerOutputUpdate.deltaWei.sign,
+    outputToken,
+  )
+
+  _handleTraderInternal(
     event,
+    event.params.autoTrader,
+    inputToken,
+    outputToken,
+    takerInputUpdate,
+    takerOutputTUpdate,
+    makerInputUpdate,
+    makerOutputUpdate,
+  )
+}
+
+function _handleTraderInternal(
+  event: ethereum.Event,
+  traderAddress: Address,
+  inputToken: Token,
+  outputToken: Token,
+  takerInputBalanceUpdate: BalanceUpdate,
+  takerOutputBalanceUpdate: BalanceUpdate,
+  makerInputBalanceUpdate: BalanceUpdate | null,
+  makerOutputBalanceUpdate: BalanceUpdate | null,
+): void {
+  log.info(
+    'Handling trade for hash and index: {}-{}',
+    [event.transaction.hash.toHexString(), event.logIndex.toString()],
   )
 
   let transaction = getOrCreateTransaction(event)
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
 
+  let takerInputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
+    takerInputBalanceUpdate,
+    event,
+  )
+  let takerOutputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
+    takerOutputBalanceUpdate,
+    event,
+  )
+
+  let makerInputAccountUpdate: MarginAccountWithValueParChange | null = null
+  let makerOutputAccountUpdate: MarginAccountWithValueParChange | null = null
+  if (makerInputBalanceUpdate !== null && makerOutputBalanceUpdate !== null) {
+    makerInputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
+      makerInputBalanceUpdate,
+      event,
+    )
+    makerOutputAccountUpdate = handleDolomiteMarginBalanceUpdateForAccount(
+      makerOutputBalanceUpdate,
+      event,
+    )
+  }
+
+  let takerInputDeltaWei = takerInputBalanceUpdate.deltaWei
+  let takerOutputDeltaWei = takerOutputBalanceUpdate.deltaWei
+  let makerInputDeltaWei = makerInputBalanceUpdate ? makerInputBalanceUpdate.deltaWei : null
+  let makerOutputDeltaWei = makerOutputBalanceUpdate ? makerOutputBalanceUpdate.deltaWei : null
+  let isVirtualTransfer = makerInputAccountUpdate !== null
+  let serialId = dolomiteMargin.actionCount
+  let intermediateTrade: IntermediateTrade | null = null
+  if (inputToken.symbol.startsWith('pol-') || outputToken.symbol.startsWith('pol-')) {
+    isVirtualTransfer = true // POL tokens are always virtual
+    let transactionHash = event.transaction.hash.toHexString()
+    intermediateTrade = IntermediateTrade.load(`${transactionHash}-${serialId.minus(ONE_BI).toString()}`)
+    if (intermediateTrade === null) {
+      // Save and return; the intermediate trade was not created yet.
+      intermediateTrade = new IntermediateTrade(`${transactionHash}-${serialId.toString()}`)
+
+      intermediateTrade.serialId = serialId
+      intermediateTrade.traderAddress = traderAddress
+
+      intermediateTrade.takerEffectiveUser = getEffectiveUserForAddressString(takerOutputAccountUpdate.marginAccount.user).id
+      intermediateTrade.takerMarginAccount = takerOutputAccountUpdate.marginAccount.id
+      intermediateTrade.makerEffectiveUser = makerOutputAccountUpdate ? getEffectiveUserForAddressString(
+        makerOutputAccountUpdate.marginAccount.user).id : null
+      intermediateTrade.makerMarginAccount = makerOutputAccountUpdate ? makerOutputAccountUpdate.marginAccount.id : null
+      intermediateTrade.walletsConcatenated = makerOutputAccountUpdate ? `${takerOutputAccountUpdate.marginAccount.user}_${makerOutputAccountUpdate.marginAccount.user}` : takerOutputAccountUpdate.marginAccount.user
+      intermediateTrade.effectiveWalletsConcatenated = makerOutputAccountUpdate ? `${intermediateTrade.takerEffectiveUser}_${intermediateTrade.makerEffectiveUser!}` : intermediateTrade.takerEffectiveUser
+      intermediateTrade.effectiveUsers = [intermediateTrade.takerEffectiveUser, intermediateTrade.makerEffectiveUser!]
+
+      intermediateTrade.takerInputDeltaPar = takerInputAccountUpdate.deltaPar
+      intermediateTrade.takerOutputDeltaPar = takerOutputAccountUpdate.deltaPar
+      intermediateTrade.makerInputDeltaPar = makerInputAccountUpdate !== null ? makerInputAccountUpdate.deltaPar : null
+      intermediateTrade.makerOutputDeltaPar = makerOutputAccountUpdate !== null ? makerOutputAccountUpdate.deltaPar : null
+
+      intermediateTrade.save()
+    } else {
+      takerInputDeltaWei = intermediateTrade.takerInputDeltaWei.gt(ZERO_BD)
+        ? intermediateTrade.takerInputDeltaWei : takerInputBalanceUpdate.deltaWei
+      takerOutputDeltaWei = intermediateTrade.takerOutputDeltaWei.gt(ZERO_BD)
+        ? intermediateTrade.takerOutputDeltaWei : takerOutputBalanceUpdate.deltaWei
+      makerInputDeltaWei = intermediateTrade.makerInputDeltaWei !== null && intermediateTrade.makerInputDeltaWei.gt(ZERO_BD)
+        ? intermediateTrade.makerInputDeltaWei
+        : makerInputBalanceUpdate && makerInputBalanceUpdate.deltaWei.gt(ZERO_BD)
+          ? makerInputBalanceUpdate.deltaWei : null
+      makerOutputDeltaWei = intermediateTrade.makerOutputDeltaWei !== null && intermediateTrade.makerOutputDeltaWei.gt(ZERO_BD)
+        ? intermediateTrade.makerOutputDeltaWei
+        : makerOutputBalanceUpdate && makerOutputBalanceUpdate.deltaWei.gt(ZERO_BD)
+          ? makerOutputBalanceUpdate.deltaWei : null
+    }
+  }
+
   let tradeID = getIDForEvent(event)
   let trade = Trade.load(tradeID)
   if (trade === null) {
     trade = new Trade(tradeID)
-    trade.serialId = dolomiteMargin.actionCount
-    trade.traderAddress = event.params.autoTrader
+    trade.serialId = serialId
+    trade.traderAddress = traderAddress
   }
 
   trade.transaction = transaction.id
@@ -722,10 +615,14 @@ export function handleTrade(event: TradeEvent): void {
 
   trade.takerEffectiveUser = getEffectiveUserForAddressString(takerOutputAccountUpdate.marginAccount.user).id
   trade.takerMarginAccount = takerOutputAccountUpdate.marginAccount.id
-  trade.makerEffectiveUser = getEffectiveUserForAddressString(makerOutputAccountUpdate.marginAccount.user).id
-  trade.makerMarginAccount = makerOutputAccountUpdate.marginAccount.id
-  trade.walletsConcatenated = `${takerOutputAccountUpdate.marginAccount.user}_${makerOutputAccountUpdate.marginAccount.user}`
-  trade.effectiveWalletsConcatenated = `${trade.takerEffectiveUser}_${trade.makerEffectiveUser!}`
+  trade.makerEffectiveUser = intermediateTrade !== null && intermediateTrade.makerEffectiveUser !== null
+    ? intermediateTrade.makerEffectiveUser
+    : makerOutputAccountUpdate ? getEffectiveUserForAddressString(makerOutputAccountUpdate.marginAccount.user).id : null
+  trade.makerMarginAccount = intermediateTrade !== null && intermediateTrade.makerMarginAccount !== null
+    ? intermediateTrade.makerMarginAccount
+    : makerOutputAccountUpdate ? makerOutputAccountUpdate.marginAccount.id : null
+  trade.walletsConcatenated = makerOutputAccountUpdate ? `${takerOutputAccountUpdate.marginAccount.user}_${makerOutputAccountUpdate.marginAccount.user}` : takerOutputAccountUpdate.marginAccount.user
+  trade.effectiveWalletsConcatenated = makerOutputAccountUpdate ? `${trade.takerEffectiveUser}_${trade.makerEffectiveUser!}` : trade.takerEffectiveUser
   trade.effectiveUsers = [trade.takerEffectiveUser, trade.makerEffectiveUser!]
 
   trade.takerToken = inputToken.id
@@ -737,27 +634,21 @@ export function handleTrade(event: TradeEvent): void {
   trade.takerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(inputIndex)
   trade.makerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(outputIndex)
 
-  let takerInputDeltaWeiStruct = new ValueStruct(event.params.takerInputUpdate.deltaWei)
-  let takerOutputDeltaWeiStruct = new ValueStruct(event.params.takerOutputUpdate.deltaWei)
-  let takerToken = takerInputDeltaWeiStruct.applied()
-    .lt(ZERO_BI) ? inputToken : outputToken
-  let makerToken = takerInputDeltaWeiStruct.applied()
-    .lt(ZERO_BI) ? outputToken : inputToken
-  trade.takerTokenDeltaWei = takerInputDeltaWeiStruct.applied()
-    .lt(ZERO_BI)
-    ? convertStructToDecimalAppliedValue(takerInputDeltaWeiStruct.abs(), inputToken.decimals)
-    : convertStructToDecimalAppliedValue(takerOutputDeltaWeiStruct.abs(), outputToken.decimals)
+  let takerToken = takerInputDeltaWei.lt(ZERO_BD) ? inputToken : outputToken
+  let makerToken = takerInputDeltaWei.lt(ZERO_BD) ? outputToken : inputToken
+  trade.takerTokenDeltaWei = takerInputDeltaWei.lt(ZERO_BD)
+    ? absBD(takerInputDeltaWei)
+    : absBD(takerOutputDeltaWei)
 
-  trade.makerTokenDeltaWei = takerInputDeltaWeiStruct.applied()
-    .lt(ZERO_BI)
-    ? convertStructToDecimalAppliedValue(takerOutputDeltaWeiStruct.abs(), outputToken.decimals)
-    : convertStructToDecimalAppliedValue(takerInputDeltaWeiStruct.abs(), inputToken.decimals)
+  trade.makerTokenDeltaWei = takerInputDeltaWei.lt(ZERO_BD)
+    ? absBD(takerOutputDeltaWei)
+    : absBD(takerInputDeltaWei)
 
   trade.amountUSD = trade.takerTokenDeltaWei
     .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
     .truncate(USD_PRECISION)
   trade.takerAmountUSD = trade.amountUSD
-  trade.makerAmountUSD = trade.takerTokenDeltaWei
+  trade.makerAmountUSD = trade.makerTokenDeltaWei
     .times(getTokenOraclePriceUSD(makerToken, event, ProtocolType.Core))
     .truncate(USD_PRECISION)
 
@@ -765,74 +656,73 @@ export function handleTrade(event: TradeEvent): void {
     trade.liquidationType = TradeLiquidationType.EXPIRATION
   }
 
-  trade.makerInputTokenDeltaPar = makerInputAccountUpdate.deltaPar.lt(ZERO_BD) ? makerInputAccountUpdate.deltaPar : makerOutputAccountUpdate.deltaPar
-  trade.makerOutputTokenDeltaPar = makerOutputAccountUpdate.deltaPar.gt(ZERO_BD) ? makerOutputAccountUpdate.deltaPar : makerInputAccountUpdate.deltaPar
   trade.takerInputTokenDeltaPar = takerInputAccountUpdate.deltaPar.lt(ZERO_BD) ? takerInputAccountUpdate.deltaPar : takerOutputAccountUpdate.deltaPar
   trade.takerOutputTokenDeltaPar = takerOutputAccountUpdate.deltaPar.gt(ZERO_BD) ? takerOutputAccountUpdate.deltaPar : takerInputAccountUpdate.deltaPar
+  trade.makerInputTokenDeltaPar = makerInputAccountUpdate !== null && makerOutputAccountUpdate !== null
+    ? makerInputAccountUpdate.deltaPar.lt(ZERO_BD) ? makerInputAccountUpdate.deltaPar : makerOutputAccountUpdate.deltaPar
+    : null
+  trade.makerOutputTokenDeltaPar = makerOutputAccountUpdate !== null && makerInputAccountUpdate !== null
+    ? makerOutputAccountUpdate.deltaPar.gt(ZERO_BD) ? makerOutputAccountUpdate.deltaPar : makerInputAccountUpdate.deltaPar
+    : null
 
   updateAndSaveVolumeForTrade(trade, dolomiteMargin, makerToken, takerToken)
 
-  takerOutputAccountUpdate.marginAccount.save()
-  makerOutputAccountUpdate.marginAccount.save()
   trade.save()
   dolomiteMargin.save()
 
   saveMostRecentTrade(trade)
 
-  let isVirtualTransfer = true
-
-  let takerInputNewParStruct = new ValueStruct(event.params.takerInputUpdate.newPar)
-  changeProtocolBalance(
+  changeProtocolBalanceApplied(
     event,
     inputToken,
-    takerInputNewParStruct,
-    takerInputDeltaWeiStruct,
+    takerInputDeltaWei,
     inputIndex,
     isVirtualTransfer,
     ProtocolType.Core,
     dolomiteMargin,
   )
 
-  let takerOutputNewParStruct = new ValueStruct(event.params.takerOutputUpdate.newPar)
-  changeProtocolBalance(
+  changeProtocolBalanceApplied(
     event,
     outputToken,
-    takerOutputNewParStruct,
-    takerOutputDeltaWeiStruct,
+    takerOutputDeltaWei,
     outputIndex,
     isVirtualTransfer,
     ProtocolType.Core,
     dolomiteMargin,
   )
 
-  let makerInputNewParStruct = new ValueStruct(event.params.makerInputUpdate.newPar)
-  let makerInputDeltaWeiStruct = new ValueStruct(event.params.makerInputUpdate.deltaWei)
-  changeProtocolBalance(
-    event,
-    inputToken,
-    makerInputNewParStruct,
-    makerInputDeltaWeiStruct,
-    inputIndex,
-    isVirtualTransfer,
-    ProtocolType.Core,
-    dolomiteMargin,
-  )
-
-  let makerOutputNewParStruct = new ValueStruct(event.params.makerOutputUpdate.newPar)
-  let makerOutputDeltaWeiStruct = new ValueStruct(event.params.makerOutputUpdate.deltaWei)
-  changeProtocolBalance(
-    event,
-    outputToken,
-    makerOutputNewParStruct,
-    makerOutputDeltaWeiStruct,
-    outputIndex,
-    isVirtualTransfer,
-    ProtocolType.Core,
-    dolomiteMargin,
-  )
+  if (makerInputDeltaWei && makerOutputDeltaWei) {
+    changeProtocolBalanceApplied(
+      event,
+      inputToken,
+      makerInputDeltaWei,
+      inputIndex,
+      isVirtualTransfer,
+      ProtocolType.Core,
+      dolomiteMargin,
+    )
+    changeProtocolBalanceApplied(
+      event,
+      outputToken,
+      makerOutputDeltaWei,
+      outputIndex,
+      isVirtualTransfer,
+      ProtocolType.Core,
+      dolomiteMargin,
+    )
+  }
 
   // if the trade is against the expiry contract, we need to change the margin position
   if (trade.traderAddress.equals(Address.fromString(EXPIRY_ADDRESS))) {
+    if (
+      makerOutputAccountUpdate === null ||
+      makerInputDeltaWei === null ||
+      makerOutputDeltaWei === null
+    ) {
+      log.critical('makerOutputAccountUpdate cannot be null for expiration trades!', [])
+      return
+    }
     log.info('Handling expiration for margin account {}', [makerOutputAccountUpdate.marginAccount.id])
     // the maker is
     let marginPosition = getOrCreateMarginPosition(event, makerOutputAccountUpdate.marginAccount)
@@ -861,12 +751,15 @@ export function handleTrade(event: TradeEvent): void {
     let owedPriceAdj = owedPrice.times(liquidationSpread)
       .truncate(36)
 
-    let heldNewParStruct = marginPosition.heldToken == outputToken.id ? makerOutputNewParStruct : makerInputNewParStruct
-    let owedNewParStruct = marginPosition.owedToken == outputToken.id ? makerOutputNewParStruct : makerInputNewParStruct
+    let heldNewPar = marginPosition.heldToken == outputToken.id && makerOutputBalanceUpdate
+      ? makerOutputBalanceUpdate.valuePar
+      : makerInputBalanceUpdate!.valuePar
+    let owedNewPar = marginPosition.owedToken == outputToken.id && makerOutputBalanceUpdate
+      ? makerOutputBalanceUpdate.valuePar
+      : makerInputBalanceUpdate!.valuePar
 
-    let borrowedTokenAmountDeltaWeiStruct = marginPosition.owedToken == outputToken.id
-      ? makerOutputDeltaWeiStruct
-      : makerInputDeltaWeiStruct
+    let borrowedTokenAmountDeltaWei = marginPosition.owedToken == outputToken.id
+      ? makerOutputDeltaWei : makerInputDeltaWei
 
     handleLiquidateMarginPosition(
       marginPosition,
@@ -877,22 +770,24 @@ export function handleTrade(event: TradeEvent): void {
       owedToken,
       marginPosition.heldToken == outputToken.id ? outputIndex : inputIndex,
       marginPosition.owedToken == outputToken.id ? outputIndex : inputIndex,
-      convertStructToDecimalAppliedValue(heldNewParStruct, heldToken.decimals),
-      convertStructToDecimalAppliedValue(owedNewParStruct, owedToken.decimals),
-      absBD(convertStructToDecimalAppliedValue(borrowedTokenAmountDeltaWeiStruct, owedToken.decimals)),
+      heldNewPar,
+      owedNewPar,
+      absBD(borrowedTokenAmountDeltaWei),
       MarginPositionStatus.Expired,
     )
   }
 
-  let makerUser = User.load(makerOutputAccountUpdate.marginAccount.user) as User
-  makerUser.totalTradeVolumeUSD = makerUser.totalTradeVolumeUSD.plus(trade.makerAmountUSD)
-  makerUser.totalTradeCount = makerUser.totalTradeCount.plus(ONE_BI)
-  makerUser.save()
-  if (makerUser.effectiveUser != makerUser.id) {
-    let effectiveMakerUser = User.load(makerUser.effectiveUser) as User
-    effectiveMakerUser.totalTradeVolumeUSD = effectiveMakerUser.totalTradeVolumeUSD.plus(trade.makerAmountUSD)
-    effectiveMakerUser.totalTradeCount = effectiveMakerUser.totalTradeCount.plus(ONE_BI)
-    effectiveMakerUser.save()
+  if (makerOutputAccountUpdate !== null) {
+    let makerUser = User.load(makerOutputAccountUpdate.marginAccount.user) as User
+    makerUser.totalTradeVolumeUSD = makerUser.totalTradeVolumeUSD.plus(trade.makerAmountUSD)
+    makerUser.totalTradeCount = makerUser.totalTradeCount.plus(ONE_BI)
+    makerUser.save()
+    if (makerUser.effectiveUser != makerUser.id) {
+      let effectiveMakerUser = User.load(makerUser.effectiveUser) as User
+      effectiveMakerUser.totalTradeVolumeUSD = effectiveMakerUser.totalTradeVolumeUSD.plus(trade.makerAmountUSD)
+      effectiveMakerUser.totalTradeCount = effectiveMakerUser.totalTradeCount.plus(ONE_BI)
+      effectiveMakerUser.save()
+    }
   }
 
   let takerUser = User.load(takerOutputAccountUpdate.marginAccount.user) as User
@@ -1003,14 +898,12 @@ export function handleLiquidate(event: LiquidationEvent): void {
   liquidation.borrowedInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(owedIndex)
 
   let solidHeldDeltaWeiStruct = new ValueStruct(event.params.solidHeldUpdate.deltaWei)
-  let solidHeldNewParStruct = new ValueStruct(event.params.solidHeldUpdate.newPar)
   liquidation.heldTokenAmountDeltaWei = convertStructToDecimalAppliedValue(
     solidHeldDeltaWeiStruct.abs(),
     heldToken.decimals,
   )
 
   let solidOwedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
-  let solidOwedNewParStruct = new ValueStruct(event.params.solidOwedUpdate.newPar)
   liquidation.borrowedTokenAmountDeltaWei = convertStructToDecimalAppliedValue(
     solidOwedDeltaWeiStruct.abs(),
     owedToken.decimals,
@@ -1060,7 +953,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
   changeProtocolBalance(
     event,
     heldToken,
-    solidHeldNewParStruct,
     solidHeldDeltaWeiStruct,
     heldIndex,
     isVirtualTransfer,
@@ -1071,7 +963,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
   changeProtocolBalance(
     event,
     owedToken,
-    solidOwedNewParStruct,
     solidOwedDeltaWeiStruct,
     owedIndex,
     isVirtualTransfer,
@@ -1082,7 +973,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
   changeProtocolBalance(
     event,
     heldToken,
-    liquidHeldNewParStruct,
     liquidHeldDeltaWeiStruct,
     heldIndex,
     isVirtualTransfer,
@@ -1092,7 +982,6 @@ export function handleLiquidate(event: LiquidationEvent): void {
   changeProtocolBalance(
     event,
     owedToken,
-    liquidOwedNewParStruct,
     liquidOwedDeltaWeiStruct,
     owedIndex,
     isVirtualTransfer,
@@ -1195,10 +1084,8 @@ export function handleVaporize(event: VaporizationEvent): void {
   let vaporOwedNewParStruct = new ValueStruct(event.params.vaporOwedUpdate.newPar)
   let vaporOwedDeltaWeiStruct = new ValueStruct(event.params.vaporOwedUpdate.deltaWei)
 
-  let solidHeldNewParStruct = new ValueStruct(event.params.solidHeldUpdate.newPar)
   let solidHeldDeltaWeiStruct = new ValueStruct(event.params.solidHeldUpdate.deltaWei)
 
-  let solidOwedNewParStruct = new ValueStruct(event.params.solidOwedUpdate.newPar)
   let solidOwedDeltaWeiStruct = new ValueStruct(event.params.solidOwedUpdate.deltaWei)
 
   let dolomiteMargin = getOrCreateDolomiteMarginForCall(event, true, ProtocolType.Core)
@@ -1258,7 +1145,6 @@ export function handleVaporize(event: VaporizationEvent): void {
   changeProtocolBalance(
     event,
     heldToken,
-    solidHeldNewParStruct,
     solidHeldDeltaWeiStruct,
     heldIndex,
     isVirtualTransfer,
@@ -1269,7 +1155,6 @@ export function handleVaporize(event: VaporizationEvent): void {
   changeProtocolBalance(
     event,
     owedToken,
-    solidOwedNewParStruct,
     solidOwedDeltaWeiStruct,
     owedIndex,
     isVirtualTransfer,
@@ -1279,7 +1164,6 @@ export function handleVaporize(event: VaporizationEvent): void {
   changeProtocolBalance(
     event,
     owedToken,
-    vaporOwedNewParStruct,
     vaporOwedDeltaWeiStruct,
     owedIndex,
     isVirtualTransfer,
