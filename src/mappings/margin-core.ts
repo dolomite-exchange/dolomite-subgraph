@@ -631,9 +631,9 @@ function _handleTradeInternal(
     }
 
     takerInputDeltaWei = intermediateTrade.takerInputDeltaWei
-    takerInputDeltaWei = takerInputDeltaWei.gt(ZERO_BD) ? takerInputDeltaWei : takerInputBalanceUpdate.deltaWei
+    takerInputDeltaWei = takerInputDeltaWei.lt(ZERO_BD) ? takerInputDeltaWei : takerInputBalanceUpdate.deltaWei
     let takerInputDeltaPar = intermediateTrade.takerInputDeltaPar
-    takerInputAccountUpdate.deltaPar = takerInputDeltaPar.gt(ZERO_BD)
+    takerInputAccountUpdate.deltaPar = takerInputDeltaPar.lt(ZERO_BD)
       ? takerInputDeltaPar
       : takerInputAccountUpdate.deltaPar
 
@@ -657,13 +657,13 @@ function _handleTradeInternal(
     }
 
     makerOutputDeltaWei = intermediateTrade.makerOutputDeltaWei
-    makerOutputDeltaWei = makerOutputDeltaWei !== null && makerOutputDeltaWei.gt(ZERO_BD)
+    makerOutputDeltaWei = makerOutputDeltaWei !== null && makerOutputDeltaWei.lt(ZERO_BD)
       ? makerOutputDeltaWei
-      : makerOutputBalanceUpdate && makerOutputBalanceUpdate.deltaWei.gt(ZERO_BD)
+      : makerOutputBalanceUpdate && makerOutputBalanceUpdate.deltaWei.lt(ZERO_BD)
         ? makerOutputBalanceUpdate.deltaWei : null
     if (makerOutputAccountUpdate !== null) {
       let makerOutputDeltaPar = intermediateTrade.makerOutputDeltaPar
-      makerOutputAccountUpdate.deltaPar = makerOutputDeltaPar !== null && makerOutputDeltaPar.gt(ZERO_BD)
+      makerOutputAccountUpdate.deltaPar = makerOutputDeltaPar !== null && makerOutputDeltaPar.lt(ZERO_BD)
         ? makerOutputDeltaPar
         : makerOutputAccountUpdate.deltaPar
     }

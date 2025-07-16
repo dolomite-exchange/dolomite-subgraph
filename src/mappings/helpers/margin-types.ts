@@ -77,7 +77,13 @@ export class BalanceUpdate {
   accountOwner: Address
   accountNumber: BigInt
   token: Token
+  /**
+   * Can be negative
+   */
   valuePar: BigDecimal
+  /**
+   * Can be negative
+   */
   deltaWei: BigDecimal
 
   constructor(
