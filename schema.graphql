@@ -185,6 +185,7 @@ type User @entity {
   liquidityPositions: [AmmLiquidityPosition!] @derivedFrom(field: "user")
   marginAccounts: [MarginAccount!] @derivedFrom(field: "user")
   borrowPositions: [BorrowPosition!] @derivedFrom(field: "effectiveUser")
+  strategies: [StrategyPosition!] @derivedFrom(field: "effectiveUser")
   marginPositions: [MarginPosition!] @derivedFrom(field: "effectiveUser")
   deposits: [Deposit!] @derivedFrom(field: "effectiveUser")
   withdrawals: [Withdrawal!] @derivedFrom(field: "effectiveUser")
@@ -736,6 +737,8 @@ type BorrowPosition @entity {
 
   effectiveSupplyTokens: [Token!]! # This list is only ever added to, never removed or mutated
   effectiveBorrowTokens: [Token!]! # This list is only ever added to, never removed or mutated
+
+  strategy: StrategyPosition
 }
 
 type ZapTraderParam @entity {
@@ -880,4 +883,14 @@ type TokenSetting @entity {
   token: Token!
   key: Bytes!
   value: String!
+}
+
+type StrategyPosition @entity {
+  id: ID! # Defined as "userAddress-accountNumber"
+  effectiveUser: User! # set to the marginAccount.user or owner of an isolation mode address
+  marginAccount: MarginAccount!
+  strategyId: BigInt!
+  positionId: BigInt!
+
+  borrowPosition: BorrowPosition! @derivedFrom(field: "strategy")
 }

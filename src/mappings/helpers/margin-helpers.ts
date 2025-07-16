@@ -311,7 +311,7 @@ function handleTotalParChange(
 
 export class MarginAccountWithValueParChange {
   public readonly marginAccount: MarginAccount
-  public readonly deltaPar: BigDecimal
+  public deltaPar: BigDecimal
 
   constructor(marginAccount: MarginAccount, deltaPar: BigDecimal) {
     this.marginAccount = marginAccount

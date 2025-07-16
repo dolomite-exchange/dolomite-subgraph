@@ -15,7 +15,8 @@ export const BASE_NETWORK = 'base'
 export const BERACHAIN_NETWORK = 'berachain'
 export const BERACHAIN_MAINNET_NETWORK = 'berachain-mainnet'
 export const BOTANIX_NETWORK = 'botanix'
-export const ETHEREUM_NETWORK = 'mainnet'
+export const ETHEREUM_NETWORK = 'ethereum'
+export const ETHEREUM_MAINNET_NETWORK = 'mainnet'
 export const MANTLE_NETWORK = 'mantle'
 export const POLYGON_ZKEVM_NETWORK = 'polygon-zkevm'
 export const X_LAYER_NETWORK = 'xlayer'
@@ -123,6 +124,11 @@ export const DAI_WETH_PAIR = '{{wethDaiAddress}}'.toLowerCase()
 
 export const USDT_WETH_PAIR = '{{wethUsdtAddress}}'.toLowerCase()
 
+export const STRATEGY_LOWER_ACCOUNT_ID = BigInt.fromI32(1_000_000_000)
+export const STRATEGY_UPPER_ACCOUNT_ID = BigInt.fromI64(10_000_000_000)
+export const STRATEGY_POSITION_ID_THRESHOLD = BigInt.fromI32(1_000_000)
+export const STRATEGY_ID_THRESHOLD = BigInt.fromI32(1_000)
+
 const CHAIN_IDS: TypedMap<string, BigInt> = new TypedMap<string, BigInt>()
 CHAIN_IDS.set(ARBITRUM_NETWORK, BigInt.fromI32(42161))
 CHAIN_IDS.set(ARBITRUM_ONE_NETWORK, BigInt.fromI32(42161))
@@ -131,6 +137,7 @@ CHAIN_IDS.set(BERACHAIN_NETWORK, BigInt.fromI32(80094))
 CHAIN_IDS.set(BERACHAIN_MAINNET_NETWORK, BigInt.fromI32(80094))
 CHAIN_IDS.set(BOTANIX_NETWORK, BigInt.fromI32(3637))
 CHAIN_IDS.set(ETHEREUM_NETWORK, BigInt.fromI32(1))
+CHAIN_IDS.set(ETHEREUM_MAINNET_NETWORK, BigInt.fromI32(1))
 CHAIN_IDS.set(MANTLE_NETWORK, BigInt.fromI32(5000))
 CHAIN_IDS.set(POLYGON_ZKEVM_NETWORK, BigInt.fromI32(1101))
 CHAIN_IDS.set(X_LAYER_NETWORK, BigInt.fromI32(196))
@@ -157,6 +164,10 @@ if (WHITELIST.filter(value => value.toLowerCase() == ADDRESS_ZERO || value.lengt
 
 export function isArbitrumOne(): boolean {
   return NETWORK == ARBITRUM_NETWORK || NETWORK == ARBITRUM_ONE_NETWORK
+}
+
+export function isEthereum(): boolean {
+  return NETWORK == ETHEREUM_NETWORK || NETWORK == ETHEREUM_MAINNET_NETWORK
 }
 
 export function isMantle(): boolean {
