@@ -644,22 +644,22 @@ function _handleTradeInternal(
       let makerOutputDeltaPar = takerOutputAccountUpdate.deltaPar
 
       // For LogTrade with POL tokens, the maker is the taker
-      let makerMarginAccount = MarginAccount.load(intermediateTrade.makerMarginAccount!)!
+      let takerMarginAccount = MarginAccount.load(makerOutputAccountUpdate!.marginAccount.id)!
       takerInputDeltaWei = intermediateTrade.takerInputDeltaWei
       takerInputAccountUpdate = new MarginAccountWithValueParChange(
-        makerMarginAccount,
+        takerMarginAccount,
         intermediateTrade.takerInputDeltaPar,
       )
       takerOutputDeltaWei = makerOutputBalanceUpdate!.deltaWei
       takerOutputAccountUpdate = new MarginAccountWithValueParChange(
-        makerMarginAccount,
+        takerMarginAccount,
         makerOutputAccountUpdate!.deltaPar,
       )
 
       // For LogTrade with POL tokens, the taker is the maker
-      let takerMarginAccount = MarginAccount.load(intermediateTrade.takerMarginAccount)!
-      makerInputAccountUpdate = new MarginAccountWithValueParChange(takerMarginAccount, ZERO_BD)
-      makerOutputAccountUpdate = new MarginAccountWithValueParChange(takerMarginAccount, makerOutputDeltaPar)
+      let makerMarginAccount = MarginAccount.load(intermediateTrade.takerMarginAccount)!
+      makerInputAccountUpdate = new MarginAccountWithValueParChange(makerMarginAccount, ZERO_BD)
+      makerOutputAccountUpdate = new MarginAccountWithValueParChange(makerMarginAccount, makerOutputDeltaPar)
       makerInputDeltaWei = ZERO_BD
       makerOutputDeltaWei = takerOutputBalanceUpdate.deltaWei
 
