@@ -797,12 +797,16 @@ function _handleTradeInternal(
     ? makerInputAccountUpdate.deltaPar
     : makerOutputAccountUpdate !== null && makerOutputAccountUpdate.deltaPar.gt(ZERO_BD)
       ? makerOutputAccountUpdate.deltaPar
-      : null
+      : makerInputAccountUpdate !== null && makerOutputAccountUpdate !== null
+        ? ZERO_BD
+        : null
   trade.makerOutputTokenDeltaPar = makerOutputAccountUpdate !== null && makerOutputAccountUpdate.deltaPar.lt(ZERO_BD)
     ? makerOutputAccountUpdate.deltaPar
     : makerInputAccountUpdate !== null && makerInputAccountUpdate.deltaPar.lt(ZERO_BD)
       ? makerInputAccountUpdate.deltaPar
-      : null
+      : makerInputAccountUpdate !== null && makerOutputAccountUpdate !== null
+        ? ZERO_BD
+        : null
 
   updateAndSaveVolumeForTrade(trade, dolomiteMargin, makerToken, takerToken)
 
