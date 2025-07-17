@@ -1,0 +1,40 @@
+{
+  "data": {
+    "polOutput": {
+      "trades": [
+        {
+          "takerInputTokenDeltaPar": "-99.232204541517855725",
+          "takerOutputTokenDeltaPar": "99.232204541517855725",
+          "makerInputTokenDeltaPar": null,
+          "makerOutputTokenDeltaPar": null,
+          "takerTokenDeltaWei": "100",
+          "makerTokenDeltaWei": "99.232204541517855725"
+        }
+      ]
+    },
+    "polInput": {
+      "trades": [
+        {
+          "takerInputTokenDeltaPar": "-59.97",
+          "takerOutputTokenDeltaPar": "-59.97",
+          "makerInputTokenDeltaPar": "59.97",
+          "makerOutputTokenDeltaPar": "59.97",
+          "takerTokenDeltaWei": "59.97",
+          "makerTokenDeltaWei": "60.433981821431124759"
+        }
+      ]
+    },
+    "rUsdInput": {
+      "trades": [
+        {
+          "takerInputTokenDeltaPar": "-49613.993135420339243562",
+          "takerOutputTokenDeltaPar": "46311.47025021850877952",
+          "makerInputTokenDeltaPar": null,
+          "makerOutputTokenDeltaPar": null,
+          "takerTokenDeltaWei": "50000",
+          "makerTokenDeltaWei": "46311.47025021850877952"
+        }
+      ]
+    }
+  }
+}
