@@ -49,6 +49,7 @@ type DolomiteMargin @entity {
   totalTradeVolumeUSD: BigDecimal!
   totalVaporizationVolumeUSD: BigDecimal!
   totalZapVolumeUSD: BigDecimal!
+  totalVolumeUSD: BigDecimal! # volume where `isVirtualTransfer = false`
 
   userCount: BigInt!
   marginPositionCount: BigInt!
@@ -92,6 +93,8 @@ type Token @entity {
   # token specific volume
   tradeVolume: BigDecimal!
   tradeVolumeUSD: BigDecimal!
+  volume: BigDecimal! # volume where `isVirtualTransfer = false`
+  volumeUSD: BigDecimal! # volume where `isVirtualTransfer = false`
 
   # transactions across all pairs
   transactionCount: BigInt!

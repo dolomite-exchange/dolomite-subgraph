@@ -12,6 +12,7 @@ import {
 import { ValueStruct } from './margin-types'
 import { ONE_BI, TEN_BI, ZERO_BD, ZERO_BI } from '../generated/constants'
 import { getOrCreateInterestIndexSnapshotAndReturnId } from './helpers'
+import { createUserIfNecessary } from './user-helpers'
 
 export function convertStructToDecimalAppliedValue(struct: ValueStruct, exchangeDecimals: BigInt): BigDecimal {
   let value = struct.sign ? struct.value : struct.value.neg()
@@ -28,6 +29,8 @@ export function createLiquidityPosition(exchange: Address, userAddress: Address)
 
   let liquidityTokenBalance = AmmLiquidityPosition.load(positionID)
   if (liquidityTokenBalance === null) {
+    createUserIfNecessary(userAddress)
+
     let pair = AmmPair.load(exchange.toHexString()) as AmmPair
     pair.liquidityProviderCount = pair.liquidityProviderCount.plus(ONE_BI)
 

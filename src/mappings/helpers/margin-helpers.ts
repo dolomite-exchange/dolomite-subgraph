@@ -218,6 +218,7 @@ export function getOrCreateDolomiteMarginForCall(
     dolomiteMargin.totalTradeVolumeUSD = ZERO_BD
     dolomiteMargin.totalVaporizationVolumeUSD = ZERO_BD
     dolomiteMargin.totalZapVolumeUSD = ZERO_BD
+    dolomiteMargin.totalVolumeUSD = ZERO_BD
 
     dolomiteMargin.lastTransactionHash = ZERO_BYTES
 
@@ -511,11 +512,15 @@ export function changeProtocolBalanceApplied(
 
   if (!isVirtualTransfer) {
     // the balance change affected the ERC20.balanceOf(protocol)
+    let deltaWeiUSD = absBD(deltaWei.times(tokenPriceUSD))
     if (deltaWei.gt(ZERO_BD)) {
       // funds moved into DolomiteMargin
-      let deltaWeiUSD = deltaWei.times(tokenPriceUSD)
       dolomiteMargin.totalSupplyVolumeUSD = dolomiteMargin.totalSupplyVolumeUSD.plus(deltaWeiUSD)
     }
+
+    dolomiteMargin.totalVolumeUSD = dolomiteMargin.totalVolumeUSD.plus(deltaWeiUSD)
+    token.volume = token.volume.plus(absBD(deltaWei))
+    token.volumeUSD = token.volumeUSD.plus(deltaWeiUSD)
   }
 
   dolomiteMargin.save()

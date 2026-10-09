@@ -95,6 +95,8 @@ export function initializeToken(token: Token, marketId: BigInt): void {
   token.derivedETH = ZERO_BD
   token.tradeVolume = ZERO_BD
   token.tradeVolumeUSD = ZERO_BD
+  token.volume = ZERO_BD
+  token.volumeUSD = ZERO_BD
   token.ammTradeLiquidity = ZERO_BD
   token.borrowLiquidity = ZERO_BD
   token.borrowLiquidityUSD = ZERO_BD
