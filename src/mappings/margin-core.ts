@@ -763,21 +763,29 @@ function _handleTradeInternal(
   }
 
 
-  trade.takerToken = inputToken.id
-  trade.makerToken = outputToken.id
+  // The taker normally gives up the input market and receives the output market. A trade can also run the other way,
+  // with the taker RECEIVING the input market (seen on an Expiry LogTrade), so every taker/maker field is chosen from
+  // this one flag: the tokens, interest indexes, amounts, USD values and par deltas must all describe the same side.
+  // Previously the amounts and USD values flipped on `takerInputDeltaWei.lt(ZERO_BD)` while the tokens were always
+  // saved as input/output, so a reversed trade, or a sell of 0 input, stored each amount under the other token (e.g. an
+  // 18-decimal WETH amount under 6-decimal USDC.e). A zero input delta is not a reversal: the taker gave 0 of the input.
+  let isReversed = takerInputDeltaWei.gt(ZERO_BD)
+  let takerToken = isReversed ? outputToken : inputToken
+  let makerToken = isReversed ? inputToken : outputToken
 
-  trade.takerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(inputIndex)
-  trade.makerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(outputIndex)
+  trade.takerToken = takerToken.id
+  trade.makerToken = makerToken.id
 
-  let takerToken = takerInputDeltaWei.lt(ZERO_BD) ? inputToken : outputToken
-  let makerToken = takerInputDeltaWei.lt(ZERO_BD) ? outputToken : inputToken
-  trade.takerTokenDeltaWei = takerInputDeltaWei.lt(ZERO_BD)
-    ? absBD(takerInputDeltaWei)
-    : absBD(takerOutputDeltaWei)
+  trade.takerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(isReversed ? outputIndex : inputIndex)
+  trade.makerInterestIndex = getOrCreateInterestIndexSnapshotAndReturnId(isReversed ? inputIndex : outputIndex)
 
-  trade.makerTokenDeltaWei = takerInputDeltaWei.lt(ZERO_BD)
+  trade.takerTokenDeltaWei = isReversed
     ? absBD(takerOutputDeltaWei)
     : absBD(takerInputDeltaWei)
+
+  trade.makerTokenDeltaWei = isReversed
+    ? absBD(takerInputDeltaWei)
+    : absBD(takerOutputDeltaWei)
 
   trade.amountUSD = trade.takerTokenDeltaWei
     .times(getTokenOraclePriceUSD(takerToken, event, ProtocolType.Core))
@@ -791,8 +799,9 @@ function _handleTradeInternal(
     trade.liquidationType = TradeLiquidationType.EXPIRATION
   }
 
-  trade.takerInputTokenDeltaPar = takerInputAccountUpdate.deltaPar.lt(ZERO_BD) ? takerInputAccountUpdate.deltaPar : takerOutputAccountUpdate.deltaPar
-  trade.takerOutputTokenDeltaPar = takerOutputAccountUpdate.deltaPar.gt(ZERO_BD) ? takerOutputAccountUpdate.deltaPar : takerInputAccountUpdate.deltaPar
+  // Same flag as the tokens: takerInput is the taker's par change in `takerToken`, takerOutput in `makerToken`.
+  trade.takerInputTokenDeltaPar = isReversed ? takerOutputAccountUpdate.deltaPar : takerInputAccountUpdate.deltaPar
+  trade.takerOutputTokenDeltaPar = isReversed ? takerInputAccountUpdate.deltaPar : takerOutputAccountUpdate.deltaPar
   trade.makerInputTokenDeltaPar = makerInputAccountUpdate !== null && makerInputAccountUpdate.deltaPar.gt(ZERO_BD)
     ? makerInputAccountUpdate.deltaPar
     : makerOutputAccountUpdate !== null && makerOutputAccountUpdate.deltaPar.gt(ZERO_BD)
