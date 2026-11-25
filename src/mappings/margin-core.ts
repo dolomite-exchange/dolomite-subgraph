@@ -186,8 +186,8 @@ export function handleDeposit(event: DepositEvent): void {
   deposit.amountUSDDeltaWei = deposit.amountDeltaWei.times(getTokenOraclePriceUSD(token, event, ProtocolType.Core))
     .truncate(USD_PRECISION)
 
-  dolomiteMargin.totalSupplyVolumeUSD = dolomiteMargin.totalSupplyVolumeUSD.plus(deposit.amountUSDDeltaWei)
-
+  // No direct add to `totalSupplyVolumeUSD` here: changeProtocolBalance below counts the deposit as funds
+  // moving into DolomiteMargin, and adding it here as well counted every deposit twice.
   let isVirtualTransfer = false
   changeProtocolBalance(
     event,
